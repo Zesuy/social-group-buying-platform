@@ -1297,3 +1297,227 @@ MVP 展示范围：
 | 积分商城 | P2 | 不设计积分账户和兑换 |
 | 公众号推送 | P2 | 不设计真实触达 |
 | 平台管理后台 | P2 | 不设计后台 API |
+
+---
+
+## 16. 核心时序图
+
+本章节只描述 MVP 范围内的 API 调用、服务端处理、数据表写入和状态变化。
+
+### 16.1 模拟登录与获取当前用户信息
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant A as Auth API
+    participant U as users
+    participant L as leaders
+    participant S as stores
+
+    C->>A: POST /api/v1/auth/mock-login
+    A->>U: 查找或创建用户
+    U-->>A: user
+    A-->>C: accessToken + user
+
+    C->>A: GET /api/v1/me
+    A->>U: 查询当前用户
+    A->>L: 查询用户的团长身份
+    A->>S: 查询团长的店铺
+    A-->>C: user + leader + store
+```
+
+### 16.2 创建店铺并激活团长身份
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as Store API
+    participant U as users
+    participant L as leaders
+    participant S as stores
+
+    C->>API: POST /api/v1/stores
+    API->>U: 根据 token 获取当前用户
+    API->>L: 检查当前用户是否已有 leader
+    alt 无 leader
+        API->>L: 创建 leader
+    else 已有 leader
+        L-->>API: leader
+    end
+    API->>S: 检查该 leader 是否已有 store
+    alt 已有 store
+        API-->>C: STORE_ALREADY_EXISTS
+    else 无 store
+        API->>S: 创建 store(status=active)
+        API-->>C: leader + store
+    end
+```
+
+### 16.3 发布普通团购
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as GroupBuy API
+    participant S as stores
+    participant G as group_buys
+    participant P as products
+    participant GI as group_buy_items
+
+    C->>API: POST /api/v1/my/store/group-buys
+    API->>S: 根据 token 查询当前团长自己的店铺
+    API->>API: 开启数据库事务
+    API->>API: 校验 groupType=normal 且 groupStock >= 0
+    alt 参数不合法
+        API->>API: 回滚事务
+        API-->>C: VALIDATION_ERROR
+    else 参数合法
+        API->>G: 创建 group_buy(status=published, groupType=normal)
+        loop items
+            alt item 内联 product
+                API->>P: 创建 product(basePriceAmount, stock)
+            else item 复用 productId
+                API->>P: 校验 product 属于当前店铺
+            end
+            alt 商品校验失败或不属于当前店铺
+                API->>API: 回滚事务
+                API-->>C: STORE_FORBIDDEN 或 VALIDATION_ERROR
+            else 商品校验通过
+                API->>GI: 创建 group_buy_item(groupPriceAmount, groupStock, soldCount=0)
+            end
+        end
+        API->>API: 提交事务
+        API-->>C: groupBuy + items
+    end
+```
+
+### 16.4 下单预览与创建订单
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as Order API
+    participant G as group_buys
+    participant GI as group_buy_items
+    participant A as addresses
+    participant O as orders
+    participant OI as order_items
+
+    C->>API: POST /api/v1/orders/preview
+    API->>G: 校验团购 status=published 且未结束
+    API->>GI: 校验 groupBuyItem 属于该团购
+    API->>A: 校验 address 属于当前用户
+    API->>GI: 校验 groupStock >= quantity
+    API->>API: 计算 totalAmount, discountAmount=0, payAmount
+    Note over API: 预览不创建订单、不写 order_items、不扣库存
+    API-->>C: address + items + totalAmount + discountAmount=0 + payAmount
+
+    C->>API: POST /api/v1/orders
+    API->>G: 再次校验团购可购买
+    API->>GI: 再次校验商品归属和库存
+    API->>API: 开启数据库事务
+    API->>A: 读取地址并生成 receiver/fullAddress 快照
+    API->>O: 创建订单(orderStatus=pendingPay, payStatus=unpaid)
+    API->>OI: 写入商品名称、规格、单价、数量快照
+    Note over API,GI: 创建订单阶段不扣减 groupStock
+    API->>API: 提交事务
+    API-->>C: order
+```
+
+### 16.5 模拟支付
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as Order API
+    participant O as orders
+    participant OI as order_items
+    participant GI as group_buy_items
+    participant M as member_relations
+
+    C->>API: POST /api/v1/orders/{orderId}/simulate-pay
+    API->>O: 查询订单并校验归属当前用户
+    alt 订单已支付
+        API-->>C: ORDER_ALREADY_PAID 或当前订单
+    else 订单不是 pendingPay/unpaid
+        API-->>C: ORDER_NOT_PAYABLE
+    else orderStatus=pendingPay 且 payStatus=unpaid
+        API->>OI: 查询订单明细
+        API->>API: 开启数据库事务
+        loop order_items
+            API->>GI: 锁定对应 group_buy_item
+            API->>GI: 校验 groupStock >= quantity
+            alt 库存不足
+                API->>API: 回滚事务
+                API-->>C: INSUFFICIENT_STOCK，订单保持未支付
+            else 库存充足
+                API->>GI: groupStock -= quantity, soldCount += quantity
+            end
+        end
+        API->>O: payStatus=paid, orderStatus=paid, paidAt=now
+        alt 首次支付该店铺订单
+            API->>M: 创建 memberRelation(levelName=V0)
+        else 已有会员关系
+            API->>M: 更新 totalOrderAmount, totalOrders, lastOrderAt
+        end
+        API->>API: 提交事务
+        API-->>C: order(payStatus=paid, orderStatus=paid)
+    end
+```
+
+### 16.6 团长发货
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as Store Order API
+    participant S as stores
+    participant O as orders
+    participant SH as shipments
+
+    C->>API: POST /api/v1/my/store/orders/{orderId}/ship
+    API->>S: 根据 token 查询当前团长自己的店铺
+    API->>O: 查询订单并校验属于当前店铺
+    alt 订单不属于当前店铺
+        API-->>C: STORE_FORBIDDEN
+    else 订单属于当前店铺
+        API->>O: 校验 orderStatus
+        alt orderStatus=shipped
+            API-->>C: ORDER_ALREADY_SHIPPED 或当前发货结果
+        else orderStatus 不是 paid
+            API-->>C: ORDER_NOT_SHIPPABLE
+        else orderStatus=paid
+            API->>API: 开启数据库事务
+            API->>SH: 创建 shipment(deliveryType, logisticsCompany, trackingNo)
+            API->>O: orderStatus=shipped, shippedAt=now
+            API->>API: 提交事务
+            API-->>C: order + shipment
+        end
+    end
+```
+
+### 16.7 订阅与取消订阅团长
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as Subscription API
+    participant L as leaders
+    participant SUB as subscriptions
+
+    C->>API: POST /api/v1/leaders/{leaderId}/subscription
+    API->>L: 校验 leader 存在
+    API->>SUB: 创建或恢复订阅(status=active)
+    API-->>C: subscription(status=active)
+
+    C->>API: DELETE /api/v1/leaders/{leaderId}/subscription
+    API->>SUB: 更新 status=canceled, canceledAt=now
+    API-->>C: data=null
+```
