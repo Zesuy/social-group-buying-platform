@@ -1,0 +1,6 @@
+/home/zesuy/work/Engnerring_train-dev1/backend/src/test/java/com/example/groupshop/common/ValidationErrorTest.java
+/home/zesuy/work/Engnerring_train-dev1/backend/src/test/java/com/example/groupshop/base/ServiceTestBase.java
+/home/zesuy/work/Engnerring_train-dev1/backend/src/test/java/com/example/groupshop/base/MockMvcTestBase.java
+/home/zesuy/work/Engnerring_train-dev1/backend/src/test/java/com/example/groupshop/common/ErrorResponseTest.java
+/home/zesuy/work/Engnerring_train-dev1/backend/src/test/java/com/example/groupshop/GroupshopApplicationTests.java
+/home/zesuy/work/Engnerring_train-dev1/backend/src/test/java/com/example/groupshop/migration/FlywayMigrationTest.java

@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/groupshop_dev?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
+    username: root
+    password: root
+  flyway:
+    clean-disabled: false
+
+logging:
+  level:
+    com.example.groupshop: DEBUG
