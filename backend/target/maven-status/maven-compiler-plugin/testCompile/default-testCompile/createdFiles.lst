@@ -1,6 +1,8 @@
 com/example/groupshop/migration/FlywayMigrationTest.class
+com/example/groupshop/auth/AuthControllerTest.class
 com/example/groupshop/common/ErrorResponseTest.class
 com/example/groupshop/common/ValidationErrorTest.class
 com/example/groupshop/GroupshopApplicationTests.class
 com/example/groupshop/base/ServiceTestBase.class
+com/example/groupshop/auth/AuthServiceTest.class
 com/example/groupshop/base/MockMvcTestBase.class

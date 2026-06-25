@@ -3,6 +3,7 @@ package com.example.groupshop.common.exception;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -124,7 +125,8 @@ public class GlobalExceptionHandler {
      * Handle business exceptions with their specific error codes and HTTP status.
      */
     @ExceptionHandler(BusinessException.class)
-    public ApiResponse<Void> handleBusiness(BusinessException ex) {
+    public ApiResponse<Void> handleBusiness(BusinessException ex, HttpServletResponse response) {
+        response.setStatus(ex.getHttpStatus());
         return buildErrorResponse(ex.getHttpStatus(), ex.getCode(), ex.getMessage(), ex.getDetails());
     }
 
