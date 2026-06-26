@@ -17,6 +17,7 @@ class ErrorResponseTest extends MockMvcTestBase {
     void healthCheck_shouldReturnSuccess() throws Exception {
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/health"))
                 .andExpect(status().isOk())
+                .andExpect(contractResult())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.status").value("UP"))
                 .andExpect(jsonPath("$.data.timestamp").exists())

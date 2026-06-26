@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.example.groupshop.migration.FlywayMigrationTest" time="0.055" tests="18" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.example.groupshop.contract.OpenApiContractTest" time="0.009" tests="1" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -60,26 +60,5 @@
     <property name="java.class.version" value="65.0"/>
     <property name="LOGGED_APPLICATION_NAME" value="[groupshop] "/>
   </properties>
-  <testcase name="groupBuysTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.006">
-    <system-out><![CDATA[2026-06-25T15:12:32.137+08:00  INFO 15818 --- [groupshop] [           main] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.example.groupshop.migration.FlywayMigrationTest]: FlywayMigrationTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-2026-06-25T15:12:32.141+08:00  INFO 15818 --- [groupshop] [           main] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.example.groupshop.GroupshopApplication for test class com.example.groupshop.migration.FlywayMigrationTest
-]]></system-out>
-  </testcase>
-  <testcase name="memberRelationsTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="storesHasUniqueConstraintOnLeaderId" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.004"/>
-  <testcase name="memberRelationsHasUniqueConstraintOnUserAndStore" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="allExpectedTablesExist" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.003"/>
-  <testcase name="subscriptionsTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="ordersTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="leadersTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="addressesTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.001"/>
-  <testcase name="subscriptionsHasUniqueConstraintOnUserAndLeader" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="productsTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.001"/>
-  <testcase name="usersTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.001"/>
-  <testcase name="groupBuyItemsTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.001"/>
-  <testcase name="orderItemsTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="ordersHasUniqueConstraintOnOrderNo" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="leadersHasUniqueConstraintOnUserId" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.001"/>
-  <testcase name="storesTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
-  <testcase name="shipmentsTable_hasRequiredColumns" classname="com.example.groupshop.migration.FlywayMigrationTest" time="0.002"/>
+  <testcase name="openApiContract_shouldBeLoadable" classname="com.example.groupshop.contract.OpenApiContractTest" time="0.009"/>
 </testsuite>

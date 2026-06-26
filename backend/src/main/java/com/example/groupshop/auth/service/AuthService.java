@@ -90,19 +90,20 @@ public class AuthService {
             return null;
         }
 
-        CurrentUserResponse.CurrentUserResponseBuilder builder = CurrentUserResponse.builder()
-                .user(CurrentUserResponse.UserSummary.builder()
-                        .id(user.getId())
-                        .nickname(user.getNickname())
-                        .avatarUrl(user.getAvatarUrl())
-                        .phone(user.getPhone())
-                        .build());
+        // Check leader/store status
+        boolean hasLeader = false;
+        Long leaderId = null;
+        Long storeId = null;
+
+        CurrentUserResponse.CurrentUserResponseBuilder builder = CurrentUserResponse.builder();
 
         // Load leader if exists
         Leader leader = leaderMapper.selectOne(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Leader>()
                         .eq(Leader::getUserId, userId));
         if (leader != null) {
+            hasLeader = true;
+            leaderId = leader.getId();
             builder.leader(CurrentUserResponse.LeaderSummary.builder()
                     .id(leader.getId())
                     .displayName(leader.getDisplayName())
@@ -117,6 +118,7 @@ public class AuthService {
                     new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<Store>()
                             .eq(Store::getLeaderId, leader.getId()));
             if (store != null) {
+                storeId = store.getId();
                 builder.store(CurrentUserResponse.StoreSummary.builder()
                         .id(store.getId())
                         .name(store.getName())
@@ -126,6 +128,17 @@ public class AuthService {
                         .build());
             }
         }
+
+        // Rebuild user summary with leader/store info
+        builder.user(CurrentUserResponse.UserSummary.builder()
+                .id(user.getId())
+                .nickname(user.getNickname())
+                .avatarUrl(user.getAvatarUrl())
+                .phone(user.getPhone())
+                .hasLeader(hasLeader)
+                .leaderId(leaderId)
+                .storeId(storeId)
+                .build());
 
         return builder.build();
     }

@@ -28,6 +28,7 @@ class AuthControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.user.id").isNumber())
@@ -59,6 +60,7 @@ class AuthControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.data.user.id").isNumber())
@@ -76,6 +78,7 @@ class AuthControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.user.nickname").value("用户0001"));
     }
@@ -128,6 +131,7 @@ class AuthControllerTest extends MockMvcTestBase {
         mockMvc.perform(get(ME_URL)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
+                .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.user.id").isNumber())
                 .andExpect(jsonPath("$.data.user.nickname").value("当前用户"))
@@ -148,6 +152,7 @@ class AuthControllerTest extends MockMvcTestBase {
         mockMvc.perform(get(ME_URL)
                         .header("Authorization", "Bearer invalid_token_xxx"))
                 .andExpect(status().isUnauthorized())
+                .andExpect(contractResult())
                 .andExpectAll(errorResult("UNAUTHORIZED"));
     }
 
@@ -156,6 +161,7 @@ class AuthControllerTest extends MockMvcTestBase {
         mockMvc.perform(get(ME_URL)
                         .header("Authorization", "Bearer "))
                 .andExpect(status().isUnauthorized())
+                .andExpect(contractResult())
                 .andExpectAll(errorResult("UNAUTHORIZED"));
     }
 

@@ -1,0 +1,332 @@
+openapi: 3.0.3
+info:
+  title: GroupShop MVP API
+  version: 0.1.0
+  description: Machine-checkable API contract for implemented MVP batches.
+servers:
+  - url: /
+tags:
+  - name: Health
+  - name: Auth
+paths:
+  /api/v1/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Application health status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthSuccessResponse'
+  /api/v1/auth/mock-login:
+    post:
+      tags:
+        - Auth
+      summary: Mock login for MVP development.
+      operationId: mockLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MockLoginRequest'
+      responses:
+        '200':
+          description: Login succeeded and an access token was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockLoginSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current user context.
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user, with optional leader and store summaries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Authentication is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    HealthSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/HealthData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    MockLoginSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/MockLoginData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    CurrentUserSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/CurrentUserData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - false
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          minLength: 1
+        message:
+          type: string
+          minLength: 1
+        details:
+          type: object
+          nullable: true
+      additionalProperties: false
+    HealthData:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum:
+            - UP
+        timestamp:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    MockLoginRequest:
+      type: object
+      required:
+        - phone
+      properties:
+        phone:
+          type: string
+          minLength: 1
+        nickname:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+      additionalProperties: false
+    MockLoginData:
+      type: object
+      required:
+        - accessToken
+        - user
+      properties:
+        accessToken:
+          type: string
+          minLength: 1
+        user:
+          $ref: '#/components/schemas/MockLoginUser'
+      additionalProperties: false
+    MockLoginUser:
+      type: object
+      required:
+        - id
+        - nickname
+        - phone
+        - hasLeader
+      properties:
+        id:
+          type: integer
+          format: int64
+        nickname:
+          type: string
+          minLength: 1
+        avatarUrl:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          minLength: 1
+        hasLeader:
+          type: boolean
+        leaderId:
+          type: integer
+          format: int64
+          nullable: true
+        storeId:
+          type: integer
+          format: int64
+          nullable: true
+      additionalProperties: false
+    CurrentUserData:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/CurrentUserSummary'
+        leader:
+          $ref: '#/components/schemas/LeaderSummary'
+        store:
+          $ref: '#/components/schemas/StoreSummary'
+      additionalProperties: false
+    CurrentUserSummary:
+      type: object
+      required:
+        - id
+        - nickname
+        - phone
+        - hasLeader
+      properties:
+        id:
+          type: integer
+          format: int64
+        nickname:
+          type: string
+          minLength: 1
+        avatarUrl:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          minLength: 1
+        hasLeader:
+          type: boolean
+        leaderId:
+          type: integer
+          format: int64
+          nullable: true
+        storeId:
+          type: integer
+          format: int64
+          nullable: true
+      additionalProperties: false
+    LeaderSummary:
+      type: object
+      required:
+        - id
+        - displayName
+        - memberCount
+        - followerCount
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+          minLength: 1
+        avatarUrl:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        memberCount:
+          type: integer
+          minimum: 0
+        followerCount:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    StoreSummary:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+        logoUrl:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        defaultDeliveryType:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          minLength: 1
+      additionalProperties: false

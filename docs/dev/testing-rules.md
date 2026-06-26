@@ -21,6 +21,21 @@ MockMvc 必须覆盖：
 | 公开接口 | 未登录可访问 |
 | 私有接口 | 未登录、非资源所有者、非团长身份 |
 
+## 2.1 API 契约校验
+
+`docs/openapi/groupshop-api.yaml` 是机器可校验的 API 契约源，必须与 `docs/API设计.md`、实现和联调文档保持一致。
+
+| 场景 | 要求 |
+|---|---|
+| 每个 batch | 只追加或修改本批已实现接口，不提前加入后续 batch 接口 |
+| Controller 测试 | 合法业务请求必须追加 OpenAPI 契约校验 |
+| 故意非法请求 | 继续断言统一错误响应；非法请求本身不作为符合请求 schema 的交互 |
+| 契约文件 | 必须能被 OpenAPI 校验器加载 |
+| 完成输出 | 增加 `API 契约校验结果`，说明契约是否通过、是否修改契约 |
+| 区分合法请求 vs 非法请求 | `contractResult()` 只加在结构合法的请求上（即请求体、认证头格式符合 OpenAPI schema）；故意传入缺失字段、错误认证 scheme、不兼容类型的请求，不加 `contractResult()`（因为请求本身不匹配 request schema，校验器没有比对依据） |
+
+**合法请求 + 业务错误**（例如 valid token 但无权限）→ 加 `contractResult()`，因为请求结构合法，只是业务校验不通过。**非法请求**（例如缺少必填字段、空 phone、没有 Authorization 头、Basic 而非 Bearer）→ 不加 `contractResult()`。
+
 ## 3. Service 单元测试
 
 | Service | 必测规则 |

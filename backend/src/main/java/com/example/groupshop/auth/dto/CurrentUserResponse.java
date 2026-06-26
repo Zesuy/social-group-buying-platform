@@ -29,6 +29,9 @@ public class CurrentUserResponse {
         private String nickname;
         private String avatarUrl;
         private String phone;
+        private Boolean hasLeader;
+        private Long leaderId;
+        private Long storeId;
     }
 
     @Data

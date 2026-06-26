@@ -7,6 +7,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultMatcher;
 
+import java.nio.file.Path;
+
+import static com.atlassian.oai.validator.mockmvc.OpenApiValidationMatchers.openApi;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 /**
@@ -19,6 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public abstract class MockMvcTestBase {
+
+    private static final String OPENAPI_CONTRACT_PATH = Path.of(
+            "..", "docs", "openapi", "groupshop-api.yaml"
+    ).toAbsolutePath().normalize().toString();
 
     @Autowired
     protected MockMvc mockMvc;
@@ -45,5 +52,12 @@ public abstract class MockMvcTestBase {
             jsonPath("$.error.message").exists().match(result);
             jsonPath("$.traceId").exists().match(result);
         };
+    }
+
+    /**
+     * Assert that the request and response match the batch API contract.
+     */
+    protected ResultMatcher contractResult() {
+        return openApi().isValid(OPENAPI_CONTRACT_PATH);
     }
 }
