@@ -30,6 +30,16 @@ public abstract class MockMvcTestBase {
     @Autowired
     protected MockMvc mockMvc;
 
+    // ── Token helpers ────────────────────────────────────────────────
+
+    /**
+     * Extract the access token from a mock-login response body.
+     * The response body is the raw JSON string returned by MockMvc.
+     */
+    protected String extractToken(String responseBody) {
+        return responseBody.split("\"accessToken\":\"")[1].split("\"")[0];
+    }
+
     // ── Common response matchers ───────────────────────────────────
 
     /**

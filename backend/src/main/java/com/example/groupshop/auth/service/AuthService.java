@@ -125,6 +125,7 @@ public class AuthService {
                         .logoUrl(store.getLogoUrl())
                         .description(store.getDescription())
                         .defaultDeliveryType(store.getDefaultDeliveryType())
+                        .status(store.getStatus())
                         .build());
             }
         }

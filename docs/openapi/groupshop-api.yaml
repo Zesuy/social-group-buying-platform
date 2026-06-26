@@ -1,13 +1,14 @@
 openapi: 3.0.3
 info:
   title: GroupShop MVP API
-  version: 0.1.0
+  version: 0.2.0
   description: Machine-checkable API contract for implemented MVP batches.
 servers:
   - url: /
 tags:
   - name: Health
   - name: Auth
+  - name: Store
 paths:
   /api/v1/health:
     get:
@@ -60,6 +61,76 @@ paths:
                 $ref: '#/components/schemas/CurrentUserSuccessResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/stores:
+    post:
+      tags:
+        - Store
+      summary: Create a store for the current user.
+      operationId: createStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStoreRequest'
+      responses:
+        '200':
+          description: Store created successfully, along with leader info.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '409':
+          $ref: '#/components/responses/StoreAlreadyExistsError'
+  /api/v1/my/store:
+    get:
+      tags:
+        - Store
+      summary: Get the current user's store.
+      operationId: getMyStore
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user's store, or success with no data if no store exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyStoreSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    patch:
+      tags:
+        - Store
+      summary: Partial update the current user's store.
+      operationId: updateMyStore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStoreRequest'
+      responses:
+        '200':
+          description: Store updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
 components:
   securitySchemes:
     bearerAuth:
@@ -74,6 +145,18 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     UnauthorizedError:
       description: Authentication is missing or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    StoreAlreadyExistsError:
+      description: The current user already has a store.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    LeaderRequiredError:
+      description: The current operation requires a leader/store identity.
       content:
         application/json:
           schema:
@@ -126,6 +209,40 @@ components:
             - true
         data:
           $ref: '#/components/schemas/CurrentUserData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    StoreSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/StoreResponseData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    MyStoreSuccessResponse:
+      type: object
+      required:
+        - success
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/StoreResponseData'
+          nullable: true
         traceId:
           type: string
           minLength: 1
@@ -326,6 +443,112 @@ components:
         defaultDeliveryType:
           type: string
           minLength: 1
+        status:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    # ── Store request schemas ─────────────────────────────────────────
+    CreateStoreRequest:
+      type: object
+      required:
+        - name
+        - defaultDeliveryType
+      properties:
+        name:
+          type: string
+          minLength: 1
+        logoUrl:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        defaultDeliveryType:
+          type: string
+          enum:
+            - express
+            - pickup
+            - local_delivery
+      additionalProperties: false
+    UpdateStoreRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        logoUrl:
+          type: string
+          minLength: 1
+          nullable: true
+        description:
+          type: string
+          minLength: 1
+          nullable: true
+        defaultDeliveryType:
+          type: string
+          enum:
+            - express
+            - pickup
+            - local_delivery
+      additionalProperties: false
+    # ── Store response schemas ────────────────────────────────────────
+    StoreResponseData:
+      type: object
+      required:
+        - leader
+        - store
+      properties:
+        leader:
+          $ref: '#/components/schemas/LeaderInfo'
+        store:
+          $ref: '#/components/schemas/StoreInfo'
+      additionalProperties: false
+    LeaderInfo:
+      type: object
+      required:
+        - id
+        - displayName
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+          minLength: 1
+        avatarUrl:
+          type: string
+          nullable: true
+      additionalProperties: false
+    StoreInfo:
+      type: object
+      required:
+        - id
+        - leaderId
+        - name
+        - defaultDeliveryType
+        - distributionEnabled
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        leaderId:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+        logoUrl:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        defaultDeliveryType:
+          type: string
+          minLength: 1
+        distributionEnabled:
+          type: boolean
         status:
           type: string
           minLength: 1
