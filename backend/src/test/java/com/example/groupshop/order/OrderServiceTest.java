@@ -15,8 +15,12 @@ import com.example.groupshop.model.entity.Leader;
 import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.entity.User;
 import com.example.groupshop.model.entity.GroupBuyItem;
+import com.example.groupshop.model.entity.MemberRelation;
+import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.LeaderMapper;
+import com.example.groupshop.model.mapper.MemberRelationMapper;
+import com.example.groupshop.model.mapper.OrderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserMapper;
 import com.example.groupshop.order.dto.CreateOrderRequest;
@@ -29,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,8 +66,15 @@ class OrderServiceTest extends ServiceTestBase {
     @Autowired
     private GroupBuyItemMapper groupBuyItemMapper;
 
+    @Autowired
+    private MemberRelationMapper memberRelationMapper;
+
+    @Autowired
+    private OrderMapper orderMapper;
+
     private Long userId;
     private Long leaderId;
+    private Long leaderUserId;
     private Long storeId;
     private Long groupBuyId;
     private Long groupBuyItemId;
@@ -76,6 +88,8 @@ class OrderServiceTest extends ServiceTestBase {
         leaderUser.setPhone("13800009901");
         leaderUser.setStatus("normal");
         userMapper.insert(leaderUser);
+
+        leaderUserId = leaderUser.getId();
 
         Leader leader = new Leader();
         leader.setUserId(leaderUser.getId());
@@ -303,5 +317,140 @@ class OrderServiceTest extends ServiceTestBase {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ORDER_NOT_CANCELABLE);
+    }
+
+    // ── Simulate Pay (Batch 07) ────────────────────────────────────────
+
+    private OrderResponse createOneOrder() {
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(2);
+        request.setItems(List.of(entry));
+        return orderService.createOrder(userId, request);
+    }
+
+    @Test
+    void simulatePay_shouldSucceed() {
+        OrderResponse order = createOneOrder();
+
+        OrderResponse paid = orderService.simulatePay(userId, order.getId());
+
+        assertThat(paid.getPayStatus()).isEqualTo("paid");
+        assertThat(paid.getOrderStatus()).isEqualTo("paid");
+        assertThat(paid.getPaidAt()).isNotNull();
+
+        // Stock deducted
+        GroupBuyItem reloaded = groupBuyItemMapper.selectById(groupBuyItemId);
+        assertThat(reloaded.getGroupStock()).isEqualTo(98); // 100 - 2
+        assertThat(reloaded.getSoldCount()).isEqualTo(2);
+
+        // Member relation created
+        MemberRelation relation = memberRelationMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MemberRelation>()
+                        .eq(MemberRelation::getUserId, userId)
+                        .eq(MemberRelation::getStoreId, storeId));
+        assertThat(relation).isNotNull();
+        assertThat(relation.getLevelName()).isEqualTo("V0");
+        assertThat(relation.getTotalOrders()).isEqualTo(1);
+        assertThat(relation.getTotalOrderAmount()).isEqualTo(3980L); // 1990 * 2
+        assertThat(relation.getGrowthValue()).isEqualTo(3980);
+    }
+
+    @Test
+    void simulatePay_shouldAccumulateMemberRelationOnSecondPay() {
+        OrderResponse order1 = createOneOrder();
+        orderService.simulatePay(userId, order1.getId());
+
+        OrderResponse order2 = createOneOrder();
+        orderService.simulatePay(userId, order2.getId());
+
+        MemberRelation relation = memberRelationMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MemberRelation>()
+                        .eq(MemberRelation::getUserId, userId)
+                        .eq(MemberRelation::getStoreId, storeId));
+        assertThat(relation.getTotalOrders()).isEqualTo(2);
+        assertThat(relation.getTotalOrderAmount()).isEqualTo(7960L); // 3980 + 3980
+        assertThat(relation.getGrowthValue()).isEqualTo(7960);
+    }
+
+    @Test
+    void simulatePay_shouldFailWhenAlreadyPaid() {
+        OrderResponse order = createOneOrder();
+        orderService.simulatePay(userId, order.getId());
+
+        assertThatThrownBy(() -> orderService.simulatePay(userId, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ORDER_ALREADY_PAID);
+    }
+
+    @Test
+    void simulatePay_shouldFailWhenNotPayable() {
+        OrderResponse order = createOneOrder();
+        orderService.cancelOrder(userId, order.getId());
+
+        assertThatThrownBy(() -> orderService.simulatePay(userId, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ORDER_NOT_PAYABLE);
+    }
+
+    @Test
+    void simulatePay_shouldFailWhenInsufficientStock() {
+        // Create order first (stock is 100, quantity is 2 — creation succeeds)
+        OrderResponse order = createOneOrder();
+
+        // Reduce stock after creation
+        GroupBuyItem item = groupBuyItemMapper.selectById(groupBuyItemId);
+        item.setGroupStock(1); // only 1 left, but order needs 2
+        groupBuyItemMapper.updateById(item);
+
+        assertThatThrownBy(() -> orderService.simulatePay(userId, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.INSUFFICIENT_STOCK);
+    }
+
+    @Test
+    void simulatePay_shouldRollbackOnStockFailure() {
+        // Create order first
+        OrderResponse order = createOneOrder();
+
+        // Drain stock after creation
+        GroupBuyItem item = groupBuyItemMapper.selectById(groupBuyItemId);
+        item.setGroupStock(0);
+        groupBuyItemMapper.updateById(item);
+
+        assertThatThrownBy(() -> orderService.simulatePay(userId, order.getId()))
+                .isInstanceOf(BusinessException.class);
+
+        // Order should remain unpaid after rollback
+        Order orderEntity = orderMapper.selectById(order.getId());
+        assertThat(orderEntity.getPayStatus()).isEqualTo("unpaid");
+        assertThat(orderEntity.getOrderStatus()).isEqualTo("pending_pay");
+    }
+
+    // ── Concurrent payment protection ─────────────────────────────────
+
+    @Test
+    void simulatePay_shouldRejectConcurrentDuplicateViaConditionalUpdate() {
+        OrderResponse order = createOneOrder();
+
+        // Simulate concurrent duplicate: another request already paid this order
+        Order concurrent = orderMapper.selectById(order.getId());
+        concurrent.setPayStatus("paid");
+        concurrent.setOrderStatus("paid");
+        concurrent.setPaidAt(LocalDateTime.now());
+        orderMapper.updateById(concurrent);
+
+        // Our request should now fail with ORDER_ALREADY_PAID,
+        // NOT silently double-pay
+        assertThatThrownBy(() -> orderService.simulatePay(userId, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ORDER_ALREADY_PAID);
     }
 }

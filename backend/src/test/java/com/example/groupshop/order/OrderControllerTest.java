@@ -380,4 +380,109 @@ class OrderControllerTest extends MockMvcTestBase {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpectAll(errorResult("ORDER_NOT_CANCELABLE"));
     }
+
+    // ── POST /api/v1/orders/{orderId}/simulate-pay ───────────────────────
+
+    @Test
+    void simulatePay_shouldSucceed() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": %d,
+                                    "addressId": %d,
+                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.payStatus").value("paid"))
+                .andExpect(jsonPath("$.data.orderStatus").value("paid"))
+                .andExpect(jsonPath("$.data.paidAt").isNotEmpty());
+    }
+
+    @Test
+    void simulatePay_shouldFailWhenAlreadyPaid() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": %d,
+                                    "addressId": %d,
+                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+
+        // Pay first
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                .header("Authorization", "Bearer " + buyerToken));
+
+        // Pay again
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isConflict())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("ORDER_ALREADY_PAID"));
+    }
+
+    @Test
+    void simulatePay_shouldFailWhenNotOwnOrder() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": %d,
+                                    "addressId": %d,
+                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+
+        // Leader tries to pay the buyer's order
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isNotFound())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
+    void simulatePay_shouldFailWhenOrderNotPayable() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": %d,
+                                    "addressId": %d,
+                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+
+        // Cancel first
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/cancel")
+                .header("Authorization", "Bearer " + buyerToken));
+
+        // Then try to pay
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("ORDER_NOT_PAYABLE"));
+    }
+
 }

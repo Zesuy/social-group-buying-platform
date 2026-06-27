@@ -163,12 +163,94 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
 
         mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/homepage"))
                 .andExpect(status().isOk())
-                
+
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.leader.id").value(leaderId))
                 .andExpect(jsonPath("$.data.store").exists())
                 .andExpect(jsonPath("$.data.viewer.subscribed").value(false))
                 .andExpect(jsonPath("$.data.groupBuys.items").isArray());
+    }
+
+    // ── Batch 09 backfill: authenticated viewer.subscribed ─────────────
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnRealSubscribedWhenAuthenticated() throws Exception {
+        Long gbId = createPublishedGroupBuy("已登录团购详情");
+
+        // Login as a viewer
+        String viewerToken = loginAndGetToken("13800012001");
+
+        // Get leader ID to subscribe
+        String meResponse = mockMvc.perform(get("/api/v1/me")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andReturn().getResponse().getContentAsString();
+        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+
+        // Subscribe to the leader
+        mockMvc.perform(post("/api/v1/leaders/{leaderId}/subscription", leaderId)
+                .header("Authorization", "Bearer " + viewerToken)
+                .contentType("application/json")
+                .content("{\"source\":\"homepage\"}"));
+
+        // Now get group buy detail as the subscribed viewer
+        mockMvc.perform(get("/api/v1/group-buys/" + gbId)
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.viewer.subscribed").value(true));
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnSubscribedFalseWhenNotLoggedIn() throws Exception {
+        Long gbId = createPublishedGroupBuy("未登录团购详情");
+
+        mockMvc.perform(get("/api/v1/group-buys/" + gbId))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.viewer.subscribed").value(false));
+    }
+
+    @Test
+    void getLeaderHomepage_shouldReturnRealSubscribedWhenAuthenticated() throws Exception {
+        createPublishedGroupBuy("已登录团长主页");
+
+        String meResponse = mockMvc.perform(get("/api/v1/me")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andReturn().getResponse().getContentAsString();
+        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+
+        // Login as viewer and subscribe
+        String viewerToken = loginAndGetToken("13800012002");
+        mockMvc.perform(post("/api/v1/leaders/{leaderId}/subscription", leaderId)
+                .header("Authorization", "Bearer " + viewerToken)
+                .contentType("application/json")
+                .content("{\"source\":\"homepage\"}"));
+
+        // Get homepage as the subscribed viewer
+        mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/homepage")
+                        .header("Authorization", "Bearer " + viewerToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.viewer.subscribed").value(true));
+    }
+
+    @Test
+    void getLeaderHomepage_shouldReturnSubscribedFalseWhenNotLoggedIn() throws Exception {
+        createPublishedGroupBuy("未登录团长主页");
+
+        String meResponse = mockMvc.perform(get("/api/v1/me")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andReturn().getResponse().getContentAsString();
+        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+
+        mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/homepage"))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.viewer.subscribed").value(false));
     }
 }

@@ -80,4 +80,15 @@ public class OrderController {
             @PathVariable Long orderId) {
         return ApiResponse.success(orderService.cancelOrder(userId, orderId));
     }
+
+    /**
+     * Simulate payment for an order (Batch 07).
+     * Only the order owner can pay. Deducts stock and creates/updates member relation.
+     */
+    @PostMapping("/orders/{orderId}/simulate-pay")
+    public ApiResponse<OrderResponse> simulatePay(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long orderId) {
+        return ApiResponse.success(orderService.simulatePay(userId, orderId));
+    }
 }
