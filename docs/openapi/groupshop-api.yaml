@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: GroupShop MVP API
-  version: 0.3.0
+  version: 0.6.0
   description: Machine-checkable API contract for implemented MVP batches.
 servers:
   - url: /
@@ -11,6 +11,11 @@ tags:
   - name: Store
   - name: Product
   - name: GroupBuy
+  - name: GroupBuyPublic
+  - name: Address
+  - name: OrderAdmin
+  - name: Order
+  - name: Leader
 paths:
   /api/v1/health:
     get:
@@ -436,6 +441,334 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '422':
           $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/group-buys:
+    get:
+      tags:
+        - GroupBuyPublic
+      summary: List public published group buys.
+      operationId: listPublicGroupBuys
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of public group buys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicGroupBuyPageSuccessResponse'
+  /api/v1/group-buys/{groupBuyId}:
+    get:
+      tags:
+        - GroupBuyPublic
+      summary: Get public group buy detail.
+      operationId: getPublicGroupBuyDetail
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Group buy detail with leader, store, items and viewer info.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuyDetailSuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/leaders/{leaderId}/homepage:
+    get:
+      tags:
+        - Leader
+      summary: Get leader homepage with store and group buys.
+      operationId: getLeaderHomepage
+      parameters:
+        - name: leaderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Leader homepage with store info and paginated group buys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderHomepageSuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/addresses:
+    get:
+      tags:
+        - Address
+      summary: List current user's addresses.
+      operationId: listAddresses
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of addresses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressListSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Address
+      summary: Create a new address.
+      operationId: createAddress
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAddressRequest'
+      responses:
+        '200':
+          description: Address created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/addresses/{addressId}:
+    patch:
+      tags:
+        - Address
+      summary: Partial update an address.
+      operationId: updateAddress
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: addressId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAddressRequest'
+      responses:
+        '200':
+          description: Address updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/AddressForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags:
+        - Address
+      summary: Delete an address.
+      operationId: deleteAddress
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: addressId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Address deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/AddressForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/orders/preview:
+    post:
+      tags:
+        - Order
+      summary: Preview an order (no order created, no stock deducted).
+      operationId: previewOrder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderPreviewRequest'
+      responses:
+        '200':
+          description: Order preview with amounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPreviewSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/AddressForbiddenError'
+        '422':
+          $ref: '#/components/responses/GroupBuyNotPurchasableError'
+          # Also: GROUP_BUY_ENDED, ITEM_NOT_IN_GROUP_BUY, INSUFFICIENT_STOCK
+  /api/v1/orders:
+    post:
+      tags:
+        - Order
+      summary: Create an order.
+      operationId: createOrder
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '200':
+          description: Order created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/AddressForbiddenError'
+        '422':
+          $ref: '#/components/responses/GroupBuyNotPurchasableError'
+  /api/v1/my/orders:
+    get:
+      tags:
+        - Order
+      summary: List current user's orders.
+      operationId: listMyOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated order list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/orders/{orderId}:
+    get:
+      tags:
+        - Order
+      summary: Get order detail.
+      operationId: getMyOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/orders/{orderId}/cancel:
+    post:
+      tags:
+        - Order
+      summary: Cancel an order (only pending-pay unpaid orders).
+      operationId: cancelOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order canceled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/OrderNotCancelableError'
 components:
   securitySchemes:
     bearerAuth:
@@ -474,6 +807,42 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     BusinessRuleViolationError:
       description: The operation violates a business rule.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    GroupBuyNotPurchasableError:
+      description: The group buy is not purchasable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    GroupBuyEndedError:
+      description: The group buy has ended.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ItemNotInGroupBuyError:
+      description: Item does not belong to the group buy.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AddressForbiddenError:
+      description: Address does not belong to the current user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InsufficientStockError:
+      description: Not enough stock for the requested quantity.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OrderNotCancelableError:
+      description: Order is not in a cancelable state.
       content:
         application/json:
           schema:
@@ -1069,7 +1438,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/GroupBuyDetail'
+             $ref: '#/components/schemas/GroupBuyDetail'
         page:
           type: integer
         pageSize:
@@ -1266,6 +1635,725 @@ components:
         status:
           type: string
           minLength: 1
+      additionalProperties: false
+    # ── GroupBuyPublic ───────────────────────────────────────────────
+    PublicGroupBuyPageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/PublicGroupBuyPageData'
+        traceId:
+          type: string
+      additionalProperties: false
+    PublicGroupBuyPageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicGroupBuyItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    PublicGroupBuyItem:
+      type: object
+      required:
+        - id
+        - title
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        coverImageUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+        endTime:
+          type: string
+          nullable: true
+        minPriceAmount:
+          type: integer
+          minimum: 0
+        soldCount:
+          type: integer
+          minimum: 0
+        leader:
+          $ref: '#/components/schemas/LeaderLite'
+        store:
+          $ref: '#/components/schemas/StoreLite'
+      additionalProperties: false
+    LeaderLite:
+      type: object
+      required:
+        - id
+        - displayName
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+      additionalProperties: false
+    StoreLite:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+      additionalProperties: false
+    # ── GroupBuy Detail ──────────────────────────────────────────────
+    GroupBuyDetailSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/GroupBuyDetailData'
+        traceId:
+          type: string
+      additionalProperties: false
+    GroupBuyDetailData:
+      type: object
+      required:
+        - groupBuy
+        - leader
+        - store
+        - items
+        - viewer
+      properties:
+        groupBuy:
+          $ref: '#/components/schemas/GroupBuyDetail'
+        leader:
+          $ref: '#/components/schemas/LeaderDetail'
+        store:
+          $ref: '#/components/schemas/StoreDetail'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicGroupBuyDetailItem'
+        viewer:
+          $ref: '#/components/schemas/ViewerInfo'
+      additionalProperties: false
+    LeaderDetail:
+      type: object
+      required:
+        - id
+        - displayName
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        followerCount:
+          type: integer
+      additionalProperties: false
+    StoreDetail:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+      additionalProperties: false
+    PublicGroupBuyDetailItem:
+      type: object
+      required:
+        - id
+        - productId
+        - displayName
+        - groupPriceAmount
+        - groupStock
+        - soldCount
+      properties:
+        id:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        groupPriceAmount:
+          type: integer
+          minimum: 0
+        groupStock:
+          type: integer
+          minimum: 0
+        soldCount:
+          type: integer
+          minimum: 0
+        sortOrder:
+          type: integer
+        coverImageUrl:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ViewerInfo:
+      type: object
+      required:
+        - subscribed
+      properties:
+        subscribed:
+          type: boolean
+      additionalProperties: false
+    # ── Leader Homepage ──────────────────────────────────────────────
+    LeaderHomepageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/LeaderHomepageData'
+        traceId:
+          type: string
+      additionalProperties: false
+    LeaderHomepageData:
+      type: object
+      required:
+        - leader
+        - store
+        - viewer
+        - groupBuys
+      properties:
+        leader:
+          $ref: '#/components/schemas/LeaderHomepageLeader'
+        store:
+          $ref: '#/components/schemas/LeaderHomepageStore'
+        viewer:
+          $ref: '#/components/schemas/ViewerInfo'
+        groupBuys:
+          $ref: '#/components/schemas/PublicGroupBuyPageData'
+      additionalProperties: false
+    LeaderHomepageLeader:
+      type: object
+      required:
+        - id
+        - displayName
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        memberCount:
+          type: integer
+        followerCount:
+          type: integer
+      additionalProperties: false
+    LeaderHomepageStore:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        defaultDeliveryType:
+          type: string
+      additionalProperties: false
+    # ── Address ──────────────────────────────────────────────────────
+    AddressListSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddressData'
+        traceId:
+          type: string
+      additionalProperties: false
+    AddressSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/AddressData'
+        traceId:
+          type: string
+      additionalProperties: false
+    AddressData:
+      type: object
+      required:
+        - id
+        - receiverName
+        - receiverPhone
+        - province
+        - city
+        - district
+        - detail
+        - fullAddress
+        - isDefault
+      properties:
+        id:
+          type: integer
+          format: int64
+        receiverName:
+          type: string
+        receiverPhone:
+          type: string
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        detail:
+          type: string
+        fullAddress:
+          type: string
+        isDefault:
+          type: boolean
+      additionalProperties: false
+    CreateAddressRequest:
+      type: object
+      required:
+        - receiverName
+        - receiverPhone
+        - province
+        - city
+        - district
+        - detail
+      properties:
+        receiverName:
+          type: string
+          maxLength: 64
+        receiverPhone:
+          type: string
+          maxLength: 20
+        province:
+          type: string
+          maxLength: 32
+        city:
+          type: string
+          maxLength: 32
+        district:
+          type: string
+          maxLength: 32
+        detail:
+          type: string
+          maxLength: 256
+        isDefault:
+          type: boolean
+      additionalProperties: false
+    UpdateAddressRequest:
+      type: object
+      properties:
+        receiverName:
+          type: string
+          maxLength: 64
+        receiverPhone:
+          type: string
+          maxLength: 20
+        province:
+          type: string
+          maxLength: 32
+        city:
+          type: string
+          maxLength: 32
+        district:
+          type: string
+          maxLength: 32
+        detail:
+          type: string
+          maxLength: 256
+        isDefault:
+          type: boolean
+      additionalProperties: false
+    # ── Order Preview ────────────────────────────────────────────────
+    OrderPreviewSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/OrderPreviewData'
+        traceId:
+          type: string
+      additionalProperties: false
+    OrderPreviewData:
+      type: object
+      required:
+        - groupBuyId
+        - address
+        - items
+        - totalAmount
+        - discountAmount
+        - payAmount
+      properties:
+        groupBuyId:
+          type: integer
+          format: int64
+        address:
+          $ref: '#/components/schemas/OrderPreviewAddress'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderPreviewItem'
+        totalAmount:
+          type: integer
+          minimum: 0
+        discountAmount:
+          type: integer
+          minimum: 0
+        payAmount:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    OrderPreviewAddress:
+      type: object
+      required:
+        - id
+        - receiverName
+        - receiverPhone
+        - province
+        - city
+        - district
+        - detail
+        - fullAddress
+      properties:
+        id:
+          type: integer
+          format: int64
+        receiverName:
+          type: string
+        receiverPhone:
+          type: string
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        detail:
+          type: string
+        fullAddress:
+          type: string
+      additionalProperties: false
+    OrderPreviewItem:
+      type: object
+      required:
+        - groupBuyItemId
+        - productId
+        - productName
+        - unitPriceAmount
+        - quantity
+        - totalAmount
+        - availableStock
+        - soldCount
+      properties:
+        groupBuyItemId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        skuName:
+          type: string
+        unitPriceAmount:
+          type: integer
+          minimum: 0
+        quantity:
+          type: integer
+          minimum: 1
+        totalAmount:
+          type: integer
+          minimum: 0
+        availableStock:
+          type: integer
+          minimum: 0
+        soldCount:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    OrderPreviewRequest:
+      type: object
+      required:
+        - groupBuyId
+        - addressId
+        - items
+      properties:
+        groupBuyId:
+          type: integer
+          format: int64
+        addressId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemEntry'
+      additionalProperties: false
+    OrderItemEntry:
+      type: object
+      required:
+        - groupBuyItemId
+        - quantity
+      properties:
+        groupBuyItemId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          minimum: 1
+      additionalProperties: false
+    # ── Order ────────────────────────────────────────────────────────
+    OrderSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/OrderData'
+        traceId:
+          type: string
+      additionalProperties: false
+    OrderPageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/OrderPageData'
+        traceId:
+          type: string
+      additionalProperties: false
+    OrderPageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    OrderData:
+      type: object
+      required:
+        - id
+        - orderNo
+        - groupBuyId
+        - storeId
+        - leaderId
+        - totalAmount
+        - discountAmount
+        - payAmount
+        - payStatus
+        - orderStatus
+      properties:
+        id:
+          type: integer
+          format: int64
+        orderNo:
+          type: string
+        groupBuyId:
+          type: integer
+          format: int64
+        storeId:
+          type: integer
+          format: int64
+        leaderId:
+          type: integer
+          format: int64
+        totalAmount:
+          type: integer
+          minimum: 0
+        discountAmount:
+          type: integer
+          minimum: 0
+        payAmount:
+          type: integer
+          minimum: 0
+        payStatus:
+          type: string
+        orderStatus:
+          type: string
+        remark:
+          type: string
+          nullable: true
+        receiverName:
+          type: string
+        receiverPhone:
+          type: string
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        detail:
+          type: string
+        fullAddress:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemData'
+      additionalProperties: false
+    OrderItemData:
+      type: object
+      required:
+        - id
+        - groupBuyItemId
+        - productId
+        - productName
+        - unitPriceAmount
+        - quantity
+        - totalAmount
+      properties:
+        id:
+          type: integer
+          format: int64
+        groupBuyItemId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        productName:
+          type: string
+        skuName:
+          type: string
+        unitPriceAmount:
+          type: integer
+          minimum: 0
+        quantity:
+          type: integer
+          minimum: 1
+        totalAmount:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    CreateOrderRequest:
+      type: object
+      required:
+        - groupBuyId
+        - addressId
+        - items
+      properties:
+        groupBuyId:
+          type: integer
+          format: int64
+        addressId:
+          type: integer
+          format: int64
+        remark:
+          type: string
+          nullable: true
+          maxLength: 256
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemEntry'
       additionalProperties: false
     GroupBuyItemDetail:
       type: object
