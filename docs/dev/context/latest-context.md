@@ -1,7 +1,7 @@
 # Batch Context — Latest
 
 > 记录最近完成的 batch 成果，供后续 batch 参考。
-> 当前最新：**Batch 2 — 创建店铺与激活团长身份**
+> 当前最新：**Batch 03 — 商品与团购完整闭环**
 
 ---
 
@@ -12,6 +12,7 @@
 | 0 | ✅ 完成 | 项目骨架、通用响应、错误码、数据库迁移、测试基础 |
 | 1 | ✅ 完成 | 模拟登录、当前用户、token 认证拦截 |
 | 2 | ✅ 完成 | 创建店铺、获取/更新当前用户店铺、激活团长身份 |
+| 3 | ✅ 完成 | 商品管理 CRUD、发布普通团购、团购管理（列表/详情/更新/结束） |
 
 ## 2. 项目结构
 
@@ -22,188 +23,233 @@ backend/
 ├── src/main/java/com/example/groupshop/
 │   ├── GroupshopApplication.java
 │   ├── config/
-│   │   ├── WebMvcConfig.java             # 注册 AuthInterceptor，排除 /health、/auth/mock-login、/_test/**
+│   │   ├── WebMvcConfig.java             # 注册 AuthInterceptor
 │   │   └── MyBatisPlusConfig.java        # MyBatis-Plus 分页插件
 │   ├── common/
 │   │   ├── response/
 │   │   │   ├── ApiResponse.java          # 统一响应 {success, data/traceId, error/traceId}
 │   │   │   └── PageResponse.java         # 分页 {items, page, pageSize, total, hasMore}
 │   │   ├── enums/
-│   │   │   ├── ErrorCode.java            # 18+ 个错误码（通用 + 业务）
-│   │   │   └── DeliveryType.java         # 配送方式枚举（express/pickup/local_delivery），@JsonCreator/@JsonValue
+│   │   │   ├── ErrorCode.java            # 20+ 个错误码
+│   │   │   └── DeliveryType.java         # 配送方式枚举
 │   │   ├── exception/
 │   │   │   ├── BusinessException.java    # 携带 ErrorCode
-│   │   │   └── GlobalExceptionHandler.java # 处理 Validation/Business/404/405/500，BusinessException 动态设置 HTTP 状态
-│   │   └── trace/
-│   │       ├── TraceIdFilter.java        # @Component Filter 生成 traceId
-│   │       └── TraceIdAdvice.java        # ResponseBodyAdvice 注入 traceId
+│   │   │   └── GlobalExceptionHandler.java
+│   │   ├── trace/
+│   │   │   ├── TraceIdFilter.java
+│   │   │   └── TraceIdAdvice.java
+│   │   └── util/
+│   │       └── CurrentStoreHelper.java   # [新增] 当前用户 -> leader -> store 解析
 │   ├── model/
 │   │   ├── entity/
-│   │   │   ├── User.java                 # users 表实体
-│   │   │   ├── Leader.java               # leaders 表实体
-│   │   │   └── Store.java                # stores 表实体
+│   │   │   ├── User.java
+│   │   │   ├── Leader.java
+│   │   │   ├── Store.java
+│   │   │   ├── Product.java              # [新增] 商品实体
+│   │   │   ├── GroupBuy.java             # [新增] 团购活动实体
+│   │   │   ├── GroupBuyItem.java         # [新增] 团购商品关系实体
+│   │   │   ├── Order.java                # [新增] 最小订单实体（仅用于保护校验）
+│   │   │   └── OrderItem.java            # [新增] 最小订单明细实体（仅用于保护校验）
 │   │   └── mapper/
-│   │       ├── UserMapper.java           # MyBatis-Plus BaseMapper
+│   │       ├── UserMapper.java
 │   │       ├── LeaderMapper.java
-│   │       └── StoreMapper.java
+│   │       ├── StoreMapper.java
+│   │       ├── ProductMapper.java        # [新增]
+│   │       ├── GroupBuyMapper.java       # [新增]
+│   │       ├── GroupBuyItemMapper.java   # [新增]
+│   │       ├── OrderMapper.java          # [新增] 仅用于保护校验
+│   │       └── OrderItemMapper.java      # [新增] 仅用于保护校验
 │   ├── auth/
-│   │   ├── TokenStore.java               # MVP 内存级 token 存储（ConcurrentHashMap）
-│   │   ├── AuthInterceptor.java           # Bearer token 拦截 /api/v1/**，排除公开路径
-│   │   ├── controller/
-│   │   │   └── AuthController.java       # POST /api/v1/auth/mock-login, GET /api/v1/me
-│   │   ├── dto/
-│   │   │   ├── MockLoginRequest.java     # {phone, nickname, avatarUrl}
-│   │   │   ├── MockLoginResponse.java    # {accessToken, user: {id, nickname, avatarUrl, phone, hasLeader, leaderId, storeId}}
-│   │   │   └── CurrentUserResponse.java  # {user, leader?, store?} — StoreSummary 含 status 字段
-│   │   └── service/
-│   │       └── AuthService.java          # 模拟登录、当前用户身份组装，返回 status
+│   │   ├── TokenStore.java
+│   │   ├── AuthInterceptor.java
+│   │   ├── controller/AuthController.java
+│   │   ├── dto/ (MockLoginRequest, MockLoginResponse, CurrentUserResponse)
+│   │   └── service/AuthService.java
 │   ├── store/
-│   │   ├── controller/
-│   │   │   └── StoreController.java      # POST /api/v1/stores, GET /api/v1/my/store, PATCH /api/v1/my/store
-│   │   ├── service/
-│   │   │   └── StoreService.java         # 创建/获取/更新店铺，事务内创建或复用 leader
-│   │   └── dto/
-│   │       ├── CreateStoreRequest.java   # {name, logoUrl?, description?, defaultDeliveryType}
-│   │       ├── UpdateStoreRequest.java   # {name?, logoUrl?, description?, defaultDeliveryType?}
-│   │       └── StoreResponse.java        # {leader: {id, displayName, avatarUrl}, store: {id, leaderId, ...}}
-│   ├── controller/
-│   │   └── HealthController.java         # GET /api/v1/health
-│   └── testconfig/
-│       └── TestValidationController.java # @Profile("test") 测试用校验控制器
+│   │   ├── controller/StoreController.java
+│   │   ├── service/StoreService.java
+│   │   └── dto/ (CreateStoreRequest, UpdateStoreRequest, StoreResponse)
+│   ├── product/                          # [新增] 商品模块
+│   │   ├── controller/ProductController.java
+│   │   ├── service/ProductService.java
+│   │   └── dto/ (CreateProductRequest, UpdateProductRequest, ProductResponse)
+│   ├── groupbuy/                         # [新增] 团购模块
+│   │   ├── controller/GroupBuyController.java
+│   │   ├── service/GroupBuyService.java
+│   │   └── dto/ (CreateGroupBuyRequest, UpdateGroupBuyRequest, GroupBuyResponse)
+│   ├── controller/HealthController.java
+│   └── testconfig/TestValidationController.java
 ├── src/main/resources/
-│   ├── application.yml                   # 主配置（MySQL、Flyway、MVC、Jackson non_null）
-│   ├── application-dev.yml               # dev profile（groupshop_dev 库）
-│   └── db/migration/
-│       └── V1__create_mvp_tables.sql      # 12 张 MVP 核心表
+│   ├── application.yml
+│   ├── application-dev.yml
+│   └── db/migration/V1__create_mvp_tables.sql  # 未变更
 └── src/test/
-    ├── resources/application-test.yml     # H2 内存数据库、MySQL 兼容模式
+    ├── resources/application-test.yml
     └── java/com/example/groupshop/
         ├── base/
-        │   ├── MockMvcTestBase.java       # @SpringBootTest + @AutoConfigureMockMvc + @ActiveProfiles("test")，含 extractToken 辅助方法
-        │   └── ServiceTestBase.java       # @SpringBootTest + @ActiveProfiles("test")
-        ├── GroupshopApplicationTests.java # 上下文加载测试
-        ├── auth/
-        │   ├── AuthControllerTest.java    # 10 个测试
-        │   └── AuthServiceTest.java       # 6 个测试
-        ├── store/
-        │   ├── StoreControllerTest.java   # 12 个测试：创建/获取/更新店铺接口完整覆盖
-        │   └── StoreServiceTest.java      # 9 个测试：创建/复用/获取/更新 leader+store 逻辑
-        ├── common/
-        │   ├── ErrorResponseTest.java     # 成功响应结构测试
-        │   └── ValidationErrorTest.java   # @Valid 校验/非法JSON/未知路由测试
-        └── migration/
-            └── FlywayMigrationTest.java   # 18 个测试：12 表存在性 + 字段 + 唯一约束
+        │   ├── MockMvcTestBase.java
+        │   └── ServiceTestBase.java
+        ├── GroupshopApplicationTests.java
+        ├── auth/ (AuthControllerTest, AuthServiceTest)
+        ├── store/ (StoreControllerTest, StoreServiceTest)
+        ├── product/                      # [新增]
+        │   ├── ProductControllerTest.java  # 13 个测试
+        │   └── ProductServiceTest.java     # 11 个测试
+        ├── groupbuy/                     # [新增]
+        │   ├── GroupBuyControllerTest.java # 12 个测试
+        │   └── GroupBuyServiceTest.java    # 13 个测试
+        ├── common/ (ErrorResponseTest, ValidationErrorTest)
+        ├── contract/OpenApiContractTest.java
+        └── migration/FlywayMigrationTest.java
 ```
 
-## 3. Batch 2 实现的接口
+## 3. Batch 03 实现的接口
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/v1/stores` | 创建店铺，事务内创建或复用 leader，再创建 store |
-| GET | `/api/v1/my/store` | 获取当前用户店铺，未创建时返回 200 省略 data |
-| PATCH | `/api/v1/my/store` | 局部更新当前用户店铺，同步 leader 展示字段 |
+| GET | `/api/v1/my/store/products` | 商品列表（排除 deleted） |
+| POST | `/api/v1/my/store/products` | 创建商品（需团长身份） |
+| GET | `/api/v1/my/store/products/{productId}` | 商品详情 |
+| PATCH | `/api/v1/my/store/products/{productId}` | 更新商品（部分更新） |
+| DELETE | `/api/v1/my/store/products/{productId}` | 软删除商品 |
+| POST | `/api/v1/my/store/group-buys` | 创建并发布普通团购（支持内联/复用商品） |
+| GET | `/api/v1/my/store/group-buys` | 我的团购列表（支持 status 筛选） |
+| GET | `/api/v1/my/store/group-buys/{groupBuyId}` | 我的团购详情 |
+| PATCH | `/api/v1/my/store/group-buys/{groupBuyId}` | 更新团购（含订单价格保护） |
+| POST | `/api/v1/my/store/group-buys/{groupBuyId}/end` | 结束团购（published -> ended） |
 
-### 店铺创建逻辑
+### 关键业务逻辑
 
-1. 检查当前用户是否已有 leader（通过 `userId` 查询 `leaders` 表）
-2. 如果已有 leader 且已有 store，返回 409 `STORE_ALREADY_EXISTS`
-3. 如果已有 leader 但无 store（orphan leader），复用该 leader 并更新其展示字段
-4. 如果无 leader，创建新 leader（`displayName=name`、`avatarUrl=logoUrl`、`bio=description`、`serviceStatus=normal`、计数为 0）
-5. 创建 store（`distributionEnabled=false`、`status=active`）
+**商品管理：**
+- 金额使用整数分，`basePriceAmount >= 0`，`stock >= 0`
+- 软删除：`status=deleted`，列表自动排除 deleted 商品
+- 跨店铺操作返回 `STORE_FORBIDDEN`
 
-### 店铺更新逻辑
+**团购发布：**
+- MVP 仅支持 `groupType=normal`，创建即 `status=published`
+- 同一个事务内创建 `group_buys`、必要的 `products`、`group_buy_items`
+- item 支持 `productId`（复用已有商品）或 `product`（内联创建新商品），互斥
+- 复用商品必须属于当前店铺且状态不是 `deleted`
 
-- PATCH 局部更新：只更新非 null 字段
-- 店铺名称/logo/简介变更时同步到 leader 的 displayName/avatarUrl/bio
-- 未创建店铺时返回 403 `LEADER_REQUIRED`
+**团购管理：**
+- 列表支持 `status` 参数筛选
+- 更新：PATCH 部分更新，含订单价格保护（`BUSINESS_RULE_VIOLATION`）
+- 结束：只有 `published` 可结束为 `ended`
 
-### 认证机制
-
-未变更，同 Batch 1。
+**权限与归属：**
+- `CurrentStoreHelper` 统一解析 user -> leader -> store
+- 无 leader/store 返回 `LEADER_REQUIRED`
+- 跨店铺资源返回 `STORE_FORBIDDEN`
+- 资源不存在返回 `RESOURCE_NOT_FOUND`
 
 ## 4. 统一响应结构
 
-未变更，同 Batch 0。
+未变更，同 Batch 0。新增 `EmptySuccessResponse`（无 data 的成功响应，用于 DELETE）。
 
 ## 5. 错误码枚举
 
-`DeliveryType` 枚举新增在 `common/enums/` 包下，未新增 ErrorCode。
+未新增 ErrorCode。使用已有：
+- `LEADER_REQUIRED` (403)
+- `STORE_FORBIDDEN` (403)
+- `RESOURCE_NOT_FOUND` (404)
+- `BUSINESS_RULE_VIOLATION` (422) — 用于团购结束和价格保护
+- `VALIDATION_ERROR` (400)
 
 ## 6. 测试命令
 
 ```bash
 cd backend
-mvn test                                    # 全部 67+ 个测试
-mvn test -Dtest=StoreControllerTest          # 单类测试
-mvn test -Dtest=StoreServiceTest             # 单类测试
+mvn test                                    # 全部 116 个测试
+mvn test -Dtest=ProductControllerTest       # 商品 Controller 测试（13 个）
+mvn test -Dtest=ProductServiceTest          # 商品 Service 测试（11 个）
+mvn test -Dtest=GroupBuyControllerTest      # 团购 Controller 测试（12 个）
+mvn test -Dtest=GroupBuyServiceTest         # 团购 Service 测试（13 个）
 ```
 
 ## 7. 测试结果
 
 ```
-Tests run: 67, Failures: 0, Errors: 0, Skipped: 0
+Tests run: 116, Failures: 0, Errors: 0, Skipped: 0
 ```
 
 ## 8. 联调文档更新
 
 已在 `docs/前后端联调文档.md` 中更新：
-- §4 创建店铺链路拆分：成功判定、获取当前用户店铺、更新当前用户店铺
-- §4.4 获取当前用户店铺的请求/响应样例（含未创建场景省略 data，已有店铺返回 `{ leader, store }`）
-- §4.6 更新当前用户店铺的请求/响应样例
-- §4.7 错误码补充 `LEADER_REQUIRED`
-- §4.8 测试数据准备方式
+- §4A 商品管理链路：创建、列表、详情、更新、删除
+- §5 发布与管理系统团购：内联商品/复用商品发布、列表、详情、更新、结束
+- 补充 `STORE_FORBIDDEN`、`BUSINESS_RULE_VIOLATION` 等错误码
 
-## 9. 本地开发数据库
+## 9. OpenAPI 契约
 
-不变，同 Batch 0。
+已更新 `docs/openapi/groupshop-api.yaml` 至版本 0.3.0：
+- 新增 Product tag + 5 个路径 + 请求/响应 schema
+- 新增 GroupBuy tag + 6 个路径 + 请求/响应 schema
+- 新增 `NotFoundError`、`BusinessRuleViolationError` 错误响应
+- 所有成功请求的 Controller 测试均通过 `contractResult()` 验证
 
-## 10. Files created or modified
+## 10. Flyway 迁移
+
+无新增迁移文件。V1 已包含所需全部表结构。
+
+## 11. Files created or modified
 
 ### New files
 
 | File | Description |
 |---|---|
-| `common/enums/DeliveryType.java` | 配送方式枚举，@JsonCreator/@JsonValue |
-| `store/controller/StoreController.java` | 店铺 Controller |
-| `store/service/StoreService.java` | 店铺 Service |
-| `store/dto/CreateStoreRequest.java` | 创建店铺请求 DTO |
-| `store/dto/UpdateStoreRequest.java` | 更新店铺请求 DTO |
-| `store/dto/StoreResponse.java` | 店铺响应 DTO（含 leader + store） |
-| `store/StoreServiceTest.java` | StoreService 测试（9 个） |
-| `store/StoreControllerTest.java` | StoreController 测试（16 个） |
+| `common/util/CurrentStoreHelper.java` | 当前店铺解析辅助类（user -> leader -> store） |
+| `model/entity/Product.java` | 商品实体 |
+| `model/entity/GroupBuy.java` | 团购活动实体 |
+| `model/entity/GroupBuyItem.java` | 团购商品关系实体 |
+| `model/entity/Order.java` | 最小订单实体（用于价格保护校验） |
+| `model/entity/OrderItem.java` | 最小订单明细实体（用于价格保护校验） |
+| `model/mapper/ProductMapper.java` | 商品 Mapper |
+| `model/mapper/GroupBuyMapper.java` | 团购 Mapper |
+| `model/mapper/GroupBuyItemMapper.java` | 团购商品关系 Mapper |
+| `model/mapper/OrderMapper.java` | 订单 Mapper（最小） |
+| `model/mapper/OrderItemMapper.java` | 订单明细 Mapper（最小） |
+| `product/dto/CreateProductRequest.java` | 创建商品请求 DTO |
+| `product/dto/UpdateProductRequest.java` | 更新商品请求 DTO |
+| `product/dto/ProductResponse.java` | 商品响应 DTO |
+| `product/service/ProductService.java` | 商品 Service |
+| `product/controller/ProductController.java` | 商品 Controller |
+| `groupbuy/dto/CreateGroupBuyRequest.java` | 创建团购请求 DTO（含 InlineProduct/ItemEntry） |
+| `groupbuy/dto/UpdateGroupBuyRequest.java` | 更新团购请求 DTO（含 UpdateItemEntry） |
+| `groupbuy/dto/GroupBuyResponse.java` | 团购响应 DTO（含 GroupBuyData/GroupBuyItemData） |
+| `groupbuy/service/GroupBuyService.java` | 团购 Service |
+| `groupbuy/controller/GroupBuyController.java` | 团购 Controller |
+| `product/ProductControllerTest.java` | 商品 Controller 测试（13 个） |
+| `product/ProductServiceTest.java` | 商品 Service 测试（11 个） |
+| `groupbuy/GroupBuyControllerTest.java` | 团购 Controller 测试（12 个） |
+| `groupbuy/GroupBuyServiceTest.java` | 团购 Service 测试（13 个） |
 
 ### Modified files
 
 | File | Change |
 |---|---|
-| `auth/dto/CurrentUserResponse.java` | StoreSummary 新增 `status` 字段 |
-| `auth/service/AuthService.java` | getCurrentUser 返回店铺 `status` |
-| `base/MockMvcTestBase.java` | 新增 `extractToken()` 辅助方法 |
-| `docs/openapi/groupshop-api.yaml` | 新增 Store tag、3 个路径、请求/响应 schema、错误响应 |
-| `docs/前后端联调文档.md` | 更新 §4 创建店铺链路，补充获取/更新店铺 |
+| `docs/openapi/groupshop-api.yaml` | 版本 0.3.0，新增 Product/GroupBuy 标签和路径，请求/响应 schema，错误响应 |
+| `docs/前后端联调文档.md` | 新增 §4A 商品管理链路，更新 §5 发布与管理系统团购（含列表/详情/更新/结束） |
 | `docs/dev/context/latest-context.md` | 本次更新 |
 
 ### Flyway 迁移
 
 无新增迁移文件。
 
-## 11. Problems found
+## 12. Problems found
 
 None
 
-## 12. Problems fixed
-
-- `CurrentUserResponse.StoreSummary` 缺少 `status` 字段，导致创建店铺后 `GET /api/v1/me` 响应中店铺缺少状态信息。已修复。
-- `GET /api/v1/my/store` 最初返回纯 `StoreInfo` 对象，与上游 API 设计（返回 `{ leader, store }`）不符。已修复为返回 `StoreResponse`，同步更新 OpenAPI `MyStoreSuccessResponse.data` 指向 `StoreResponseData`，并更新联调文档。
-- `UpdateStoreRequest.logoUrl` 和 `description` 最初缺少 `@Size(min = 1)` 校验，导致空字符串可通过校验并持久化。已补全。
-- 更新店铺时 "leader 存在但 store 不存在" 的分支缺少测试覆盖。已新增 `updateMyStore_shouldThrowWhenNoStoreButHasOrphanLeader` 测试。
-
-## 13. Remaining issues
+## 13. Problems fixed
 
 None
 
-## 14. Suggestions for next batch
+## 14. Remaining issues
 
-- Batch 3 将实现发布普通团购接口 `POST /api/v1/my/store/group-buys`
-- 店铺创建逻辑中的 orphan leader 复用机制可供后续 batch 参考
-- 注意 PATCH 局部更新时，校验注解 `@Size(min = 1)` 只在校验路径被触发时生效（例如 `@Valid` 且有值传入）
+None
+
+## 15. Suggestions for next batch
+
+- Batch 04 将实现公共浏览团购（首页团购流、团购详情、团长主页）
+- `CurrentStoreHelper` 可在后续 batch 中继续复用
+- 最小 Order/OrderItem 实体可在后续 batch 中扩展为完整订单模型
+- 注意团购结束后的 `group_buys.status=ended` 状态在公共浏览接口中需作为不可购买条件

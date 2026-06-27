@@ -1,0 +1,27 @@
+package com.example.groupshop.product.dto;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+
+/**
+ * Request DTO for partial-updating a product.
+ *
+ * <p>Only non-null fields are updated.
+ */
+@Data
+public class UpdateProductRequest {
+
+    @Size(min = 1, max = 128)
+    private String name;
+
+    private String description;
+
+    private String coverImageUrl;
+
+    @Min(0)
+    private Long basePriceAmount;
+
+    @Min(0)
+    private Integer stock;
+}

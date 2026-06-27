@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: GroupShop MVP API
-  version: 0.2.0
+  version: 0.3.0
   description: Machine-checkable API contract for implemented MVP batches.
 servers:
   - url: /
@@ -9,6 +9,8 @@ tags:
   - name: Health
   - name: Auth
   - name: Store
+  - name: Product
+  - name: GroupBuy
 paths:
   /api/v1/health:
     get:
@@ -131,6 +133,309 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/LeaderRequiredError'
+  # ── Product endpoints ──────────────────────────────────────────────
+  /api/v1/my/store/products:
+    get:
+      tags:
+        - Product
+      summary: List products of the current user's store.
+      operationId: getMyStoreProducts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of products (excluding soft-deleted).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+    post:
+      tags:
+        - Product
+      summary: Create a product for the current user's store.
+      operationId: createProduct
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '200':
+          description: Product created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/products/{productId}:
+    get:
+      tags:
+        - Product
+      summary: Get a product by id.
+      operationId: getProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Product detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      tags:
+        - Product
+      summary: Partial update a product.
+      operationId: updateProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Product updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags:
+        - Product
+      summary: Soft-delete a product.
+      operationId: deleteProduct
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Product soft-deleted successfully (empty data).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  # ── GroupBuy endpoints ─────────────────────────────────────────────
+  /api/v1/my/store/group-buys:
+    post:
+      tags:
+        - GroupBuy
+      summary: Create and publish a group buy.
+      operationId: createGroupBuy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupBuyRequest'
+      responses:
+        '200':
+          description: Group buy created and published.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+    get:
+      tags:
+        - GroupBuy
+      summary: List group buys of the current user's store.
+      operationId: getMyStoreGroupBuys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of group buys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuyPageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/group-buys/{groupBuyId}:
+    get:
+      tags:
+        - GroupBuy
+      summary: Get a group buy with items.
+      operationId: getGroupBuy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Group buy detail with items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      tags:
+        - GroupBuy
+      summary: Partial update a group buy.
+      operationId: updateGroupBuy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGroupBuyRequest'
+      responses:
+        '200':
+          description: Group buy updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/store/group-buys/{groupBuyId}/end:
+    post:
+      tags:
+        - GroupBuy
+      summary: End a published group buy.
+      operationId: endGroupBuy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Group buy ended successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
 components:
   securitySchemes:
     bearerAuth:
@@ -161,76 +466,21 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BusinessRuleViolationError:
+      description: The operation violates a business rule.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
   schemas:
-    HealthSuccessResponse:
-      type: object
-      required:
-        - success
-        - data
-        - traceId
-      properties:
-        success:
-          type: boolean
-          enum:
-            - true
-        data:
-          $ref: '#/components/schemas/HealthData'
-        traceId:
-          type: string
-          minLength: 1
-      additionalProperties: false
-    MockLoginSuccessResponse:
-      type: object
-      required:
-        - success
-        - data
-        - traceId
-      properties:
-        success:
-          type: boolean
-          enum:
-            - true
-        data:
-          $ref: '#/components/schemas/MockLoginData'
-        traceId:
-          type: string
-          minLength: 1
-      additionalProperties: false
-    CurrentUserSuccessResponse:
-      type: object
-      required:
-        - success
-        - data
-        - traceId
-      properties:
-        success:
-          type: boolean
-          enum:
-            - true
-        data:
-          $ref: '#/components/schemas/CurrentUserData'
-        traceId:
-          type: string
-          minLength: 1
-      additionalProperties: false
-    StoreSuccessResponse:
-      type: object
-      required:
-        - success
-        - data
-        - traceId
-      properties:
-        success:
-          type: boolean
-          enum:
-            - true
-        data:
-          $ref: '#/components/schemas/StoreResponseData'
-        traceId:
-          type: string
-          minLength: 1
-      additionalProperties: false
-    MyStoreSuccessResponse:
+    # ── Empty success ──────────────────────────────────────────────
+    EmptySuccessResponse:
       type: object
       required:
         - success
@@ -240,13 +490,11 @@ components:
           type: boolean
           enum:
             - true
-        data:
-          $ref: '#/components/schemas/StoreResponseData'
-          nullable: true
         traceId:
           type: string
           minLength: 1
       additionalProperties: false
+    # ── Error ─────────────────────────────────────────────────────
     ErrorResponse:
       type: object
       required:
@@ -280,6 +528,24 @@ components:
           type: object
           nullable: true
       additionalProperties: false
+    # ── Health ────────────────────────────────────────────────────
+    HealthSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/HealthData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
     HealthData:
       type: object
       required:
@@ -291,6 +557,24 @@ components:
           enum:
             - UP
         timestamp:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    # ── Auth ──────────────────────────────────────────────────────
+    MockLoginSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/MockLoginData'
+        traceId:
           type: string
           minLength: 1
       additionalProperties: false
@@ -351,6 +635,23 @@ components:
           type: integer
           format: int64
           nullable: true
+      additionalProperties: false
+    CurrentUserSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/CurrentUserData'
+        traceId:
+          type: string
+          minLength: 1
       additionalProperties: false
     CurrentUserData:
       type: object
@@ -447,7 +748,7 @@ components:
           type: string
           minLength: 1
       additionalProperties: false
-    # ── Store request schemas ─────────────────────────────────────────
+    # ── Store ─────────────────────────────────────────────────────
     CreateStoreRequest:
       type: object
       required:
@@ -491,7 +792,41 @@ components:
             - pickup
             - local_delivery
       additionalProperties: false
-    # ── Store response schemas ────────────────────────────────────────
+    StoreSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/StoreResponseData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    MyStoreSuccessResponse:
+      type: object
+      required:
+        - success
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          allOf:
+            - $ref: '#/components/schemas/StoreResponseData'
+          nullable: true
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
     StoreResponseData:
       type: object
       required:
@@ -552,4 +887,431 @@ components:
         status:
           type: string
           minLength: 1
+      additionalProperties: false
+    # ── Product ───────────────────────────────────────────────────
+    ProductSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/ProductData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ProductPageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/ProductPageData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ProductPageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - basePriceAmount
+        - stock
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        basePriceAmount:
+          type: integer
+          minimum: 0
+        stock:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    UpdateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        basePriceAmount:
+          type: integer
+          minimum: 0
+        stock:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    ProductData:
+      type: object
+      required:
+        - id
+        - storeId
+        - name
+        - basePriceAmount
+        - stock
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        storeId:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        basePriceAmount:
+          type: integer
+          minimum: 0
+        stock:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    # ── GroupBuy ──────────────────────────────────────────────────
+    GroupBuySuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/GroupBuyData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    GroupBuyPageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/GroupBuyPageData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    GroupBuyPageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupBuyDetail'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    CreateGroupBuyRequest:
+      type: object
+      required:
+        - title
+        - deliveryType
+        - items
+      properties:
+        title:
+          type: string
+          minLength: 1
+        introduction:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        deliveryType:
+          type: string
+        shippingTime:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateGroupBuyItemEntry'
+      additionalProperties: false
+    CreateGroupBuyItemEntry:
+      type: object
+      required:
+        - displayName
+        - groupPriceAmount
+        - groupStock
+      properties:
+        productId:
+          type: integer
+          format: int64
+          nullable: true
+        product:
+          $ref: '#/components/schemas/CreateGroupBuyInlineProduct'
+        displayName:
+          type: string
+          minLength: 1
+        groupPriceAmount:
+          type: integer
+          minimum: 0
+        groupStock:
+          type: integer
+          minimum: 0
+        sortOrder:
+          type: integer
+      additionalProperties: false
+    CreateGroupBuyInlineProduct:
+      type: object
+      required:
+        - name
+        - basePriceAmount
+        - stock
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        basePriceAmount:
+          type: integer
+          minimum: 0
+        stock:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    UpdateGroupBuyRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        introduction:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        shippingTime:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateGroupBuyItemEntry'
+      additionalProperties: false
+    UpdateGroupBuyItemEntry:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+          minLength: 1
+        groupPriceAmount:
+          type: integer
+          minimum: 0
+        groupStock:
+          type: integer
+          minimum: 0
+        sortOrder:
+          type: integer
+      additionalProperties: false
+    GroupBuyData:
+      type: object
+      required:
+        - groupBuy
+        - items
+      properties:
+        groupBuy:
+          $ref: '#/components/schemas/GroupBuyDetail'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupBuyItemDetail'
+      additionalProperties: false
+    GroupBuyDetail:
+      type: object
+      required:
+        - id
+        - storeId
+        - leaderId
+        - title
+        - groupType
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        storeId:
+          type: integer
+          format: int64
+        leaderId:
+          type: integer
+          format: int64
+        title:
+          type: string
+          minLength: 1
+        introduction:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        groupType:
+          type: string
+          minLength: 1
+        deliveryType:
+          type: string
+        shippingTime:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        visibility:
+          type: string
+        status:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    GroupBuyItemDetail:
+      type: object
+      required:
+        - id
+        - groupBuyId
+        - productId
+        - displayName
+        - groupPriceAmount
+        - groupStock
+        - soldCount
+      properties:
+        id:
+          type: integer
+          format: int64
+        groupBuyId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+          minLength: 1
+        groupPriceAmount:
+          type: integer
+          minimum: 0
+        groupStock:
+          type: integer
+          minimum: 0
+        soldCount:
+          type: integer
+          minimum: 0
+        sortOrder:
+          type: integer
+        productName:
+          type: string
+          nullable: true
+        productCoverImageUrl:
+          type: string
+          nullable: true
+        productBasePriceAmount:
+          type: integer
+          minimum: 0
+          nullable: true
+        productStatus:
+          type: string
+          nullable: true
       additionalProperties: false
