@@ -5,11 +5,12 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 /**
- * Minimal OrderItem entity for group buy item protection checks.
+ * 订单明细表 — order_items
  *
- * <p>Used to check whether a {@link GroupBuyItem} has been ordered,
- * which triggers price and deletion protection in GroupBuyService.
+ * <p>Full OrderItem entity with product snapshots.
  */
 @Data
 @TableName("order_items")
@@ -19,10 +20,13 @@ public class OrderItem {
     private Long id;
 
     private Long orderId;
-
-    /** Non-null in the database — set a dummy value for protection checks. */
     private Long productId;
-
+    private Long skuId;
     private Long groupBuyItemId;
+    private String productName;
+    private String skuName;
+    private Long unitPriceAmount;
     private Integer quantity;
+    private Long totalAmount;
+    private LocalDateTime createdAt;
 }

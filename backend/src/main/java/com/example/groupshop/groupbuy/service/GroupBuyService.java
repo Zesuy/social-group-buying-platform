@@ -2,6 +2,8 @@ package com.example.groupshop.groupbuy.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
@@ -22,8 +24,18 @@ import com.example.groupshop.model.entity.Product;
 import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
+import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.ProductMapper;
+import com.example.groupshop.model.mapper.StoreMapper;
+import com.example.groupshop.publicbrowsing.dto.GroupBuyDetailResponse;
+import com.example.groupshop.publicbrowsing.dto.GroupBuyDetailResponse.GroupBuyDetailItemData;
+import com.example.groupshop.publicbrowsing.dto.GroupBuyDetailResponse.LeaderDetail;
+import com.example.groupshop.publicbrowsing.dto.GroupBuyDetailResponse.StoreDetail;
+import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem;
+import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem.LeaderLite;
+import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem.StoreLite;
+import com.example.groupshop.publicbrowsing.dto.ViewerInfo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +61,8 @@ public class GroupBuyService {
     private final GroupBuyItemMapper groupBuyItemMapper;
     private final ProductMapper productMapper;
     private final OrderItemMapper orderItemMapper;
+    private final LeaderMapper leaderMapper;
+    private final StoreMapper storeMapper;
     private final CurrentStoreHelper currentStoreHelper;
 
     // ── Create ────────────────────────────────────────────────────────
@@ -286,6 +300,70 @@ public class GroupBuyService {
                 .build();
     }
 
+    // ── Public browsing ───────────────────────────────────────────────
+
+    /**
+     * List public published group buys for unauthenticated browsing.
+     * Only returns group buys with {@code status=published} and {@code visibility=public}.
+     */
+    public PageResponse<PublicGroupBuyItem> getPublicGroupBuys(int page, int pageSize) {
+        Page<GroupBuy> pageObj = new Page<>(page, pageSize);
+        LambdaQueryWrapper<GroupBuy> wrapper = new LambdaQueryWrapper<GroupBuy>()
+                .eq(GroupBuy::getStatus, "published")
+                .eq(GroupBuy::getVisibility, "public")
+                .orderByDesc(GroupBuy::getCreatedAt);
+
+        Page<GroupBuy> result = groupBuyMapper.selectPage(pageObj, wrapper);
+
+        List<PublicGroupBuyItem> items = result.getRecords().stream()
+                .map(this::toPublicGroupBuyItem)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(items, page, pageSize, result.getTotal());
+    }
+
+    /**
+     * Get public group buy detail.
+     * Only returns if {@code status=published} and {@code visibility=public}.
+     * Otherwise returns RESOURCE_NOT_FOUND.
+     */
+    public GroupBuyDetailResponse getPublicGroupBuyDetail(Long groupBuyId) {
+        GroupBuy groupBuy = groupBuyMapper.selectById(groupBuyId);
+        if (groupBuy == null || !"published".equals(groupBuy.getStatus()) || !"public".equals(groupBuy.getVisibility())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        List<GroupBuyItem> items = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId())
+                        .orderByAsc(GroupBuyItem::getSortOrder));
+
+        // Fetch leader and store info
+        Leader leader = leaderMapper.selectById(groupBuy.getLeaderId());
+        Store store = storeMapper.selectById(groupBuy.getStoreId());
+
+        LeaderDetail leaderDetail = LeaderDetail.builder()
+                .id(leader.getId())
+                .displayName(leader.getDisplayName())
+                .avatarUrl(leader.getAvatarUrl())
+                .followerCount(leader.getFollowerCount())
+                .build();
+
+        StoreDetail storeDetail = StoreDetail.builder()
+                .id(store.getId())
+                .name(store.getName())
+                .logoUrl(store.getLogoUrl())
+                .build();
+
+        return GroupBuyDetailResponse.builder()
+                .groupBuy(toGroupBuyData(groupBuy))
+                .leader(leaderDetail)
+                .store(storeDetail)
+                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .viewer(new ViewerInfo(false))
+                .build();
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────
 
     private Long resolveProductId(ItemEntry entry, Store store) {
@@ -357,6 +435,70 @@ public class GroupBuyService {
         if (start != null && end != null && !end.isAfter(start)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "结束时间必须晚于开始时间");
         }
+    }
+
+    /**
+     * Map a GroupBuyItem to a public detail item with coverImageUrl
+     * directly from the product (per API design spec).
+     */
+    private GroupBuyDetailItemData toGroupBuyDetailItemData(GroupBuyItem item) {
+        Product product = productMapper.selectById(item.getProductId());
+        return GroupBuyDetailItemData.builder()
+                .id(item.getId())
+                .productId(item.getProductId())
+                .displayName(item.getDisplayName())
+                .groupPriceAmount(item.getGroupPriceAmount())
+                .groupStock(item.getGroupStock())
+                .soldCount(item.getSoldCount())
+                .sortOrder(item.getSortOrder())
+                .coverImageUrl(product != null ? product.getCoverImageUrl() : null)
+                .build();
+    }
+
+    /**
+     * Map a GroupBuy to a public list item with aggregated data.
+     * Public so that other services (e.g. LeaderService) can reuse it.
+     */
+    public PublicGroupBuyItem toPublicGroupBuyItem(GroupBuy gb) {
+        // Aggregate minPriceAmount and soldCount from items
+        List<GroupBuyItem> gbItems = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, gb.getId()));
+
+        long minPriceAmount = gbItems.stream()
+                .mapToLong(GroupBuyItem::getGroupPriceAmount)
+                .min().orElse(0);
+
+        int soldCount = gbItems.stream()
+                .mapToInt(GroupBuyItem::getSoldCount)
+                .sum();
+
+        // Fetch leader and store
+        Leader leader = leaderMapper.selectById(gb.getLeaderId());
+        Store store = storeMapper.selectById(gb.getStoreId());
+
+        LeaderLite leaderLite = LeaderLite.builder()
+                .id(leader.getId())
+                .displayName(leader.getDisplayName())
+                .avatarUrl(leader.getAvatarUrl())
+                .build();
+
+        StoreLite storeLite = StoreLite.builder()
+                .id(store.getId())
+                .name(store.getName())
+                .build();
+
+        return PublicGroupBuyItem.builder()
+                .id(gb.getId())
+                .title(gb.getTitle())
+                .coverImageUrl(gb.getCoverImageUrl())
+                .status(gb.getStatus())
+                .endTime(gb.getEndTime() != null ? gb.getEndTime().toString() : null)
+                .minPriceAmount(minPriceAmount)
+                .soldCount(soldCount)
+                .leader(leaderLite)
+                .store(storeLite)
+                .build();
     }
 
     private GroupBuyData toGroupBuyData(GroupBuy gb) {
