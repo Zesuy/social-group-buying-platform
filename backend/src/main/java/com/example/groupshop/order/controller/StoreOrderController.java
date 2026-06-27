@@ -1,0 +1,65 @@
+package com.example.groupshop.order.controller;
+
+import com.example.groupshop.auth.AuthInterceptor;
+import com.example.groupshop.common.response.ApiResponse;
+import com.example.groupshop.common.response.PageResponse;
+import com.example.groupshop.order.dto.OrderResponse;
+import com.example.groupshop.order.dto.ShipOrderRequest;
+import com.example.groupshop.order.dto.ShipOrderResponse;
+import com.example.groupshop.order.service.StoreOrderService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Store order controller — list, detail, and ship orders in the current user's store.
+ *
+ * <p>Batch 08: all endpoints require leader/store identity.
+ */
+@RestController
+@RequestMapping("/api/v1/my/store/orders")
+@RequiredArgsConstructor
+public class StoreOrderController {
+
+    private final StoreOrderService storeOrderService;
+
+    /**
+     * List orders for the current user's store.
+     */
+    @GetMapping
+    public ApiResponse<PageResponse<OrderResponse>> listStoreOrders(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return ApiResponse.success(storeOrderService.getStoreOrders(userId, status, page, pageSize));
+    }
+
+    /**
+     * Get order detail for the current user's store.
+     */
+    @GetMapping("/{orderId}")
+    public ApiResponse<OrderResponse> getStoreOrder(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long orderId) {
+        return ApiResponse.success(storeOrderService.getStoreOrder(userId, orderId));
+    }
+
+    /**
+     * Ship an order (create shipment record and mark order as shipped).
+     */
+    @PostMapping("/{orderId}/ship")
+    public ApiResponse<ShipOrderResponse> shipOrder(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long orderId,
+            @Valid @RequestBody ShipOrderRequest request) {
+        return ApiResponse.success(storeOrderService.shipOrder(userId, orderId, request));
+    }
+}

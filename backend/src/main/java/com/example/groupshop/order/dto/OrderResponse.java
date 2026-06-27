@@ -26,6 +26,8 @@ public class OrderResponse {
     private Long payAmount;
     private String payStatus;
     private String orderStatus;
+    private String paidAt;
+    private String shippedAt;
     private String remark;
     private String receiverName;
     private String receiverPhone;

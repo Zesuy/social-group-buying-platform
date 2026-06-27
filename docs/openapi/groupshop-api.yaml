@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: GroupShop MVP API
-  version: 0.6.0
+  version: 0.9.0
   description: Machine-checkable API contract for implemented MVP batches.
 servers:
   - url: /
@@ -16,6 +16,9 @@ tags:
   - name: OrderAdmin
   - name: Order
   - name: Leader
+  - name: StoreOrder
+  - name: Subscription
+  - name: MemberCard
 paths:
   /api/v1/health:
     get:
@@ -769,6 +772,232 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '422':
           $ref: '#/components/responses/OrderNotCancelableError'
+  /api/v1/orders/{orderId}/simulate-pay:
+    post:
+      tags:
+        - Order
+      summary: Simulate payment for an order.
+      operationId: simulatePay
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Payment simulated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/OrderAlreadyPaidError'
+        '422':
+          $ref: '#/components/responses/OrderNotPayableError'
+          # Also: INSUFFICIENT_STOCK
+  /api/v1/my/store/orders:
+    get:
+      tags:
+        - StoreOrder
+      summary: List orders for the current user's store.
+      operationId: listStoreOrders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated store order list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/orders/{orderId}:
+    get:
+      tags:
+        - StoreOrder
+      summary: Get store order detail.
+      operationId: getStoreOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Store order detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+          # Also: STORE_FORBIDDEN
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/store/orders/{orderId}/ship:
+    post:
+      tags:
+        - StoreOrder
+      summary: Ship an order (create shipment, mark order as shipped).
+      operationId: shipOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShipOrderRequest'
+      responses:
+        '200':
+          description: Order shipped successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipOrderSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/OrderAlreadyShippedError'
+        '422':
+          $ref: '#/components/responses/OrderNotShippableError'
+  /api/v1/leaders/{leaderId}/subscription:
+    post:
+      tags:
+        - Subscription
+      summary: Subscribe to a leader.
+      operationId: subscribe
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: leaderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionRequest'
+      responses:
+        '200':
+          description: Subscribed successfully (idempotent).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags:
+        - Subscription
+      summary: Cancel subscription to a leader.
+      operationId: cancelSubscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: leaderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Subscription canceled (idempotent, returns empty data).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/subscriptions:
+    get:
+      tags:
+        - Subscription
+      summary: List current user's active subscriptions.
+      operationId: listMySubscriptions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of active subscriptions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionListSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/member-cards:
+    get:
+      tags:
+        - MemberCard
+      summary: List current user's member cards.
+      operationId: listMyMemberCards
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of member cards.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberCardListSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
 components:
   securitySchemes:
     bearerAuth:
@@ -843,6 +1072,30 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     OrderNotCancelableError:
       description: Order is not in a cancelable state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OrderAlreadyPaidError:
+      description: Order has already been paid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OrderNotPayableError:
+      description: Order is not in a payable state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OrderAlreadyShippedError:
+      description: Order has already been shipped.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OrderNotShippableError:
+      description: Order is not in a shippable state.
       content:
         application/json:
           schema:
@@ -2277,6 +2530,12 @@ components:
           type: string
         orderStatus:
           type: string
+        paidAt:
+          type: string
+          nullable: true
+        shippedAt:
+          type: string
+          nullable: true
         remark:
           type: string
           nullable: true
@@ -2400,6 +2659,245 @@ components:
           minimum: 0
           nullable: true
         productStatus:
+          type: string
+          nullable: true
+      additionalProperties: false
+    # ── Ship Order ─────────────────────────────────────────────────────
+    ShipOrderRequest:
+      type: object
+      required:
+        - deliveryType
+      properties:
+        deliveryType:
+          type: string
+          enum:
+            - express
+            - pickup
+            - local_delivery
+        logisticsCompany:
+          type: string
+          nullable: true
+        trackingNo:
+          type: string
+          nullable: true
+      additionalProperties: false
+    ShipOrderSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/ShipOrderData'
+        traceId:
+          type: string
+      additionalProperties: false
+    ShipOrderData:
+      type: object
+      required:
+        - order
+        - shipment
+      properties:
+        order:
+          $ref: '#/components/schemas/OrderData'
+        shipment:
+          $ref: '#/components/schemas/ShipmentData'
+      additionalProperties: false
+    ShipmentData:
+      type: object
+      required:
+        - id
+        - orderId
+        - deliveryType
+      properties:
+        id:
+          type: integer
+          format: int64
+        orderId:
+          type: integer
+          format: int64
+        deliveryType:
+          type: string
+        logisticsCompany:
+          type: string
+          nullable: true
+        trackingNo:
+          type: string
+          nullable: true
+        shippedAt:
+          type: string
+          nullable: true
+      additionalProperties: false
+    # ── Subscription ───────────────────────────────────────────────────
+    SubscriptionRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          nullable: true
+          enum:
+            - homepage
+            - product_detail
+            - invitation
+      additionalProperties: false
+    SubscriptionSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/SubscriptionData'
+        traceId:
+          type: string
+      additionalProperties: false
+    SubscriptionData:
+      type: object
+      required:
+        - id
+        - userId
+        - leaderId
+        - storeId
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        leaderId:
+          type: integer
+          format: int64
+        storeId:
+          type: integer
+          format: int64
+        status:
+          type: string
+        source:
+          type: string
+          nullable: true
+        subscribedAt:
+          type: string
+          nullable: true
+        canceledAt:
+          type: string
+          nullable: true
+      additionalProperties: false
+    SubscriptionListSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/SubscriptionListData'
+        traceId:
+          type: string
+      additionalProperties: false
+    SubscriptionListData:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubscriptionData'
+      additionalProperties: false
+    # ── Member Card ────────────────────────────────────────────────────
+    MemberCardListSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/MemberCardListData'
+        traceId:
+          type: string
+      additionalProperties: false
+    MemberCardListData:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemberCardData'
+      additionalProperties: false
+    MemberCardData:
+      type: object
+      required:
+        - id
+        - levelName
+        - growthValue
+        - totalOrderAmount
+        - totalOrders
+      properties:
+        id:
+          type: integer
+          format: int64
+        levelName:
+          type: string
+        growthValue:
+          type: integer
+        totalOrderAmount:
+          type: integer
+        totalOrders:
+          type: integer
+        lastOrderAt:
+          type: string
+          nullable: true
+        leader:
+          $ref: '#/components/schemas/MemberCardLeaderInfo'
+        store:
+          $ref: '#/components/schemas/MemberCardStoreInfo'
+      additionalProperties: false
+    MemberCardLeaderInfo:
+      type: object
+      required:
+        - id
+        - displayName
+      properties:
+        id:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+      additionalProperties: false
+    MemberCardStoreInfo:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        logoUrl:
           type: string
           nullable: true
       additionalProperties: false
