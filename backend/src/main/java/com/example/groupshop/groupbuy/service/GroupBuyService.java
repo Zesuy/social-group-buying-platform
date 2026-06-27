@@ -36,6 +36,7 @@ import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem;
 import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem.LeaderLite;
 import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem.StoreLite;
 import com.example.groupshop.publicbrowsing.dto.ViewerInfo;
+import com.example.groupshop.subscription.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +65,7 @@ public class GroupBuyService {
     private final LeaderMapper leaderMapper;
     private final StoreMapper storeMapper;
     private final CurrentStoreHelper currentStoreHelper;
+    private final SubscriptionService subscriptionService;
 
     // ── Create ────────────────────────────────────────────────────────
 
@@ -323,11 +325,13 @@ public class GroupBuyService {
     }
 
     /**
-     * Get public group buy detail.
+     * Get public group buy detail (backfilled: supports optional auth).
      * Only returns if {@code status=published} and {@code visibility=public}.
      * Otherwise returns RESOURCE_NOT_FOUND.
+     *
+     * @param viewerUserId optional — if provided, checks real subscription status
      */
-    public GroupBuyDetailResponse getPublicGroupBuyDetail(Long groupBuyId) {
+    public GroupBuyDetailResponse getPublicGroupBuyDetail(Long groupBuyId, Long viewerUserId) {
         GroupBuy groupBuy = groupBuyMapper.selectById(groupBuyId);
         if (groupBuy == null || !"published".equals(groupBuy.getStatus()) || !"public".equals(groupBuy.getVisibility())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -355,12 +359,15 @@ public class GroupBuyService {
                 .logoUrl(store.getLogoUrl())
                 .build();
 
+        boolean subscribed = viewerUserId != null
+                && subscriptionService.isSubscribed(viewerUserId, groupBuy.getLeaderId());
+
         return GroupBuyDetailResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
                 .leader(leaderDetail)
                 .store(storeDetail)
                 .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
-                .viewer(new ViewerInfo(false))
+                .viewer(new ViewerInfo(subscribed))
                 .build();
     }
 

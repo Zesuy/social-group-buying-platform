@@ -1,6 +1,7 @@
 package com.example.groupshop.order.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.groupshop.address.dto.AddressResponse;
 import com.example.groupshop.address.service.AddressService;
@@ -16,6 +17,7 @@ import com.example.groupshop.model.entity.Product;
 import com.example.groupshop.model.mapper.AddressMapper;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
+import com.example.groupshop.model.mapper.MemberRelationMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.OrderMapper;
 import com.example.groupshop.model.mapper.ProductMapper;
@@ -52,6 +54,7 @@ public class OrderService {
     private final GroupBuyItemMapper groupBuyItemMapper;
     private final AddressMapper addressMapper;
     private final ProductMapper productMapper;
+    private final MemberRelationMapper memberRelationMapper;
     private final AddressService addressService;
 
     private static final String DB_STATUS_PENDING_PAY = "pending_pay";
@@ -262,6 +265,114 @@ public class OrderService {
         return toOrderResponseWithItems(order);
     }
 
+    // ── Simulate Pay (Batch 07) ───────────────────────────────────────
+
+    /**
+     * Simulate payment for an order. Only the order owner can pay.
+     *
+     * <p>In a single transaction:
+     * <ol>
+     *   <li>Validates order belongs to user and is in pendingPay+unpaid state</li>
+     *   <li>Updates order to paid status, sets paidAt</li>
+     *   <li>Atomically deducts group_stock and increments sold_count for each item</li>
+     *   <li>Creates or updates MemberRelation for the buyer</li>
+     * </ol>
+     *
+     * @throws BusinessException with ORDER_ALREADY_PAID if already paid
+     * @throws BusinessException with ORDER_NOT_PAYABLE if not in payable state
+     * @throws BusinessException with INSUFFICIENT_STOCK if stock insufficient
+     */
+    @Transactional
+    public OrderResponse simulatePay(Long userId, Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (!order.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+
+        // Check payment state
+        if ("paid".equals(order.getPayStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_ALREADY_PAID, "订单已支付");
+        }
+        if (!DB_STATUS_PENDING_PAY.equals(order.getOrderStatus()) || !"unpaid".equals(order.getPayStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_PAYABLE, "订单当前状态不可支付");
+        }
+
+        // Load items for stock deduction
+        List<OrderItem> orderItems = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, order.getId()));
+
+        // Validate and deduct stock atomically (optimistic via MyBatis update with condition)
+        for (OrderItem orderItem : orderItems) {
+            GroupBuyItem gbItem = groupBuyItemMapper.selectById(orderItem.getGroupBuyItemId());
+            if (gbItem == null) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "团购商品不存在");
+            }
+            if (gbItem.getGroupStock() < orderItem.getQuantity()) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足");
+            }
+
+            // Atomic deduction: groupStock -= quantity, soldCount += quantity
+            int updated = groupBuyItemMapper.update(null,
+                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<GroupBuyItem>()
+                            .eq(GroupBuyItem::getId, gbItem.getId())
+                            .eq(GroupBuyItem::getGroupStock, gbItem.getGroupStock())
+                            .setSql("group_stock = group_stock - " + orderItem.getQuantity()
+                                    + ", sold_count = sold_count + " + orderItem.getQuantity()));
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足，并发扣减失败");
+            }
+        }
+
+        // Update order to paid — atomic condition update prevents concurrent duplicate payment
+        LocalDateTime now = LocalDateTime.now();
+        int updated = orderMapper.update(null,
+                new LambdaUpdateWrapper<Order>()
+                        .eq(Order::getId, order.getId())
+                        .eq(Order::getPayStatus, "unpaid")
+                        .eq(Order::getOrderStatus, DB_STATUS_PENDING_PAY)
+                        .set(Order::getPayStatus, "paid")
+                        .set(Order::getOrderStatus, "paid")
+                        .set(Order::getPaidAt, now));
+        if (updated == 0) {
+            // Already paid or status changed — re-read to determine the right error
+            Order current = orderMapper.selectById(order.getId());
+            if ("paid".equals(current.getPayStatus())) {
+                throw new BusinessException(ErrorCode.ORDER_ALREADY_PAID, "订单已支付");
+            }
+            throw new BusinessException(ErrorCode.ORDER_NOT_PAYABLE, "订单当前状态不可支付");
+        }
+        // Sync back the in-memory order so upsertMemberRelation sees current state
+        order.setPayStatus("paid");
+        order.setOrderStatus("paid");
+        order.setPaidAt(now);
+
+        // Create or update member relation
+        upsertMemberRelation(order, now);
+
+        return toOrderResponseWithItems(order);
+    }
+
+    /**
+     * Atomically create or update member relation via DB UPSERT.
+     *
+     * <p>Uses {@code INSERT ... ON DUPLICATE KEY UPDATE} to eliminate the
+     * read-then-write gap that would let concurrent first payments from the
+     * same user to the same store both attempt to insert and collide on the
+     * unique constraint {@code uk_member_relations_user_store}.
+     */
+    private void upsertMemberRelation(Order order, LocalDateTime now) {
+        memberRelationMapper.upsert(
+                order.getUserId(),
+                order.getLeaderId(),
+                order.getStoreId(),
+                order.getPayAmount(),
+                now);
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────
 
     /**
@@ -383,6 +494,8 @@ public class OrderService {
                 .payAmount(order.getPayAmount())
                 .payStatus(order.getPayStatus())
                 .orderStatus(toApiOrderStatus(order.getOrderStatus()))
+                .paidAt(order.getPaidAt() != null ? order.getPaidAt().toString() : null)
+                .shippedAt(order.getShippedAt() != null ? order.getShippedAt().toString() : null)
                 .remark(order.getRemark())
                 .receiverName(order.getReceiverName())
                 .receiverPhone(order.getReceiverPhone())

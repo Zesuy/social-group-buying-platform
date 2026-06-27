@@ -17,6 +17,7 @@ import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem;
 import com.example.groupshop.publicbrowsing.dto.ViewerInfo;
+import com.example.groupshop.subscription.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -34,11 +35,14 @@ public class LeaderService {
     private final StoreMapper storeMapper;
     private final GroupBuyMapper groupBuyMapper;
     private final GroupBuyService groupBuyService;
+    private final SubscriptionService subscriptionService;
 
     /**
      * Get leader homepage with store info and paginated public group buys.
+     *
+     * @param viewerUserId optional — if provided, checks real subscription status
      */
-    public LeaderHomepageResponse getLeaderHomepage(Long leaderId, int page, int pageSize) {
+    public LeaderHomepageResponse getLeaderHomepage(Long leaderId, int page, int pageSize, Long viewerUserId) {
         Leader leader = leaderMapper.selectById(leaderId);
         if (leader == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -84,10 +88,13 @@ public class LeaderService {
         PageResponse<PublicGroupBuyItem> groupBuysPage = PageResponse.of(
                 groupBuyItems, page, pageSize, result.getTotal());
 
+        boolean subscribed = viewerUserId != null
+                && subscriptionService.isSubscribed(viewerUserId, leaderId);
+
         return LeaderHomepageResponse.builder()
                 .leader(leaderInfo)
                 .store(storeInfo)
-                .viewer(new ViewerInfo(false))
+                .viewer(new ViewerInfo(subscribed))
                 .groupBuys(groupBuysPage)
                 .build();
     }
