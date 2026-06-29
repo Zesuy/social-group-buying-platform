@@ -1,11 +1,15 @@
 <template>
-  <div class="page-container">
+  <PageLayout show-tab-bar>
     <div class="page-card">
       <h2>一键开团</h2>
       <p class="placeholder-text">开团页面将在后续 batch 实现</p>
     </div>
-  </div>
+  </PageLayout>
 </template>
+
+<script setup lang="ts">
+import PageLayout from '@/components/PageLayout.vue'
+</script>
 
 <style scoped>
 .placeholder-text {
