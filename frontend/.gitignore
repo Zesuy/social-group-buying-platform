@@ -1,0 +1,25 @@
+node_modules/
+dist/
+
+# Local env files
+.env.local
+.env.*.local
+*.local
+
+# Tool caches and build metadata
+.vite/
+.vite-temp/
+.cache/
+*.tsbuildinfo
+
+# Test outputs
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Editor / OS / logs
+.vscode/*
+!.vscode/extensions.json
+*.log
+.DS_Store
