@@ -87,3 +87,220 @@ export interface StoreSummary {
   logoUrl: string | null
   status: string
 }
+
+// ── 公开浏览：团购列表 ──
+
+/** GET /api/v1/group-buys 列表项 */
+export interface PublicGroupBuyItem {
+  id: number
+  title: string
+  coverImageUrl: string | null
+  status: string
+  endTime: string | null
+  minPriceAmount: number
+  soldCount: number
+  leader: LeaderLite
+  store: StoreLite
+}
+
+export interface LeaderLite {
+  id: number
+  displayName: string
+  avatarUrl: string | null
+}
+
+export interface StoreLite {
+  id: number
+  name: string
+}
+
+// ── 公开浏览：团购详情 ──
+
+/** 团购活动核心信息（与 OpenAPI GroupBuyDetail 一致） */
+export interface GroupBuyDetail {
+  id: number
+  storeId: number
+  leaderId: number
+  title: string
+  introduction: string | null
+  coverImageUrl: string | null
+  groupType: string
+  deliveryType: string
+  shippingTime: string | null
+  startTime: string | null
+  endTime: string | null
+  visibility: string
+  status: string
+}
+
+export interface GroupBuyDetailData {
+  groupBuy: GroupBuyDetail
+  leader: LeaderDetail
+  store: StoreDetail
+  items: PublicGroupBuyDetailItem[]
+  viewer: ViewerInfo
+}
+
+export interface LeaderDetail {
+  id: number
+  displayName: string
+  avatarUrl: string | null
+  followerCount: number
+}
+
+export interface StoreDetail {
+  id: number
+  name: string
+  logoUrl: string | null
+}
+
+export interface PublicGroupBuyDetailItem {
+  id: number
+  productId: number
+  displayName: string
+  groupPriceAmount: number
+  groupStock: number
+  soldCount: number
+  sortOrder: number
+  coverImageUrl: string | null
+}
+
+export interface ViewerInfo {
+  subscribed: boolean
+}
+
+// ── 团长主页 ──
+
+export interface LeaderHomepageData {
+  leader: LeaderHomepageLeader
+  store: LeaderHomepageStore
+  viewer: ViewerInfo
+  groupBuys: PublicGroupBuyPageData
+}
+
+export interface LeaderHomepageLeader {
+  id: number
+  displayName: string
+  avatarUrl: string | null
+  bio: string | null
+  memberCount: number
+  followerCount: number
+}
+
+export interface LeaderHomepageStore {
+  id: number
+  name: string
+  logoUrl: string | null
+  description: string | null
+  defaultDeliveryType: string
+}
+
+export interface PublicGroupBuyPageData {
+  items: PublicGroupBuyItem[]
+  page: number
+  pageSize: number
+  total: number
+  hasMore: boolean
+}
+
+// ── 地址管理 ──
+
+export interface AddressData {
+  id: number
+  receiverName: string
+  receiverPhone: string
+  province: string
+  city: string
+  district: string
+  detail: string
+  fullAddress: string
+  isDefault: boolean
+}
+
+export interface CreateAddressRequest {
+  receiverName: string
+  receiverPhone: string
+  province: string
+  city: string
+  district: string
+  detail: string
+  isDefault?: boolean
+}
+
+export interface UpdateAddressRequest {
+  receiverName?: string
+  receiverPhone?: string
+  province?: string
+  city?: string
+  district?: string
+  detail?: string
+  isDefault?: boolean
+}
+
+// ── 订单预览与创建 ──
+
+export interface OrderPreviewData {
+  groupBuyId: number
+  address: OrderPreviewAddress
+  items: OrderPreviewItem[]
+  totalAmount: number
+  discountAmount: number
+  payAmount: number
+}
+
+export interface OrderPreviewAddress {
+  id: number
+  receiverName: string
+  receiverPhone: string
+  province: string
+  city: string
+  district: string
+  detail: string
+  fullAddress: string
+}
+
+export interface OrderPreviewItem {
+  groupBuyItemId: number
+  productId: number
+  productName: string
+  unitPriceAmount: number
+  quantity: number
+  totalAmount: number
+  availableStock: number
+  soldCount: number
+}
+
+export interface OrderPreviewRequest {
+  groupBuyId: number
+  addressId: number
+  items: OrderItemEntry[]
+}
+
+export interface OrderItemEntry {
+  groupBuyItemId: number
+  quantity: number
+}
+
+export interface CreateOrderRequest {
+  groupBuyId: number
+  addressId: number
+  remark?: string | null
+  items: OrderItemEntry[]
+}
+
+// ── 订阅 ──
+
+export interface SubscriptionRequest {
+  source?: string | null
+}
+
+export interface SubscriptionData {
+  id: number
+  userId: number
+  leaderId: number
+  storeId: number
+  status: string
+  source?: string | null
+  subscribedAt?: string | null
+  canceledAt?: string | null
+}

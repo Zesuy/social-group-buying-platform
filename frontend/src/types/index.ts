@@ -11,4 +11,32 @@ export type {
   CurrentUserSummary,
   LeaderSummary,
   StoreSummary,
+  // 公开浏览
+  PublicGroupBuyItem,
+  LeaderLite,
+  StoreLite,
+  GroupBuyDetail,
+  GroupBuyDetailData,
+  LeaderDetail,
+  StoreDetail,
+  PublicGroupBuyDetailItem,
+  ViewerInfo,
+  LeaderHomepageData,
+  LeaderHomepageLeader,
+  LeaderHomepageStore,
+  PublicGroupBuyPageData,
+  // 地址
+  AddressData,
+  CreateAddressRequest,
+  UpdateAddressRequest,
+  // 订单
+  OrderPreviewData,
+  OrderPreviewAddress,
+  OrderPreviewItem,
+  OrderPreviewRequest,
+  OrderItemEntry,
+  CreateOrderRequest,
+  // 订阅
+  SubscriptionRequest,
+  SubscriptionData,
 } from './api'

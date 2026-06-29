@@ -4,3 +4,4 @@
  * 输出所有 Pinia store。
  */
 export { useAuthStore } from './auth'
+export { useCheckoutStore } from './checkout'

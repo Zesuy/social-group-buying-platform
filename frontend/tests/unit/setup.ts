@@ -17,6 +17,14 @@ import {
   Empty,
   Loading,
   Icon,
+  Tag,
+  Stepper,
+  Swipe,
+  SwipeItem,
+  Checkbox,
+  List,
+  PullRefresh,
+  Switch,
 } from 'vant'
 
 // 注册项目中使用的 Vant 组件
@@ -32,4 +40,12 @@ config.global.components = {
   VanEmpty: Empty,
   VanLoading: Loading,
   VanIcon: Icon,
+  VanTag: Tag,
+  VanStepper: Stepper,
+  VanSwipe: Swipe,
+  VanSwipeItem: SwipeItem,
+  VanCheckbox: Checkbox,
+  VanList: List,
+  VanPullRefresh: PullRefresh,
+  VanSwitch: Switch,
 }
