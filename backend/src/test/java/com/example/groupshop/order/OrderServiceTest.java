@@ -453,4 +453,74 @@ class OrderServiceTest extends ServiceTestBase {
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ORDER_ALREADY_PAID);
     }
+
+    // ── Complete Order (Batch 10) ────────────────────────────────────
+
+    /**
+     * Create a paid order and manually set it to shipped for complete-order tests.
+     */
+    private OrderResponse createShippedOrder() {
+        OrderResponse order = createOneOrder();
+        orderService.simulatePay(userId, order.getId());
+
+        // Manually set to shipped via mapper (same effect as leader shipping)
+        Order entity = orderMapper.selectById(order.getId());
+        entity.setOrderStatus("shipped");
+        entity.setShippedAt(LocalDateTime.now());
+        orderMapper.updateById(entity);
+
+        return orderService.getMyOrder(userId, order.getId());
+    }
+
+    @Test
+    void completeOrder_shouldSucceedAfterShipment() {
+        OrderResponse order = createShippedOrder();
+
+        OrderResponse completed = orderService.completeOrder(userId, order.getId());
+
+        assertThat(completed.getOrderStatus()).isEqualTo("completed");
+        assertThat(completed.getCompletedAt()).isNotNull();
+
+        // DB record should also be updated
+        Order entity = orderMapper.selectById(order.getId());
+        assertThat(entity.getOrderStatus()).isEqualTo("completed");
+        assertThat(entity.getCompletedAt()).isNotNull();
+    }
+
+    @Test
+    void completeOrder_shouldFailWhenNotOwnOrder() {
+        OrderResponse order = createShippedOrder();
+
+        // Another user tries to complete
+        assertThatThrownBy(() -> orderService.completeOrder(userId + 999, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+
+    @Test
+    void completeOrder_shouldFailWhenNotShipped() {
+        OrderResponse order = createOneOrder();
+        orderService.simulatePay(userId, order.getId());
+
+        // Order is paid, not shipped — should fail
+        assertThatThrownBy(() -> orderService.completeOrder(userId, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ORDER_NOT_COMPLETABLE);
+    }
+
+    @Test
+    void completeOrder_shouldFailWhenAlreadyCompleted() {
+        OrderResponse order = createShippedOrder();
+
+        // Complete first
+        orderService.completeOrder(userId, order.getId());
+
+        // Complete again should fail
+        assertThatThrownBy(() -> orderService.completeOrder(userId, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ORDER_ALREADY_COMPLETED);
+    }
 }

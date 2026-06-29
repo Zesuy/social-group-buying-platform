@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: GroupShop MVP API
-  version: 0.9.0
+  version: 0.10.0
   description: Machine-checkable API contract for implemented MVP batches.
 servers:
   - url: /
@@ -803,6 +803,36 @@ paths:
         '422':
           $ref: '#/components/responses/OrderNotPayableError'
           # Also: INSUFFICIENT_STOCK
+  /api/v1/orders/{orderId}/complete:
+    post:
+      tags:
+        - Order
+      summary: Complete (confirm receipt for) an order.
+      operationId: completeOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order completed successfully (receipt confirmed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/OrderAlreadyCompletedError'
+        '422':
+          $ref: '#/components/responses/OrderNotCompletableError'
   /api/v1/my/store/orders:
     get:
       tags:
@@ -1096,6 +1126,18 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     OrderNotShippableError:
       description: Order is not in a shippable state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OrderNotCompletableError:
+      description: Order is not in a completable state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OrderAlreadyCompletedError:
+      description: Order has already been completed (confirmed receipt).
       content:
         application/json:
           schema:
@@ -2534,6 +2576,9 @@ components:
           type: string
           nullable: true
         shippedAt:
+          type: string
+          nullable: true
+        completedAt:
           type: string
           nullable: true
         remark:

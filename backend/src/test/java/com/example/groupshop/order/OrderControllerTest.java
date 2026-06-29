@@ -485,4 +485,110 @@ class OrderControllerTest extends MockMvcTestBase {
                 .andExpectAll(errorResult("ORDER_NOT_PAYABLE"));
     }
 
+    // ── POST /api/v1/orders/{orderId}/complete (Batch 10) ──────────────
+
+    @Test
+    void completeOrder_shouldSucceedAfterShipment() throws Exception {
+        // Create, pay, and ship an order
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": %d,
+                                    "addressId": %d,
+                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+
+        // Pay
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                .header("Authorization", "Bearer " + buyerToken));
+
+        // Ship (as leader)
+        mockMvc.perform(post("/api/v1/my/store/orders/" + orderId + "/ship")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("{\"deliveryType\": \"express\"}"));
+
+        // Complete
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/complete")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.orderStatus").value("completed"))
+                .andExpect(jsonPath("$.data.completedAt").isNotEmpty());
+    }
+
+    @Test
+    void completeOrder_shouldFailWhenNotOwnOrder() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": %d,
+                                    "addressId": %d,
+                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+
+        // Pay
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                .header("Authorization", "Bearer " + buyerToken));
+
+        // Ship (as leader)
+        mockMvc.perform(post("/api/v1/my/store/orders/" + orderId + "/ship")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("{\"deliveryType\": \"express\"}"));
+
+        // Leader tries to complete the buyer's order
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/complete")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isNotFound())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
+    void completeOrder_shouldFailWhenNotShipped() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": %d,
+                                    "addressId": %d,
+                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+
+        // Pay but don't ship
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
+                .header("Authorization", "Bearer " + buyerToken));
+
+        // Try to complete (not shipped)
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/complete")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("ORDER_NOT_COMPLETABLE"));
+    }
+
+    @Test
+    void completeOrder_shouldFailWhenNotAuthenticated() throws Exception {
+        mockMvc.perform(post(ORDERS_URL + "/99999/complete")
+                        .contentType("application/json"))
+                .andExpect(status().isUnauthorized())
+                .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
 }

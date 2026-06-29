@@ -373,6 +373,47 @@ public class OrderService {
                 now);
     }
 
+    // ── Complete Order (Batch 10) ────────────────────────────────────
+
+    /**
+     * Complete (confirm receipt for) an order. Only the order owner can complete.
+     *
+     * <p>Uses an atomic conditional update to transition {@code shipped → completed},
+     * preventing concurrent requests from double-completing.
+     *
+     * @throws BusinessException with ORDER_ALREADY_COMPLETED if already completed
+     * @throws BusinessException with ORDER_NOT_COMPLETABLE if not in a completable state
+     */
+    @Transactional
+    public OrderResponse completeOrder(Long userId, Long orderId) {
+        Order order = findOrderForUser(orderId, userId);
+
+        // Atomic condition update: only shipped orders can transition to completed
+        LocalDateTime now = LocalDateTime.now();
+        int updated = orderMapper.update(null,
+                new LambdaUpdateWrapper<Order>()
+                        .eq(Order::getId, order.getId())
+                        .eq(Order::getOrderStatus, "shipped")
+                        .set(Order::getOrderStatus, "completed")
+                        .set(Order::getCompletedAt, now));
+        if (updated == 0) {
+            // Re-read to determine the actual state
+            Order current = orderMapper.selectById(order.getId());
+            if (current == null) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+            }
+            if ("completed".equals(current.getOrderStatus())) {
+                throw new BusinessException(ErrorCode.ORDER_ALREADY_COMPLETED, "订单已完成");
+            }
+            throw new BusinessException(ErrorCode.ORDER_NOT_COMPLETABLE, "当前订单状态不可确认收货");
+        }
+        // Sync in-memory state
+        order.setOrderStatus("completed");
+        order.setCompletedAt(now);
+
+        return toOrderResponseWithItems(order);
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────
 
     /**
@@ -496,6 +537,7 @@ public class OrderService {
                 .orderStatus(toApiOrderStatus(order.getOrderStatus()))
                 .paidAt(order.getPaidAt() != null ? order.getPaidAt().toString() : null)
                 .shippedAt(order.getShippedAt() != null ? order.getShippedAt().toString() : null)
+                .completedAt(order.getCompletedAt() != null ? order.getCompletedAt().toString() : null)
                 .remark(order.getRemark())
                 .receiverName(order.getReceiverName())
                 .receiverPhone(order.getReceiverPhone())
