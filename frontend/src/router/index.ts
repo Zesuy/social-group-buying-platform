@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -116,13 +117,28 @@ const router = createRouter({
   routes,
 })
 
-// ── 路由守卫：登录拦截（占位，Batch 01 实现完整逻辑） ──
+// ── 路由守卫：登录拦截 + 团长身份拦截 + 登录后重定向 ──
 router.beforeEach((to, _from, next) => {
-  // 设置页面标题
-  if (to.meta.title) {
-    document.title = to.meta.title as string
+  // 1. 设置页面标题
+  document.title = (to.meta.title as string) || '团购商城'
+
+  const authStore = useAuthStore()
+
+  // 2. requiresAuth：未登录时跳转登录页，保留完整路径作为 redirect
+  if (to.meta.requiresAuth && !authStore.isLoggedIn) {
+    return next({ name: 'login', query: { redirect: to.fullPath } })
   }
-  // TODO: Batch 01 实现 requiresAuth / requiresLeader 守卫
+
+  // 3. requiresLeader：已登录但非团长，跳转到创建店铺页
+  if (to.meta.requiresLeader && !authStore.isLeader) {
+    return next({ name: 'createStore', query: { redirect: to.fullPath } })
+  }
+
+  // 4. 已登录用户访问 /login，重定向到 redirect 查询参数或 /profile
+  if (to.name === 'login' && authStore.isLoggedIn) {
+    return next({ path: (to.query.redirect as string) || '/profile' })
+  }
+
   next()
 })
 

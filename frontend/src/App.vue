@@ -1,10 +1,17 @@
 <template>
   <router-view />
+  <BottomTabBar v-if="showTabBar" />
 </template>
 
 <script setup lang="ts">
-// App 根组件 — 路由入口
-// Batch 01 将在此添加 BottomTabBar 和全局 AuthGuard
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import BottomTabBar from '@/components/BottomTabBar.vue'
+
+const route = useRoute()
+
+// 仅在有 showTabBar 元信息的路由显示底部 TabBar
+const showTabBar = computed(() => route.meta.showTabBar === true)
 </script>
 
 <style>

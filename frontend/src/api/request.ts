@@ -1,5 +1,8 @@
-import axios, { type AxiosError, type AxiosResponse } from 'axios'
-import type { ApiError, ApiResponse } from '@/types'
+import axios from 'axios'
+import { normalizeAxiosError, getErrorMessage } from './errors'
+import { STORAGE_KEYS } from '@/constants'
+import type { ApiError } from '@/types'
+import type { AxiosResponse } from 'axios'
 
 const request = axios.create({
   baseURL: '/api/v1',
@@ -12,7 +15,9 @@ const request = axios.create({
 // ── 请求拦截：注入 Authorization ──
 request.interceptors.request.use((config) => {
   const token =
-    typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
+    typeof window !== 'undefined'
+      ? localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)
+      : null
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -21,21 +26,15 @@ request.interceptors.request.use((config) => {
 
 // ── 响应拦截：解包 / 统一错误处理 ──
 request.interceptors.response.use(
-  (response: AxiosResponse<ApiResponse<unknown>>) => {
-    // 成功响应直接返回 data
-    return response
+  (response: AxiosResponse) => {
+    // 返回 HTTP 响应体，调用方直接获得 ApiResponse<T>，无需再 .data 解一层
+    return response.data
   },
-  (error: AxiosError<{ success: false; error: ApiError; traceId?: string }>) => {
-    // 标准化错误信息
-    if (error.response?.data?.error) {
-      const apiError = error.response.data.error
-      return Promise.reject(apiError)
-    }
-    // 网络错误等
-    return Promise.reject({
-      code: 'NETWORK_ERROR',
-      message: '网络异常，请稍后重试',
-    } satisfies ApiError)
+  (error) => {
+    const apiError: ApiError = normalizeAxiosError(error)
+    // 补充中文文案（如果后端没给中文 message）
+    apiError.message = apiError.message || getErrorMessage(apiError.code)
+    return Promise.reject(apiError)
   },
 )
 

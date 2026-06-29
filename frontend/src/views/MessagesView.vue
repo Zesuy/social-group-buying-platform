@@ -1,16 +1,16 @@
 <template>
-  <div class="page-container">
-    <div class="page-card">
-      <h2>消息</h2>
-      <p class="placeholder-text">消息中心将在后续 batch 实现</p>
-    </div>
-  </div>
+  <PageLayout show-tab-bar>
+    <ReminderBanner type="info" text="消息功能将在后续版本上线，敬请期待">
+      消息功能将在后续版本上线，敬请期待
+    </ReminderBanner>
+
+    <EmptyState description="暂无消息" />
+  </PageLayout>
 </template>
 
-<style scoped>
-.placeholder-text {
-  margin-top: 12px;
-  color: var(--color-text-hint);
-  font-size: var(--font-size-md);
-}
-</style>
+<script setup lang="ts">
+// 消息页 — 只展示空态和提示横幅，不请求任何消息 API
+import PageLayout from '@/components/PageLayout.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import ReminderBanner from '@/components/ReminderBanner.vue'
+</script>
