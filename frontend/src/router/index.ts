@@ -63,6 +63,24 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '地址管理', requiresAuth: true },
   },
   {
+    path: '/addresses/new',
+    name: 'addressNew',
+    component: () => import('@/views/AddressNewView.vue'),
+    meta: { title: '新增地址', requiresAuth: true },
+  },
+  {
+    path: '/addresses/:id/edit',
+    name: 'addressEdit',
+    component: () => import('@/views/AddressEditView.vue'),
+    meta: { title: '编辑地址', requiresAuth: true },
+  },
+  {
+    path: '/orders/:id',
+    name: 'orderDetail',
+    component: () => import('@/views/OrderDetailView.vue'),
+    meta: { title: '订单详情', requiresAuth: true },
+  },
+  {
     path: '/store/create',
     name: 'createStore',
     component: () => import('@/views/CreateStoreView.vue'),

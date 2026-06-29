@@ -1,0 +1,101 @@
+import { describe, it, expect } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { mount } from '@vue/test-utils'
+import { useCheckoutStore } from '@/stores/checkout'
+import OrderAmountBreakdown from '@/components/OrderAmountBreakdown.vue'
+
+describe('checkoutStore', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('starts with null groupBuyId', () => {
+    const store = useCheckoutStore()
+    expect(store.groupBuyId).toBeNull()
+    expect(store.groupBuyItemId).toBeNull()
+    expect(store.quantity).toBe(1)
+    expect(store.selectedAddressId).toBeNull()
+    expect(store.remark).toBe('')
+    expect(store.snapshot).toBeNull()
+  })
+
+  it('setCheckoutContext fills fields and clears address', () => {
+    const store = useCheckoutStore()
+    store.setCheckoutContext({
+      groupBuyId: 100,
+      groupBuyItemId: 1001,
+      quantity: 2,
+      title: '测试团购',
+      coverImageUrl: null,
+      displayName: '蜜桃5斤装',
+      unitPriceAmount: 2990,
+    })
+    expect(store.groupBuyId).toBe(100)
+    expect(store.groupBuyItemId).toBe(1001)
+    expect(store.quantity).toBe(2)
+    expect(store.selectedAddressId).toBeNull() // 从详情进入时清空地址
+    expect(store.snapshot?.title).toBe('测试团购')
+    expect(store.snapshot?.displayName).toBe('蜜桃5斤装')
+  })
+
+  it('setAddress updates selected address', () => {
+    const store = useCheckoutStore()
+    store.setAddress(300)
+    expect(store.selectedAddressId).toBe(300)
+  })
+
+  it('setQuantity updates quantity', () => {
+    const store = useCheckoutStore()
+    store.setQuantity(3)
+    expect(store.quantity).toBe(3)
+  })
+
+  it('setRemark updates remark', () => {
+    const store = useCheckoutStore()
+    store.setRemark('请尽快发货')
+    expect(store.remark).toBe('请尽快发货')
+  })
+
+  it('clearCheckout resets all state', () => {
+    const store = useCheckoutStore()
+    store.setCheckoutContext({
+      groupBuyId: 100, groupBuyItemId: 1001, quantity: 2,
+    })
+    store.setAddress(300)
+    store.setRemark('备注')
+    store.clearCheckout()
+    expect(store.groupBuyId).toBeNull()
+    expect(store.groupBuyItemId).toBeNull()
+    expect(store.quantity).toBe(1)
+    expect(store.selectedAddressId).toBeNull()
+    expect(store.remark).toBe('')
+    expect(store.snapshot).toBeNull()
+  })
+})
+
+describe('OrderAmountBreakdown', () => {
+  it('renders total, discount and pay amounts', () => {
+    const wrapper = mount(OrderAmountBreakdown, {
+      props: { totalAmount: 5980, discountAmount: 500, payAmount: 5480 },
+    })
+    expect(wrapper.text()).toContain('商品金额')
+    expect(wrapper.text()).toContain('¥59.80')
+    expect(wrapper.text()).toContain('优惠')
+    expect(wrapper.text()).toContain('应付')
+    expect(wrapper.text()).toContain('¥54.80')
+  })
+
+  it('does not show discount row when no discount', () => {
+    const wrapper = mount(OrderAmountBreakdown, {
+      props: { totalAmount: 2990, discountAmount: 0, payAmount: 2990 },
+    })
+    expect(wrapper.text()).not.toContain('优惠')
+  })
+
+  it('handles zero amounts', () => {
+    const wrapper = mount(OrderAmountBreakdown, {
+      props: { totalAmount: 0, discountAmount: 0, payAmount: 0 },
+    })
+    expect(wrapper.text()).toContain('¥0.00')
+  })
+})
