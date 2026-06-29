@@ -30,12 +30,22 @@ export type {
   CreateAddressRequest,
   UpdateAddressRequest,
   // 订单
+  OrderData,
+  OrderItemData,
+  OrderActionResult,
   OrderPreviewData,
   OrderPreviewAddress,
   OrderPreviewItem,
   OrderPreviewRequest,
   OrderItemEntry,
   CreateOrderRequest,
+  // 店铺
+  CreateStoreRequest,
+  UpdateStoreRequest,
+  LeaderInfo,
+  StoreInfo,
+  StoreResponseData,
+  MyStoreResponseData,
   // 订阅
   SubscriptionRequest,
   SubscriptionData,

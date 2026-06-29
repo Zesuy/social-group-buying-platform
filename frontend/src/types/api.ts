@@ -237,6 +237,102 @@ export interface UpdateAddressRequest {
   isDefault?: boolean
 }
 
+// ── 订单 ──
+
+/** 订单详情数据（与 OpenAPI OrderData 一致） */
+export interface OrderData {
+  id: number
+  orderNo: string
+  groupBuyId: number
+  storeId: number
+  leaderId: number
+  totalAmount: number
+  discountAmount: number
+  payAmount: number
+  payStatus: string
+  orderStatus: string
+  paidAt: string | null
+  shippedAt: string | null
+  completedAt: string | null
+  remark: string | null
+  receiverName: string
+  receiverPhone: string
+  province: string
+  city: string
+  district: string
+  detail: string
+  fullAddress: string
+  items: OrderItemData[]
+}
+
+/** 订单商品明细（与 OpenAPI OrderItemData 一致） */
+export interface OrderItemData {
+  id: number
+  groupBuyItemId: number
+  productId: number
+  productName: string
+  skuName?: string
+  unitPriceAmount: number
+  quantity: number
+  totalAmount: number
+}
+
+/** 订单操作响应（取消/支付/完成等） */
+export interface OrderActionResult {
+  id: number
+  orderStatus: string
+  payStatus?: string
+  payAmount?: number
+  paidAt?: string | null
+  completedAt?: string | null
+}
+
+// ── 店铺 ──
+
+/** 创建店铺请求 */
+export interface CreateStoreRequest {
+  name: string
+  logoUrl?: string | null
+  description?: string | null
+  defaultDeliveryType: string
+}
+
+/** 更新店铺请求 */
+export interface UpdateStoreRequest {
+  name?: string
+  logoUrl?: string | null
+  description?: string | null
+  defaultDeliveryType?: string
+}
+
+/** 团长详情（店铺相关） */
+export interface LeaderInfo {
+  id: number
+  displayName: string
+  avatarUrl: string | null
+}
+
+/** 店铺详情 */
+export interface StoreInfo {
+  id: number
+  leaderId: number
+  name: string
+  logoUrl: string | null
+  description: string | null
+  defaultDeliveryType: string
+  distributionEnabled: boolean
+  status: string
+}
+
+/** 创建/更新店铺响应数据 */
+export interface StoreResponseData {
+  leader: LeaderInfo
+  store: StoreInfo
+}
+
+/** 我的店铺响应（未开店时 data=null） */
+export type MyStoreResponseData = StoreResponseData | null
+
 // ── 订单预览与创建 ──
 
 export interface OrderPreviewData {

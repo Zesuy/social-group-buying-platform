@@ -35,7 +35,15 @@ describe('Router guards', () => {
     expect(router.currentRoute.value.query.redirect).toBe('/orders')
   })
 
-  it('should redirect /open-group to /store/create when authenticated non-leader', async () => {
+  it('should allow /open-group without authentication (now public)', async () => {
+    const router = await setupRouter()
+    await router.push('/open-group')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('openGroup')
+  })
+
+  it('should allow /open-group when authenticated non-leader (now public)', async () => {
     const store = useAuthStore()
     store.accessToken = 'valid_token'
     store.user = {
@@ -47,30 +55,6 @@ describe('Router guards', () => {
       leaderId: null,
       storeId: null,
     }
-    store.isBootstrapped = true
-
-    const router = await setupRouter()
-    await router.push('/open-group')
-    await router.isReady()
-
-    expect(router.currentRoute.value.name).toBe('createStore')
-    expect(router.currentRoute.value.query.redirect).toBe('/open-group')
-  })
-
-  it('should allow /open-group when authenticated leader', async () => {
-    const store = useAuthStore()
-    store.accessToken = 'valid_token'
-    store.user = {
-      id: 2,
-      nickname: '团长用户',
-      avatarUrl: null,
-      phone: '13700000000',
-      hasLeader: true,
-      leaderId: 10,
-      storeId: 20,
-    }
-    store.leader = { id: 10, displayName: '小店', avatarUrl: null }
-    store.store = { id: 20, name: '小店', logoUrl: null, status: 'active' }
     store.isBootstrapped = true
 
     const router = await setupRouter()
@@ -130,12 +114,20 @@ describe('Router guards', () => {
     expect(router.currentRoute.value.name).toBe('messages')
   })
 
-  it('should redirect /profile to /login when not authenticated', async () => {
+  it('should allow /profile without authentication (now public)', async () => {
     const router = await setupRouter()
     await router.push('/profile')
     await router.isReady()
 
+    expect(router.currentRoute.value.name).toBe('profile')
+  })
+
+  it('should redirect /leader routes to /login when not authenticated', async () => {
+    const router = await setupRouter()
+    await router.push('/leader/dashboard')
+    await router.isReady()
+
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/profile')
+    expect(router.currentRoute.value.query.redirect).toBe('/leader/dashboard')
   })
 })

@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
     path: '/open-group',
     name: 'openGroup',
     component: () => import('@/views/OpenGroupView.vue'),
-    meta: { title: '一键开团', showTabBar: true, requiresAuth: true, requiresLeader: true },
+    meta: { title: '一键开团', showTabBar: true },
   },
   {
     path: '/messages',
@@ -30,7 +30,7 @@ const routes: RouteRecordRaw[] = [
     path: '/profile',
     name: 'profile',
     component: () => import('@/views/ProfileView.vue'),
-    meta: { title: '我的', showTabBar: true, requiresAuth: true },
+    meta: { title: '我的', showTabBar: true },
   },
   {
     path: '/login',
@@ -88,12 +88,12 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/leader',
-    name: 'leaderLayout',
     component: () => import('@/views/leader/LeaderLayout.vue'),
     meta: { title: '团长管理', requiresAuth: true, requiresLeader: true },
     children: [
       {
         path: '',
+        name: 'leaderIndex',
         redirect: { name: 'leaderDashboard' },
       },
       {
@@ -119,6 +119,12 @@ const routes: RouteRecordRaw[] = [
         name: 'leaderGroupBuys',
         component: () => import('@/views/leader/LeaderGroupBuysView.vue'),
         meta: { title: '团购管理' },
+      },
+      {
+        path: 'store',
+        name: 'leaderStore',
+        component: () => import('@/views/leader/LeaderStoreView.vue'),
+        meta: { title: '我的店铺' },
       },
     ],
   },

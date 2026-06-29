@@ -26,7 +26,7 @@ export type OrderStatus =
   | 'canceled'
 
 /** 配送类型 */
-export type DeliveryType = 'express' | 'selfPickup'
+export type DeliveryType = 'express' | 'pickup' | 'local_delivery'
 
 /** 订阅来源 */
 export type SubscriptionSource = 'homepage' | 'groupBuyDetail'
@@ -62,7 +62,8 @@ const orderStatusMap: Record<string, string> = {
 
 const deliveryTypeMap: Record<string, string> = {
   express: '快递配送',
-  selfPickup: '自提',
+  pickup: '到店自提',
+  local_delivery: '同城配送',
 }
 
 // ── 映射函数 ──
