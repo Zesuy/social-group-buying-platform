@@ -1,0 +1,80 @@
+@import './variables.css';
+
+/* ══════════════════════════════════════════════
+   全局样式 — H5 移动端基础
+   ══════════════════════════════════════════════ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+  font-size: var(--font-size-md);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+}
+
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── 应用容器 ── */
+#app {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* ── 链接 ── */
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+/* ── 图片 ── */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ── 按钮触控尺寸 ── */
+button,
+[role='button'],
+select,
+input[type='checkbox'],
+input[type='radio'] {
+  min-height: var(--touch-size-min);
+}
+
+/* ── 滚动优化 ── */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── 内容卡片 ── */
+.page-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+/* ── 页面容器 ── */
+.page-container {
+  padding: var(--spacing-md);
+  min-height: 100vh;
+}

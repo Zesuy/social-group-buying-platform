@@ -1,0 +1,59 @@
+/* ══════════════════════════════════════════════
+   全局 CSS 变量 — H5 移动端主题
+   ══════════════════════════════════════════════ */
+
+:root {
+  /* ── 品牌色 ── */
+  --color-primary: #07c160;          /* 绿色主色（微信风格） */
+  --color-primary-dark: #06ad56;
+  --color-primary-light: #e8f8ee;
+
+  /* ── 价格色 ── */
+  --color-price: #ff4d4f;            /* 橙红色价格 */
+  --color-price-light: #fff1f0;
+
+  /* ── 背景色 ── */
+  --color-bg: #f5f5f5;               /* 页面浅灰背景 */
+  --color-bg-white: #ffffff;
+  --color-bg-card: #ffffff;
+
+  /* ── 文字色 ── */
+  --color-text-primary: #333333;
+  --color-text-secondary: #666666;
+  --color-text-hint: #999999;
+  --color-text-placeholder: #cccccc;
+  --color-text-disabled: #c8c9cc;
+
+  /* ── 边框 ── */
+  --color-border: #ebedf0;
+  --color-border-light: #f0f0f0;
+
+  /* ── 圆角 ── */
+  --radius-card: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+
+  /* ── 间距 ── */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+
+  /* ── 字体 ── */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-xxl: 22px;
+
+  /* ── Safe Area ── */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+
+  /* ── 触控尺寸 ── */
+  --touch-size-min: 44px;
+}
