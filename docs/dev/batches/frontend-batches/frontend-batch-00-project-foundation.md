@@ -22,11 +22,11 @@
 
 ## 6. 测试要求
 
-补充金额格式化、状态映射、非 MVP 入口灰态判断的单元测试；补充应用启动 smoke test；确保 `npm run typecheck`、`npm run lint`、`npm run test:unit`、`npm run build` 可执行。
+补充金额格式化、状态映射、非 MVP 入口灰态判断的单元测试；补充应用启动 smoke test；补充 Playwright E2E smoke test，覆盖应用可打开、首页路由可访问、页面无严重控制台错误；确保 `npm run typecheck`、`npm run lint`、`npm run test:unit`、`npm run build`、`npm run test:e2e` 可执行。首次运行 E2E 前需执行 `npx playwright install` 安装浏览器。
 
 ## 7. 验收标准
 
-`frontend/` 可独立安装依赖、启动开发服务、运行测试和构建；基础样式符合 H5 移动端口径；金额不使用浮点数展示；后续 batch 可以直接复用目录、类型、工具和测试命令。
+`frontend/` 可独立安装依赖、启动开发服务、运行单元测试、E2E smoke test 和构建；基础样式符合 H5 移动端口径；金额不使用浮点数展示；后续 batch 可以直接复用目录、类型、工具和测试命令。
 
 ## 8. 联调文档更新项
 
