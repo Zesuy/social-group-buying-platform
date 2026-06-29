@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Order controller — preview, create, list, detail, cancel.
+ * Order controller — preview, create, list, detail, cancel, simulate-pay, complete.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -90,5 +90,16 @@ public class OrderController {
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
             @PathVariable Long orderId) {
         return ApiResponse.success(orderService.simulatePay(userId, orderId));
+    }
+
+    /**
+     * Complete (confirm receipt for) an order (Batch 10).
+     * Only the order owner can complete. Only shipped orders can be completed.
+     */
+    @PostMapping("/orders/{orderId}/complete")
+    public ApiResponse<OrderResponse> completeOrder(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long orderId) {
+        return ApiResponse.success(orderService.completeOrder(userId, orderId));
     }
 }

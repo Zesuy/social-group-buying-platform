@@ -193,6 +193,7 @@ public class StoreOrderService {
                 .orderStatus(toApiOrderStatus(order.getOrderStatus()))
                 .paidAt(order.getPaidAt() != null ? order.getPaidAt().toString() : null)
                 .shippedAt(order.getShippedAt() != null ? order.getShippedAt().toString() : null)
+                .completedAt(order.getCompletedAt() != null ? order.getCompletedAt().toString() : null)
                 .remark(order.getRemark())
                 .receiverName(order.getReceiverName())
                 .receiverPhone(order.getReceiverPhone())

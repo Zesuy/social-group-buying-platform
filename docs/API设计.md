@@ -164,9 +164,14 @@ MVP 统一约定：
   "district": "西湖区",
   "detail": "某某路 1 号",
   "fullAddress": "浙江省杭州市西湖区某某路 1 号",
+  "paidAt": null,
+  "shippedAt": null,
+  "completedAt": null,
   "items": []
 }
 ```
+
+说明：`paidAt`、`shippedAt`、`completedAt` 为时间戳字符串（ISO-8601），对应状态未发生时字段可省略（无 null 值）；契约上允许 nullable。`paidAt` 在模拟支付成功后填充，`shippedAt` 在团长发货后填充，`completedAt` 在买家确认收货后填充。
 
 ---
 
@@ -1074,7 +1079,16 @@ POST /api/v1/orders/{orderId}/complete
 业务规则：
 
 - 只有 `shipped` 状态订单可以确认收货。
-- 确认后 `orderStatus = completed`。
+- 确认后 `orderStatus = completed`、`completedAt` 记录完成时间。
+- 使用条件原子更新（`WHERE order_status = 'shipped'`）防止并发重复确认。
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `ORDER_NOT_COMPLETABLE` | 订单不是可确认收货状态（非 shipped） |
+| `ORDER_ALREADY_COMPLETED` | 订单已完成，重复请求直接返回错误 |
+| `RESOURCE_NOT_FOUND` | 订单不存在或不属于当前用户 |
 
 ---
 
@@ -1502,7 +1516,32 @@ sequenceDiagram
     end
 ```
 
-### 16.7 订阅与取消订阅团长
+### 16.7 确认收货
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant API as Order API
+    participant O as orders
+
+    C->>API: POST /api/v1/orders/{orderId}/complete
+    API->>O: 查询订单并校验归属当前用户
+    alt 订单不属于当前用户
+        API-->>C: RESOURCE_NOT_FOUND
+    else orderStatus=completed
+        API-->>C: ORDER_ALREADY_COMPLETED
+    else orderStatus 不是 shipped
+        API-->>C: ORDER_NOT_COMPLETABLE
+    else orderStatus=shipped
+        API->>API: 开启数据库事务
+        API->>O: orderStatus=completed, completedAt=now（条件更新 WHERE order_status='shipped'）
+        API->>API: 提交事务
+        API-->>C: order(orderStatus=completed, completedAt)
+    end
+```
+
+### 16.8 订阅与取消订阅团长
 
 ```mermaid
 sequenceDiagram

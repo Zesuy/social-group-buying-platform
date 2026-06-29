@@ -28,6 +28,7 @@ public class OrderResponse {
     private String orderStatus;
     private String paidAt;
     private String shippedAt;
+    private String completedAt;
     private String remark;
     private String receiverName;
     private String receiverPhone;
