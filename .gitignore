@@ -17,3 +17,6 @@
 **/*.log
 **/.env.local
 **/.env.*.local
+
+.claude
+.codegraph
