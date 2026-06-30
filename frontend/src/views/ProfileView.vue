@@ -98,7 +98,7 @@ import { isFeatureDisabled, type NonMvpFeature } from '@/utils/non-mvp'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { isLoggedIn, isLeader, user } = storeToRefs(authStore)
+const { isLoggedIn, isLeader, user, leader } = storeToRefs(authStore)
 
 interface ProfileFeatureEntry {
   label: string
@@ -109,22 +109,22 @@ interface ProfileFeatureEntry {
 
 const buyerEntries: ProfileFeatureEntry[] = [
   { label: '地址管理', icon: 'location-o', to: '/addresses' },
-  { label: '会员卡', icon: 'card', disabledFeature: 'memberCards' },
+  { label: '会员卡', icon: 'card', to: '/member-cards' },
   { label: '优惠券', icon: 'coupon-o', disabledFeature: 'coupon' },
   { label: '我的订单', icon: 'orders-o', to: '/orders' },
   { label: '官方客服', icon: 'service-o', disabledFeature: 'wechatPush' },
   { label: '反馈与建议', icon: 'edit', disabledFeature: 'wechatPush' },
-  { label: '收藏与浏览', icon: 'star-o', disabledFeature: 'subscriptions' },
+  { label: '收藏与浏览', icon: 'star-o', to: '/subscriptions' },
   { label: '设置', icon: 'setting-o', disabledFeature: 'adminPanel' },
 ]
 
 const leaderEntries: ProfileFeatureEntry[] = [
   { label: '我的店铺', icon: 'shop-o', to: '/leader/store' },
-  { label: '发布团购', icon: 'add-o', disabledFeature: 'groupBuyPublish' },
+  { label: '发布团购', icon: 'add-o', to: '/leader/group-buys/new' },
   { label: '我的团购', icon: 'label-o', to: '/leader/group-buys' },
   { label: '团长订单', icon: 'orders-o', to: '/leader/orders' },
   { label: '商品管理', icon: 'bag-o', to: '/leader/products' },
-  { label: '订阅团员', icon: 'friends-o', disabledFeature: 'subscriptions' },
+  { label: '订阅团员', icon: 'friends-o', to: '/subscriptions' },
   { label: '数据概览', icon: 'bar-chart-o', disabledFeature: 'adminPanel' },
   { label: '店铺设置', icon: 'setting-o', to: '/leader/store' },
 ]
@@ -147,6 +147,8 @@ const featureEntries = computed(() => {
 function handleHeaderClick() {
   if (!isLoggedIn.value) {
     router.push('/login?redirect=/profile')
+  } else if (leader.value?.id) {
+    router.push(`/leaders/${leader.value.id}`)
   }
 }
 

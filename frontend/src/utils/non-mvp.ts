@@ -68,18 +68,32 @@ export function isAdminPanelDisabled(): boolean {
  * Batch 06+ 前端业务入口（本批仅允许占位）
  */
 export function isGroupBuyPublishDisabled(): boolean {
-  return true
+  return false
 }
 
 export function isLeaderShippingDisabled(): boolean {
-  return true
+  return false
 }
 
 export function isSubscriptionsDisabled(): boolean {
-  return true
+  return false
 }
 
 export function isMemberCardsDisabled(): boolean {
+  return false
+}
+
+/**
+ * 订阅管理（Batch 06+ 非 MVP 功能）
+ */
+export function isSubscriberManagementDisabled(): boolean {
+  return true
+}
+
+/**
+ * 完整售后流程（Batch 06+ 非 MVP 功能）
+ */
+export function isAfterSaleFullFlowDisabled(): boolean {
   return true
 }
 
@@ -102,6 +116,8 @@ export type NonMvpFeature =
   | 'leaderShipping'
   | 'subscriptions'
   | 'memberCards'
+  | 'subscriberManagement'
+  | 'afterSaleFullFlow'
 
 const disabledFeatureMap: Record<NonMvpFeature, () => boolean> = {
   realWechatPay: isRealWechatPayDisabled,
@@ -116,6 +132,8 @@ const disabledFeatureMap: Record<NonMvpFeature, () => boolean> = {
   leaderShipping: isLeaderShippingDisabled,
   subscriptions: isSubscriptionsDisabled,
   memberCards: isMemberCardsDisabled,
+  subscriberManagement: isSubscriberManagementDisabled,
+  afterSaleFullFlow: isAfterSaleFullFlowDisabled,
 }
 
 export function isFeatureDisabled(feature: NonMvpFeature): boolean {

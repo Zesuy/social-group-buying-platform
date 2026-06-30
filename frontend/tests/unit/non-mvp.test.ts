@@ -12,6 +12,8 @@ import {
   isLeaderShippingDisabled,
   isSubscriptionsDisabled,
   isMemberCardsDisabled,
+  isSubscriberManagementDisabled,
+  isAfterSaleFullFlowDisabled,
   isFeatureDisabled,
 } from '@/utils/non-mvp'
 
@@ -48,11 +50,16 @@ describe('non-MVP gate checks', () => {
     expect(isAdminPanelDisabled()).toBe(true)
   })
 
-  it('should disable later frontend batch features', () => {
-    expect(isGroupBuyPublishDisabled()).toBe(true)
-    expect(isLeaderShippingDisabled()).toBe(true)
-    expect(isSubscriptionsDisabled()).toBe(true)
-    expect(isMemberCardsDisabled()).toBe(true)
+  it('should enable batch 06-08 frontend features', () => {
+    expect(isGroupBuyPublishDisabled()).toBe(false)
+    expect(isLeaderShippingDisabled()).toBe(false)
+    expect(isSubscriptionsDisabled()).toBe(false)
+    expect(isMemberCardsDisabled()).toBe(false)
+  })
+
+  it('should disable non-MVP subscription management and after-sale full flow', () => {
+    expect(isSubscriberManagementDisabled()).toBe(true)
+    expect(isAfterSaleFullFlowDisabled()).toBe(true)
   })
 })
 
@@ -66,10 +73,12 @@ describe('isFeatureDisabled', () => {
     expect(isFeatureDisabled('pointsMall')).toBe(true)
     expect(isFeatureDisabled('wechatPush')).toBe(true)
     expect(isFeatureDisabled('adminPanel')).toBe(true)
-    expect(isFeatureDisabled('groupBuyPublish')).toBe(true)
-    expect(isFeatureDisabled('leaderShipping')).toBe(true)
-    expect(isFeatureDisabled('subscriptions')).toBe(true)
-    expect(isFeatureDisabled('memberCards')).toBe(true)
+    expect(isFeatureDisabled('groupBuyPublish')).toBe(false)
+    expect(isFeatureDisabled('leaderShipping')).toBe(false)
+    expect(isFeatureDisabled('subscriptions')).toBe(false)
+    expect(isFeatureDisabled('memberCards')).toBe(false)
+    expect(isFeatureDisabled('subscriberManagement')).toBe(true)
+    expect(isFeatureDisabled('afterSaleFullFlow')).toBe(true)
   })
 
   it('should return true for unknown features', () => {

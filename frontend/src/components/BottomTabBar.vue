@@ -5,8 +5,6 @@
     active-color="var(--color-primary)"
     inactive-color="var(--color-text-hint)"
     route
-    placeholder
-    safe-area-inset-bottom
     :border="false"
   >
     <van-tabbar-item
