@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>邻鲜团 Demo 页面参考目录</title>
+<style>
+:root { --green: #00754A; --house: #1E3932; --cream: #f2f0eb; --line: #e5e7eb; --text: #111827; --muted: #6b7280; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif; background: var(--cream); color: var(--text); }
+main { max-width: 1040px; margin: 0 auto; padding: 28px 18px 42px; }
+.hero { background: var(--house); color: #fff; border-radius: 14px; padding: 24px; margin-bottom: 18px; }
+h1 { margin: 0 0 8px; font-size: 24px; line-height: 1.3; }
+p { margin: 0; color: rgba(255,255,255,.78); line-height: 1.6; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.demo-card { min-height: 76px; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; color: inherit; text-decoration: none; box-shadow: 0 1px 0 rgba(0,0,0,.03); }
+.demo-card:hover { border-color: var(--green); box-shadow: 0 8px 24px rgba(0,98,65,.12); }
+.demo-card b { font-size: 16px; }
+.demo-card span { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <h1>邻鲜团 Demo 页面参考目录</h1>
+    <p>由 lintuan-mobile-pages-demo-clean.html 拆分生成。实现 batch 时只打开对应页面参考，避免把非 MVP 控件误并入当前批次。</p>
+  </section>
+  <section class="grid">
+    <a class="demo-card" href="./home.html"><b>首页</b><span>page-home</span></a>
+    <a class="demo-card" href="./orders.html"><b>订单列表</b><span>page-orders</span></a>
+    <a class="demo-card" href="./open-group.html"><b>一键开团</b><span>page-open-group</span></a>
+    <a class="demo-card" href="./messages.html"><b>消息占位</b><span>page-messages</span></a>
+    <a class="demo-card" href="./profile.html"><b>个人中心</b><span>page-profile</span></a>
+    <a class="demo-card" href="./login.html"><b>登录</b><span>page-login</span></a>
+    <a class="demo-card" href="./group-detail.html"><b>团购详情</b><span>page-group-detail</span></a>
+    <a class="demo-card" href="./checkout.html"><b>下单确认</b><span>page-checkout</span></a>
+    <a class="demo-card" href="./addresses.html"><b>地址列表</b><span>page-addresses</span></a>
+    <a class="demo-card" href="./address-new.html"><b>新建地址</b><span>page-address-new</span></a>
+    <a class="demo-card" href="./address-edit.html"><b>编辑地址</b><span>page-address-edit</span></a>
+    <a class="demo-card" href="./order-detail.html"><b>订单详情</b><span>page-order-detail</span></a>
+    <a class="demo-card" href="./leader-home.html"><b>团长主页</b><span>page-leader-home</span></a>
+    <a class="demo-card" href="./subscriptions.html"><b>我的订阅</b><span>page-subscriptions</span></a>
+    <a class="demo-card" href="./member-cards.html"><b>会员卡</b><span>page-member-cards</span></a>
+    <a class="demo-card" href="./open-choose.html"><b>开团类型选择</b><span>page-open-choose</span></a>
+    <a class="demo-card" href="./store-create.html"><b>创建店铺</b><span>page-store-create</span></a>
+    <a class="demo-card" href="./leader-store.html"><b>我的店铺</b><span>page-leader-store</span></a>
+    <a class="demo-card" href="./products.html"><b>商品列表</b><span>page-products</span></a>
+    <a class="demo-card" href="./product-new.html"><b>新建商品</b><span>page-product-new</span></a>
+    <a class="demo-card" href="./product-edit.html"><b>编辑商品</b><span>page-product-edit</span></a>
+    <a class="demo-card" href="./publish-group.html"><b>发布团购</b><span>page-publish-group</span></a>
+    <a class="demo-card" href="./leader-groups.html"><b>我的团购列表</b><span>page-leader-groups</span></a>
+    <a class="demo-card" href="./leader-group-detail.html"><b>我的团购详情</b><span>page-leader-group-detail</span></a>
+    <a class="demo-card" href="./leader-orders.html"><b>团长订单列表</b><span>page-leader-orders</span></a>
+    <a class="demo-card" href="./leader-order-detail.html"><b>团长订单详情发货</b><span>page-leader-order-detail</span></a>
+    <a class="demo-card" href="./guide.html"><b>开团介绍</b><span>page-guide</span></a>
+    <a class="demo-card" href="./product-library.html"><b>商品库参考</b><span>page-product-library</span></a>
+    <a class="demo-card" href="./help-sell.html"><b>帮卖设置参考</b><span>page-help-sell</span></a>
+    <a class="demo-card" href="./privacy-settings.html"><b>权限设置参考</b><span>page-privacy-settings</span></a>
+    <a class="demo-card" href="./orders-states.html"><b>订单状态合集</b><span>page-orders-states</span></a>
+    <a class="demo-card" href="./message-detail.html"><b>消息详情参考</b><span>page-message-detail</span></a>
+    <a class="demo-card" href="./messages-rich.html"><b>消息列表补充参考</b><span>page-messages-rich</span></a>
+    <a class="demo-card" href="./cart-sheet.html"><b>购物车弹窗参考</b><span>page-cart-sheet</span></a>
+    <a class="demo-card" href="./sku-sheet.html"><b>规格弹窗参考</b><span>page-sku-sheet</span></a>
+  </section>
+</main>
+</body>
+</html>
