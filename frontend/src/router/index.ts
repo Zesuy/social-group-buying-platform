@@ -89,22 +89,14 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/subscriptions',
     name: 'subscriptions',
-    component: () => import('@/views/FeaturePlaceholderView.vue'),
-    meta: {
-      title: '订阅列表',
-      requiresAuth: true,
-      placeholderText: '订阅列表将在后续 batch 开放',
-    },
+    component: () => import('@/views/SubscriptionsView.vue'),
+    meta: { title: '订阅列表', requiresAuth: true },
   },
   {
     path: '/member-cards',
     name: 'memberCards',
-    component: () => import('@/views/FeaturePlaceholderView.vue'),
-    meta: {
-      title: '会员卡',
-      requiresAuth: true,
-      placeholderText: '会员卡展示将在后续 batch 开放',
-    },
+    component: () => import('@/views/MemberCardsView.vue'),
+    meta: { title: '会员卡', requiresAuth: true },
   },
   {
     path: '/leader',
@@ -129,16 +121,46 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '团长订单' },
       },
       {
+        path: 'orders/:id',
+        name: 'leaderOrderDetail',
+        component: () => import('@/views/leader/LeaderOrderDetailView.vue'),
+        meta: { title: '订单详情' },
+      },
+      {
         path: 'products',
         name: 'leaderProducts',
         component: () => import('@/views/leader/LeaderProductsView.vue'),
         meta: { title: '商品管理' },
       },
       {
+        path: 'products/new',
+        name: 'leaderProductNew',
+        component: () => import('@/views/leader/LeaderProductNewView.vue'),
+        meta: { title: '新建商品' },
+      },
+      {
+        path: 'products/:id/edit',
+        name: 'leaderProductEdit',
+        component: () => import('@/views/leader/LeaderProductEditView.vue'),
+        meta: { title: '编辑商品' },
+      },
+      {
+        path: 'group-buys/new',
+        name: 'leaderGroupBuyNew',
+        component: () => import('@/views/leader/PublishGroupBuyView.vue'),
+        meta: { title: '发布团购' },
+      },
+      {
         path: 'group-buys',
         name: 'leaderGroupBuys',
         component: () => import('@/views/leader/LeaderGroupBuysView.vue'),
         meta: { title: '团购管理' },
+      },
+      {
+        path: 'group-buys/:id',
+        name: 'leaderGroupBuyDetail',
+        component: () => import('@/views/leader/LeaderGroupBuyDetailView.vue'),
+        meta: { title: '团购详情' },
       },
       {
         path: 'store',

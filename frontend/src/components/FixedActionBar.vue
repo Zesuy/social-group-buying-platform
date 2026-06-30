@@ -6,10 +6,7 @@
 
 <style scoped>
 .fixed-action-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   padding: 10px 14px;
   padding-bottom: calc(16px + var(--safe-area-bottom));
   background-color: var(--color-bg-white);

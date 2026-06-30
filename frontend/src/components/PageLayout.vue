@@ -1,5 +1,11 @@
 <template>
-  <div class="page-layout">
+  <div
+    class="page-layout"
+    :class="{
+      'page-layout--with-tabbar': showTabBar,
+      'page-layout--with-action': !!$slots.action,
+    }"
+  >
     <!-- 顶部导航栏（可选） -->
     <NavBar v-if="title" :title="title" :show-back="showBack" @back="$emit('back')" />
 
@@ -41,13 +47,20 @@ defineEmits<{
 .page-layout {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background-color: var(--color-bg);
+}
+
+.page-layout--with-tabbar {
+  height: calc(100vh - var(--tabbar-height) - var(--safe-area-bottom));
+  height: calc(100dvh - var(--tabbar-height) - var(--safe-area-bottom));
 }
 
 .page-layout__content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background-color: var(--color-bg);
@@ -56,10 +69,10 @@ defineEmits<{
 /* NavBar 组件已使用 Vant fixed + placeholder 自动占位，此处无需额外 padding */
 
 .page-layout__content--with-tabbar {
-  padding-bottom: calc(var(--tabbar-height) + 14px + var(--safe-area-bottom));
+  scroll-padding-bottom: 14px;
 }
 
 .page-layout__content--with-action {
-  padding-bottom: calc(var(--actionbar-height) + 14px + var(--safe-area-bottom));
+  scroll-padding-bottom: 14px;
 }
 </style>
