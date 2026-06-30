@@ -6,11 +6,12 @@
     </div>
     <div v-if="(discountAmount ?? 0) > 0" class="order-amount-breakdown__row">
       <span class="order-amount-breakdown__label">优惠</span>
-      <PriceText :amount="-(discountAmount ?? 0)" size="sm" color="var(--color-text-secondary)" />
+      <PriceText :amount="-(discountAmount ?? 0)" size="sm" color="var(--color-primary)" />
     </div>
+    <div class="order-amount-breakdown__divider" />
     <div class="order-amount-breakdown__row order-amount-breakdown__row--total">
-      <span class="order-amount-breakdown__label">应付</span>
-      <PriceText :amount="payAmount" size="lg" color="var(--color-price)" />
+      <span class="order-amount-breakdown__label order-amount-breakdown__label--total">应付</span>
+      <PriceText :amount="payAmount" size="xl" color="var(--color-price)" />
     </div>
   </div>
 </template>
@@ -29,7 +30,7 @@ defineProps<{
 .order-amount-breakdown {
   background: var(--color-bg-card);
   border-radius: var(--radius-card);
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: 14px;
 }
 
 .order-amount-breakdown__row {
@@ -44,14 +45,18 @@ defineProps<{
   color: var(--color-text-secondary);
 }
 
-.order-amount-breakdown__row--total {
-  margin-top: var(--spacing-sm);
-  padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--color-border-light);
+.order-amount-breakdown__divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--spacing-sm) 0;
 }
 
-.order-amount-breakdown__row--total .order-amount-breakdown__label {
-  font-weight: 600;
+.order-amount-breakdown__row--total {
+  margin-top: 0;
+}
+
+.order-amount-breakdown__label--total {
+  font-weight: 900;
   color: var(--color-text-primary);
 }
 </style>

@@ -84,8 +84,8 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 """))
                 .andExpect(status().isOk())
                                 .andExpect(contractResult()).andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.groupBuy.id").isNumber())
-                .andExpect(jsonPath("$.data.groupBuy.storeId").isNumber())
+                .andExpect(jsonPath("$.data.groupBuy.id").isString())
+                .andExpect(jsonPath("$.data.groupBuy.storeId").isString())
                 .andExpect(jsonPath("$.data.groupBuy.title").value("山东蜜桃团购"))
                 .andExpect(jsonPath("$.data.groupBuy.groupType").value("normal"))
                 .andExpect(jsonPath("$.data.groupBuy.status").value("published"))
@@ -111,7 +111,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long productId = Long.parseLong(productResponse.split("\"id\":")[1].split(",")[0]);
+        Long productId = Long.parseLong(productResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(post(GROUP_BUYS_URL)
                         .header("Authorization", "Bearer " + leaderToken)
@@ -122,7 +122,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                     "deliveryType": "express",
                                     "items": [
                                         {
-                                            "productId": %d,
+                                            "productId": "%s",
                                             "displayName": "蜜桃 5 斤装",
                                             "groupPriceAmount": 2990,
                                             "groupStock": 50,
@@ -133,7 +133,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 """.formatted(productId)))
                 .andExpect(status().isOk())
                                 .andExpect(contractResult()).andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.items[0].productId").value(productId));
+                .andExpect(jsonPath("$.data.items[0].productId").value(String.valueOf(productId)));
     }
 
     @Test
@@ -192,7 +192,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long otherProductId = Long.parseLong(otherProductResponse.split("\"id\":")[1].split(",")[0]);
+        Long otherProductId = Long.parseLong(otherProductResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Try to use it in current leader's group buy
         mockMvc.perform(post(GROUP_BUYS_URL)
@@ -204,7 +204,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                     "deliveryType": "express",
                                     "items": [
                                         {
-                                            "productId": %d,
+                                            "productId": "%s",
                                             "displayName": "别人商品",
                                             "groupPriceAmount": 1000,
                                             "groupStock": 10
@@ -285,13 +285,13 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(get(GROUP_BUYS_URL + "/" + groupBuyId)
                         .header("Authorization", "Bearer " + leaderToken))
                 .andExpect(status().isOk())
                                 .andExpect(contractResult()).andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.groupBuy.id").value(groupBuyId))
+                .andExpect(jsonPath("$.data.groupBuy.id").value(String.valueOf(groupBuyId)))
                 .andExpect(jsonPath("$.data.groupBuy.title").value("详情团购"))
                 .andExpect(jsonPath("$.data.items").isArray())
                 .andExpect(jsonPath("$.data.items.length()").value(1));
@@ -333,7 +333,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(patch(GROUP_BUYS_URL + "/" + groupBuyId)
                         .header("Authorization", "Bearer " + leaderToken)
@@ -377,7 +377,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(post(GROUP_BUYS_URL + "/" + groupBuyId + "/end")
                         .header("Authorization", "Bearer " + leaderToken))
@@ -411,7 +411,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // End first
         mockMvc.perform(post(GROUP_BUYS_URL + "/" + groupBuyId + "/end")

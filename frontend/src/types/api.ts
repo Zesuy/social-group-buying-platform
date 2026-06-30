@@ -64,25 +64,25 @@ export interface CurrentUserData {
 
 /** 当前用户摘要 */
 export interface CurrentUserSummary {
-  id: number
+  id: string
   nickname: string
   avatarUrl: string | null
   phone: string
   hasLeader: boolean
-  leaderId: number | null
-  storeId: number | null
+  leaderId: string | null
+  storeId: string | null
 }
 
 /** 团长摘要 */
 export interface LeaderSummary {
-  id: number
+  id: string
   displayName: string
   avatarUrl: string | null
 }
 
 /** 店铺摘要 */
 export interface StoreSummary {
-  id: number
+  id: string
   name: string
   logoUrl: string | null
   status: string
@@ -92,7 +92,7 @@ export interface StoreSummary {
 
 /** GET /api/v1/group-buys 列表项 */
 export interface PublicGroupBuyItem {
-  id: number
+  id: string
   title: string
   coverImageUrl: string | null
   status: string
@@ -104,13 +104,13 @@ export interface PublicGroupBuyItem {
 }
 
 export interface LeaderLite {
-  id: number
+  id: string
   displayName: string
   avatarUrl: string | null
 }
 
 export interface StoreLite {
-  id: number
+  id: string
   name: string
 }
 
@@ -118,9 +118,9 @@ export interface StoreLite {
 
 /** 团购活动核心信息（与 OpenAPI GroupBuyDetail 一致） */
 export interface GroupBuyDetail {
-  id: number
-  storeId: number
-  leaderId: number
+  id: string
+  storeId: string
+  leaderId: string
   title: string
   introduction: string | null
   coverImageUrl: string | null
@@ -142,21 +142,21 @@ export interface GroupBuyDetailData {
 }
 
 export interface LeaderDetail {
-  id: number
+  id: string
   displayName: string
   avatarUrl: string | null
   followerCount: number
 }
 
 export interface StoreDetail {
-  id: number
+  id: string
   name: string
   logoUrl: string | null
 }
 
 export interface PublicGroupBuyDetailItem {
-  id: number
-  productId: number
+  id: string
+  productId: string
   displayName: string
   groupPriceAmount: number
   groupStock: number
@@ -179,7 +179,7 @@ export interface LeaderHomepageData {
 }
 
 export interface LeaderHomepageLeader {
-  id: number
+  id: string
   displayName: string
   avatarUrl: string | null
   bio: string | null
@@ -188,7 +188,7 @@ export interface LeaderHomepageLeader {
 }
 
 export interface LeaderHomepageStore {
-  id: number
+  id: string
   name: string
   logoUrl: string | null
   description: string | null
@@ -206,7 +206,7 @@ export interface PublicGroupBuyPageData {
 // ── 地址管理 ──
 
 export interface AddressData {
-  id: number
+  id: string
   receiverName: string
   receiverPhone: string
   province: string
@@ -241,11 +241,11 @@ export interface UpdateAddressRequest {
 
 /** 订单详情数据（与 OpenAPI OrderData 一致） */
 export interface OrderData {
-  id: number
+  id: string
   orderNo: string
-  groupBuyId: number
-  storeId: number
-  leaderId: number
+  groupBuyId: string
+  storeId: string
+  leaderId: string
   totalAmount: number
   discountAmount: number
   payAmount: number
@@ -267,9 +267,9 @@ export interface OrderData {
 
 /** 订单商品明细（与 OpenAPI OrderItemData 一致） */
 export interface OrderItemData {
-  id: number
-  groupBuyItemId: number
-  productId: number
+  id: string
+  groupBuyItemId: string
+  productId: string
   productName: string
   skuName?: string
   unitPriceAmount: number
@@ -279,7 +279,7 @@ export interface OrderItemData {
 
 /** 订单操作响应（取消/支付/完成等） */
 export interface OrderActionResult {
-  id: number
+  id: string
   orderStatus: string
   payStatus?: string
   payAmount?: number
@@ -307,15 +307,15 @@ export interface UpdateStoreRequest {
 
 /** 团长详情（店铺相关） */
 export interface LeaderInfo {
-  id: number
+  id: string
   displayName: string
   avatarUrl: string | null
 }
 
 /** 店铺详情 */
 export interface StoreInfo {
-  id: number
-  leaderId: number
+  id: string
+  leaderId: string
   name: string
   logoUrl: string | null
   description: string | null
@@ -336,7 +336,7 @@ export type MyStoreResponseData = StoreResponseData | null
 // ── 订单预览与创建 ──
 
 export interface OrderPreviewData {
-  groupBuyId: number
+  groupBuyId: string
   address: OrderPreviewAddress
   items: OrderPreviewItem[]
   totalAmount: number
@@ -345,7 +345,7 @@ export interface OrderPreviewData {
 }
 
 export interface OrderPreviewAddress {
-  id: number
+  id: string
   receiverName: string
   receiverPhone: string
   province: string
@@ -356,8 +356,8 @@ export interface OrderPreviewAddress {
 }
 
 export interface OrderPreviewItem {
-  groupBuyItemId: number
-  productId: number
+  groupBuyItemId: string
+  productId: string
   productName: string
   unitPriceAmount: number
   quantity: number
@@ -367,19 +367,19 @@ export interface OrderPreviewItem {
 }
 
 export interface OrderPreviewRequest {
-  groupBuyId: number
-  addressId: number
+  groupBuyId: string
+  addressId: string
   items: OrderItemEntry[]
 }
 
 export interface OrderItemEntry {
-  groupBuyItemId: number
+  groupBuyItemId: string
   quantity: number
 }
 
 export interface CreateOrderRequest {
-  groupBuyId: number
-  addressId: number
+  groupBuyId: string
+  addressId: string
   remark?: string | null
   items: OrderItemEntry[]
 }
@@ -391,10 +391,10 @@ export interface SubscriptionRequest {
 }
 
 export interface SubscriptionData {
-  id: number
-  userId: number
-  leaderId: number
-  storeId: number
+  id: string
+  userId: string
+  leaderId: string
+  storeId: string
   status: string
   source?: string | null
   subscribedAt?: string | null

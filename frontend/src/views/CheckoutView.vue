@@ -167,7 +167,7 @@ const error = ref<string | null>(null)
 const submitting = ref(false)
 const agreed = ref(false)
 const remark = ref('')
-const editingItemId = ref<number | null>(null)
+const editingItemId = ref<string | null>(null)
 const quantity = ref(1)
 const hasAddress = ref(false)
 
@@ -297,7 +297,7 @@ async function handleSubmit() {
       remark: remark.value || null,
       items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
     })
-    const orderId = orderData.id as number
+    const orderId = orderData.id
     showToast('订单提交成功')
     checkoutStore.clearCheckout()
     router.replace(`/orders/${orderId}`)
@@ -342,34 +342,45 @@ onMounted(() => {
 
 <style scoped>
 .checkout-content {
-  padding-bottom: 16px;
+  padding: 8px 14px;
 }
 
 .checkout-section {
   background: var(--color-bg-card);
-  margin: var(--spacing-sm) 0;
-  padding: var(--spacing-md) var(--spacing-lg);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  border-radius: var(--radius-card);
+  margin: 0 0 12px;
+  padding: 14px;
+  display: block;
+  position: relative;
   cursor: pointer;
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(237, 240, 242, 0.72);
+}
+
+.checkout-section > :deep(.van-icon:last-child) {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .checkout-section__header {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: var(--spacing-xs);
 }
 
 .checkout-section__title {
   font-size: var(--font-size-md);
-  font-weight: 500;
+  font-weight: 900;
   color: var(--color-text-primary);
 }
 
 .checkout-address {
   flex: 1;
   min-width: 0;
+  padding-right: 24px;
 }
 
 .checkout-address--empty {
@@ -384,7 +395,7 @@ onMounted(() => {
 }
 
 .checkout-address__name {
-  font-weight: 500;
+  font-weight: 900;
   color: var(--color-text-primary);
 }
 
@@ -404,11 +415,17 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.checkout-item:last-child {
+  border-bottom: none;
 }
 
 .checkout-item__name {
   font-size: var(--font-size-md);
   color: var(--color-text-primary);
+  font-weight: 800;
 }
 
 .checkout-item__price-row {
@@ -448,5 +465,6 @@ onMounted(() => {
 .checkout-action-bar__label {
   font-size: var(--font-size-md);
   color: var(--color-text-secondary);
+  font-weight: 800;
 }
 </style>

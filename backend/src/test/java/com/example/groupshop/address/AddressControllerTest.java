@@ -51,7 +51,7 @@ class AddressControllerTest extends MockMvcTestBase {
                                 }
                                 """.formatted(name)))
                 .andReturn().getResponse().getContentAsString();
-        return Long.parseLong(response.split("\"id\":")[1].split(",")[0]);
+        return Long.parseLong(response.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
     }
 
     // ── Unauthenticated ─────────────────────────────────────────────────
@@ -90,7 +90,7 @@ class AddressControllerTest extends MockMvcTestBase {
                 
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.id").isNumber())
+                .andExpect(jsonPath("$.data.id").isString())
                 .andExpect(jsonPath("$.data.receiverName").value("张三"))
                 .andExpect(jsonPath("$.data.fullAddress").isString())
                 .andExpect(jsonPath("$.data.isDefault").value(true));

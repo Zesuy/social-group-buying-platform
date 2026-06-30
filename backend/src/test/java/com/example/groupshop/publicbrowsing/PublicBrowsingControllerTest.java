@@ -63,7 +63,7 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
                                 }
                                 """.formatted(title)))
                 .andReturn().getResponse().getContentAsString();
-        return Long.parseLong(response.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
+        return Long.parseLong(response.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
     }
 
     // ── GET /api/v1/group-buys ───────────────────────────────────────────
@@ -159,14 +159,14 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
         String meResponse = mockMvc.perform(get("/api/v1/me")
                         .header("Authorization", "Bearer " + leaderToken))
                 .andReturn().getResponse().getContentAsString();
-        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/homepage"))
                 .andExpect(status().isOk())
 
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.leader.id").value(leaderId))
+                .andExpect(jsonPath("$.data.leader.id").value(String.valueOf(leaderId)))
                 .andExpect(jsonPath("$.data.store").exists())
                 .andExpect(jsonPath("$.data.viewer.subscribed").value(false))
                 .andExpect(jsonPath("$.data.groupBuys.items").isArray());
@@ -185,7 +185,7 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
         String meResponse = mockMvc.perform(get("/api/v1/me")
                         .header("Authorization", "Bearer " + leaderToken))
                 .andReturn().getResponse().getContentAsString();
-        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Subscribe to the leader
         mockMvc.perform(post("/api/v1/leaders/{leaderId}/subscription", leaderId)
@@ -220,7 +220,7 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
         String meResponse = mockMvc.perform(get("/api/v1/me")
                         .header("Authorization", "Bearer " + leaderToken))
                 .andReturn().getResponse().getContentAsString();
-        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Login as viewer and subscribe
         String viewerToken = loginAndGetToken("13800012002");
@@ -245,7 +245,7 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
         String meResponse = mockMvc.perform(get("/api/v1/me")
                         .header("Authorization", "Bearer " + leaderToken))
                 .andReturn().getResponse().getContentAsString();
-        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+        Long leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/homepage"))
                 .andExpect(status().isOk())

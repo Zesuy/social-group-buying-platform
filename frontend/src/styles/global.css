@@ -2,6 +2,7 @@
 
 /* ══════════════════════════════════════════════
    全局样式 — H5 移动端基础
+   Batch 05.8 Design Foundation
    ══════════════════════════════════════════════ */
 
 *,
@@ -15,8 +16,7 @@
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+  font-family: var(--font-family-base);
   font-size: var(--font-size-md);
   color: var(--color-text-primary);
   background-color: var(--color-bg);
@@ -24,6 +24,7 @@ html {
 
 body {
   min-height: 100vh;
+  min-height: 100dvh;
   min-height: -webkit-fill-available;
   padding-top: var(--safe-area-top);
   padding-bottom: var(--safe-area-bottom);
@@ -31,12 +32,15 @@ body {
   padding-right: var(--safe-area-right);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
 }
 
 /* ── 应用容器 ── */
 #app {
   width: 100%;
   min-height: 100vh;
+  background-color: var(--color-bg);
 }
 
 /* ── 链接 ── */
@@ -69,12 +73,587 @@ input[type='radio'] {
 .page-card {
   background: var(--color-bg-card);
   border-radius: var(--radius-card);
-  padding: var(--spacing-lg);
+  padding: 14px;
   margin-bottom: var(--spacing-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
 
 /* ── 页面容器 ── */
 .page-container {
   padding: var(--spacing-md);
   min-height: 100vh;
+  min-height: 100dvh;
+  background-color: var(--color-bg);
+}
+
+/* ── Demo app shell ── */
+.app-topbar {
+  min-height: var(--topbar-height);
+  background: var(--color-bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 6;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  padding: 0 14px;
+  padding-top: var(--safe-area-top);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--color-text-primary);
+}
+
+.app-topbar__left,
+.app-topbar__right {
+  position: absolute;
+  top: var(--safe-area-top);
+  min-height: var(--topbar-height);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-topbar__left { left: 14px; }
+.app-topbar__right { right: 14px; }
+
+.app-content {
+  padding: 14px;
+  background: var(--color-bg);
+}
+
+.app-content--tight {
+  padding-top: 8px;
+}
+
+.app-content--buybar {
+  padding-bottom: calc(92px + var(--safe-area-bottom));
+}
+
+/* ── 主 CTA 胶囊按钮通用样式 ── */
+.btn-capsule {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--button-capsule-height);
+  border-radius: var(--button-capsule-radius);
+  padding: 0 24px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.btn-capsule:active {
+  transform: scale(0.95);
+}
+
+.btn-capsule--primary {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-capsule--primary:active {
+  background-color: var(--color-primary-dark);
+}
+
+.btn-capsule--plain {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+/* ── demo marketplace 复用基元 ── */
+.marketplace-search {
+  min-height: 46px;
+  border-radius: 12px;
+  background: #f2f3f5;
+  color: var(--color-text-hint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: var(--font-size-md);
+}
+
+.trust-pill,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #b7edcf;
+  background: #fff;
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.trust-pill--warm,
+.status-pill--warm {
+  border-color: #ffc49b;
+  background: #fff5df;
+  color: #f36b2a;
+}
+
+.floating-cart-entry {
+  position: fixed;
+  right: 16px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-fab);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+  opacity: 0.62;
+}
+
+.floating-cart-entry:active {
+  transform: scale(0.95);
+}
+
+/* ── 产品标题（photo-first 卡片标题） ── */
+.product-title {
+  font-size: 19px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 12px 0 6px;
+}
+
+/* ══════════════════════════════════════════════
+   Demo 页面工具类——对齐 demo HTML class 模式
+   Batch 05.8 Design Foundation
+   ══════════════════════════════════════════════ */
+
+/* ── Demo 按钮系统 ── */
+.btn {
+  border: 0;
+  background: #fff;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-weight: 800;
+  color: var(--color-primary);
+  border: 1px solid #aeeccd;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: var(--touch-size-min);
+  cursor: pointer;
+  font-size: var(--font-size-md);
+  transition: transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+.btn.primary { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.btn.orange { background: var(--color-price); color: #fff; border-color: var(--color-price); }
+.btn.ghost { background: #fff; color: #666; border-color: #e7eaee; }
+.btn.danger { background: #fff; color: var(--van-danger-color); border-color: #ffd3cc; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(0.96); }
+
+/* ── 布局基元 ── */
+.row { display: flex; align-items: center; }
+.between { display: flex; align-items: center; justify-content: space-between; }
+.grow { flex: 1; min-width: 0; }
+.muted { color: var(--color-text-hint); }
+.small { font-size: var(--font-size-sm); }
+
+/* ── 卡片系统 ── */
+.card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.card.pad { padding: 14px; }
+.card.flush { margin-bottom: 0; }
+
+/* ── 表单卡片系统 ── */
+.form-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.form-title {
+  font-weight: 900;
+  font-size: 18px;
+  padding: 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+.field {
+  display: grid;
+  grid-template-columns: 94px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--color-border);
+  min-height: 52px;
+}
+.field label { color: #262b32; font-weight: 700; }
+.field .value { color: #60646c; min-width: 0; word-break: break-word; }
+.field:last-child { border-bottom: none; }
+
+/* ── 订单步骤条（横向 4 步） ── */
+.order-step {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  text-align: center;
+  padding: 14px;
+  background: var(--color-bg-card);
+  color: #9aa0a6;
+  border-radius: var(--radius-card);
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-card);
+}
+.order-step .done { color: var(--color-primary); font-weight: 900; }
+
+/* ── 列表项 ── */
+.list-item {
+  background: var(--color-bg-card);
+  border-radius: 12px;
+  padding: 13px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: var(--shadow-card);
+}
+
+/* ── 固定操作栏（grid 版） ── */
+.fixed-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-bg-card);
+  border-top: 1px solid var(--color-border);
+  padding: 10px 14px;
+  padding-bottom: calc(16px + var(--safe-area-bottom));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  z-index: 100;
+}
+.fixed-actions.single { grid-template-columns: 1fr; }
+.fixed-actions .btn { height: 50px; font-size: 18px; border-radius: 8px; }
+
+/* ── 详情页底部购买栏 ── */
+.buybar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  min-height: calc(82px + var(--safe-area-bottom));
+  background: var(--color-bg-card);
+  display: grid;
+  grid-template-columns: 78px 78px 1fr;
+  align-items: stretch;
+  border-top: 1px solid var(--color-border);
+  z-index: 100;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+.buybar .mini {
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #666;
+  font-size: 13px;
+  min-height: 82px;
+}
+
+.buybar .big {
+  border: 0;
+  min-height: 82px;
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 900;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  line-height: 1.22;
+}
+
+.buybar .big:disabled {
+  background: #d8dde3;
+  color: #fff;
+}
+
+.faces { display: flex; }
+.faces span {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f8d6cd;
+  border: 2px solid #fff;
+  margin-left: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+.faces span:first-child { margin-left: 0; }
+
+/* ── 订单卡片子元素 ── */
+.order-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.order-card .order-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.order-body { padding: 12px 14px; }
+.order-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 0 14px 14px;
+}
+.amount-line {
+  border-top: 1px solid var(--color-border);
+  margin-top: 10px;
+  padding-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── 状态圆点 ── */
+.state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  display: inline-block;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.state-dot.orange { background: var(--color-price); }
+.state-dot.gray { background: #c4c9d0; }
+.state-dot.red { background: var(--van-danger-color); }
+
+/* ── 小状态标签 ── */
+.tiny-pill {
+  font-size: 11px;
+  border-radius: 999px;
+  background: #f2f4f5;
+  color: #777;
+  padding: 3px 8px;
+  display: inline-block;
+}
+.tiny-pill.green { background: #e9fbf2; color: var(--color-primary); }
+.tiny-pill.orange { background: #fff2e8; color: #f36b2a; }
+
+/* ── 状态标签 ── */
+.status-chip {
+  background: #eafaf1;
+  color: var(--color-primary);
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-block;
+}
+
+/* ── 页面说明 ── */
+.page-note {
+  background: #ecfdf3;
+  color: #0c9e55;
+  border: 1px solid #b8efd0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* ── 通知条 ── */
+.notice-strip {
+  background: #fff7e8;
+  color: #e86a2b;
+  padding: 9px 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f5ead8;
+}
+
+/* ── 统计行 ── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--color-bg-card);
+  padding: 12px 0;
+  text-align: center;
+}
+.stat-row .num { font-weight: 900; font-size: 18px; }
+
+/* ── 功能宫格 ── */
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px 10px;
+}
+.feature {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #4f555f;
+  text-align: center;
+}
+.feature .icon {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #222;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--color-primary);
+  background: var(--color-bg-card);
+}
+
+.hero {
+  min-height: 190px;
+  background: linear-gradient(135deg, #bdd4ff, #ffd0c0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  font-size: 24px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.hero :where(img, .van-image, .image-with-fallback) {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── 消息标签 ── */
+.msg-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 14px;
+  background: var(--color-bg-card);
+}
+.msg-tab {
+  background: #f4f5f6;
+  color: #666;
+  border-radius: 999px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.msg-tab.active { background: #e5faef; color: var(--color-primary); }
+
+/* ── 消息卡片 ── */
+.msg-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
+  margin-bottom: 10px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 10px;
+  align-items: start;
+  box-shadow: var(--shadow-card);
+}
+.msg-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  position: relative;
+  flex-shrink: 0;
+}
+.msg-icon.green { background: var(--color-primary-light); color: var(--color-primary); }
+.msg-icon.orange { background: #fff2e8; color: #ff7a2f; }
+.msg-icon.blue { background: #edf5ff; color: #3c85e8; }
+.msg-icon.gray { background: #f2f4f5; color: #6b7280; }
+.unread-dot {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  width: 10px;
+  height: 10px;
+  background: #f25541;
+  border: 2px solid var(--color-bg-card);
+  border-radius: 50%;
+}
+.msg-title { font-weight: 900; font-size: 16px; }
+.msg-snippet { color: #7a808a; font-size: 13px; line-height: 1.45; margin-top: 4px; }
+.msg-time { color: #a8adb5; font-size: 11px; white-space: nowrap; }
+
+/* ── 演示开关（Switch） ── */
+.switch {
+  width: 48px;
+  height: 26px;
+  border-radius: 99px;
+  background: #d8dde3;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.switch.on { background: var(--color-primary); }
+.switch::after {
+  content: "";
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.18);
+  transition: left 0.2s;
+}
+.switch.on::after { left: 24px; }
+
+/* ── 角标数字 ── */
+.badge-num {
+  background: #f25541;
+  color: #fff;
+  border-radius: 999px;
+  font-size: 10px;
+  min-width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  margin-left: 4px;
 }

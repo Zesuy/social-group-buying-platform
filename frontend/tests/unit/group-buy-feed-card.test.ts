@@ -30,7 +30,7 @@ describe('GroupBuyFeedCard', () => {
 
   it('renders sold count', () => {
     const wrapper = mount(GroupBuyFeedCard, { props: { item: mockItem } })
-    expect(wrapper.text()).toContain('已售 12')
+    expect(wrapper.text()).toContain('12人已团')
   })
 
   it('emits click event', () => {

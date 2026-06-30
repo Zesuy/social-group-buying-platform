@@ -33,20 +33,21 @@ defineEmits<{ change: [key: string] }>()
 <style scoped>
 .channel-tabs {
   background: var(--color-bg-card);
-  padding: 0 var(--spacing-md);
+  padding: 0 18px;
+  height: 54px;
 }
 
 .channel-tabs__scroll {
   display: flex;
-  gap: 0;
+  gap: 28px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .channel-tabs__item {
   flex-shrink: 0;
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-md);
+  padding: 10px 0 13px;
+  font-size: 18px;
   color: var(--color-text-secondary);
   position: relative;
   min-height: var(--touch-size-min);
@@ -56,8 +57,8 @@ defineEmits<{ change: [key: string] }>()
 }
 
 .channel-tabs__item--active {
-  color: var(--color-primary);
-  font-weight: 600;
+  color: var(--color-text-primary);
+  font-weight: 900;
 }
 
 .channel-tabs__item--active::after {
@@ -66,7 +67,9 @@ defineEmits<{ change: [key: string] }>()
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 20px;
+  left: 6px;
+  right: 6px;
+  width: auto;
   height: 3px;
   background: var(--color-primary);
   border-radius: 2px;

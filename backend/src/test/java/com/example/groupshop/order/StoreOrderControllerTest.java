@@ -61,8 +61,8 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
-        Long groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0]);
+        Long groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create address for buyer
         String addrResponse = mockMvc.perform(post(ADDRESSES_URL)
@@ -79,7 +79,7 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0]);
+        Long addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create order as buyer
         String orderResponse = mockMvc.perform(post(ORDERS_URL)
@@ -87,13 +87,13 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        orderId = Long.parseLong(orderResponse.split("\"id\":")[1].split(",")[0]);
+        orderId = Long.parseLong(orderResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Pay the order
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
@@ -139,7 +139,7 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.id").value(orderId))
+                .andExpect(jsonPath("$.data.id").value(String.valueOf(orderId)))
                 .andExpect(jsonPath("$.data.payStatus").value("paid"));
     }
 
@@ -169,10 +169,10 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.order.id").value(orderId))
+                .andExpect(jsonPath("$.data.order.id").value(String.valueOf(orderId)))
                 .andExpect(jsonPath("$.data.order.orderStatus").value("shipped"))
                 .andExpect(jsonPath("$.data.order.shippedAt").isNotEmpty())
-                .andExpect(jsonPath("$.data.shipment.id").isNumber())
+                .andExpect(jsonPath("$.data.shipment.id").isString())
                 .andExpect(jsonPath("$.data.shipment.deliveryType").value("express"))
                 .andExpect(jsonPath("$.data.shipment.logisticsCompany").value("顺丰速运"))
                 .andExpect(jsonPath("$.data.shipment.trackingNo").value("SF123456"));
@@ -243,8 +243,8 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long gb2Id = Long.parseLong(gb2Response.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
-        Long gb2ItemId = Long.parseLong(gb2Response.split("\"items\":\\[\\{\"id\":")[1].split(",")[0]);
+        Long gb2Id = Long.parseLong(gb2Response.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long gb2ItemId = Long.parseLong(gb2Response.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create address for buyer
         String addr2Response = mockMvc.perform(post(ADDRESSES_URL)
@@ -261,7 +261,7 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long addr2Id = Long.parseLong(addr2Response.split("\"id\":")[1].split(",")[0]);
+        Long addr2Id = Long.parseLong(addr2Response.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create unpaid order
         String order2Response = mockMvc.perform(post(ORDERS_URL)
@@ -269,13 +269,13 @@ class StoreOrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(gb2Id, addr2Id, gb2ItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long unpaidOrderId = Long.parseLong(order2Response.split("\"id\":")[1].split(",")[0]);
+        Long unpaidOrderId = Long.parseLong(order2Response.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Try to ship unpaid order
         mockMvc.perform(post(STORE_ORDERS_URL + "/" + unpaidOrderId + "/ship")

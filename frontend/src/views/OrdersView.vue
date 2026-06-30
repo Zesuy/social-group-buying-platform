@@ -1,14 +1,16 @@
 <template>
   <PageLayout show-tab-bar>
-    <!-- 搜索占位 -->
-    <van-search
-      v-model="searchKeyword"
-      shape="round"
-      disabled
-      placeholder="搜索订单"
-    />
+    <div class="app-topbar">
+      我购买的订单
+    </div>
 
-    <!-- 状态 Tab -->
+    <!-- 搜索占位 -->
+    <div class="orders-search marketplace-search" @click="onSearchClick">
+      <van-icon name="search" size="16" />
+      <span>搜索商品名 / 订单号 / 团长</span>
+    </div>
+
+    <!-- 状态 Tab（保持 Vant tabs，E2E 兼容） -->
     <van-tabs v-model:active="activeTab" @change="onTabChange">
       <van-tab
         v-for="t in statusTabs"
@@ -21,7 +23,7 @@
     <!-- 首次加载 -->
     <LoadingView v-if="firstLoading" />
 
-    <!-- 错误重试（仅首次加载失败） -->
+    <!-- 错误重试 -->
     <ErrorView
       v-else-if="showError"
       :message="error ?? undefined"
@@ -30,6 +32,9 @@
 
     <!-- 订单列表 -->
     <div v-else class="orders-content">
+      <div class="page-note">
+        订单列表可查看团购快照、金额、状态和当前可执行操作。
+      </div>
       <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
         <van-list
           :loading="loading"
@@ -48,50 +53,46 @@
             @click="goToDetail(order.id)"
           >
             <!-- 头部：店铺信息 + 状态标签 -->
-            <div class="order-card__header">
-              <span class="order-card__store">
-                <van-icon name="shop-o" size="16" />
+            <div class="order-head">
+              <b>
+                <span :class="['state-dot', getStateDotClass(order.orderStatus)]" />
                 {{ getStoreText(order) }}
-              </span>
-              <van-tag
-                :color="statusTagColor(order.orderStatus)"
-              >
+              </b>
+              <span :class="['tiny-pill', getTinyPillClass(order.orderStatus)]">
                 {{ getOrderStatusText(order.orderStatus) }}
-              </van-tag>
+              </span>
             </div>
 
-            <!-- 商品预览（最多 3 项） -->
-            <div class="order-card__items">
-              <div
-                v-for="orderItem in order.items.slice(0, 3)"
-                :key="orderItem.id"
-                class="order-card__item"
-              >
-                <div class="order-card__item-icon">
-                  <van-icon name="photo-o" size="36" />
+            <!-- 商品快照 -->
+            <div class="order-body">
+              <div class="order-card__snapshot">
+                <div class="order-card__item-cover">
+                  <van-icon name="photo-o" size="34" />
                 </div>
                 <div class="order-card__item-info">
-                  <span class="order-card__item-name">{{ orderItem.productName }}</span>
-                  <span class="order-card__item-qty">x{{ orderItem.quantity }}</span>
+                  <span class="order-card__item-name van-multi-ellipsis--l2">
+                    {{ order.items[0]?.productName || '团购商品' }}
+                  </span>
+                  <span class="order-card__item-meta">
+                    <template v-if="order.items[0]?.skuName">规格：{{ order.items[0]?.skuName }}｜</template>
+                    数量 x{{ order.items[0]?.quantity || 0 }}
+                  </span>
+                  <div class="amount-line">
+                    <span class="order-card__order-no">订单号 {{ order.orderNo }}</span>
+                    <span class="order-card__pay">
+                      实付
+                      <PriceText :amount="order.payAmount" size="md" color="var(--color-price)" />
+                    </span>
+                  </div>
                 </div>
               </div>
-              <div v-if="order.items.length > 3" class="order-card__more">
+              <div v-if="order.items.length > 1" class="order-card__more">
                 等{{ order.items.length }}件商品
               </div>
             </div>
 
-            <!-- 合计金额 -->
-            <div class="order-card__amount">
-              合计：
-              <PriceText
-                :amount="order.payAmount"
-                size="md"
-                color="var(--color-price)"
-              />
-            </div>
-
             <!-- 操作按钮 -->
-            <div v-if="getActionButtons(order.orderStatus).length > 0" class="order-card__actions">
+            <div v-if="getActionButtons(order.orderStatus).length > 0" class="order-actions">
               <van-button
                 v-for="btn in getActionButtons(order.orderStatus)"
                 :key="btn.text"
@@ -130,9 +131,6 @@ import { getOrderStatusText } from '@/utils/status'
 import type { OrderData } from '@/types'
 
 const router = useRouter()
-
-// ── 搜索 ──
-const searchKeyword = ref('')
 
 // ── 状态 Tab ──
 const statusTabs = [
@@ -175,7 +173,6 @@ function onTabChange() {
 // ── 下拉刷新 ──
 async function onRefresh() {
   await refresh()
-  // 刷新失败时提示
   if (error.value) {
     showToast('刷新失败')
   }
@@ -187,8 +184,12 @@ async function onLoadMore() {
 }
 
 // ── 导航 ──
-function goToDetail(id: number) {
+function goToDetail(id: string) {
   router.push(`/orders/${id}`)
+}
+
+function onSearchClick() {
+  showToast('订单搜索将在后续开放')
 }
 
 // ── 订单卡片辅助 ──
@@ -196,15 +197,25 @@ function getStoreText(order: OrderData): string {
   return `店铺 #${order.storeId}`
 }
 
-function statusTagColor(status: string): string {
-  const colorMap: Record<string, string> = {
-    pendingPay: 'var(--color-primary)',
-    paid: '#1989fa',
-    shipped: '#07c160',
-    completed: '#969799',
-    canceled: '#969799',
+/** 获取 state-dot 颜色类 */
+function getStateDotClass(status: string): string {
+  switch (status) {
+    case 'pendingPay': return 'orange'
+    case 'canceled': return 'gray'
+    default: return ''
   }
-  return colorMap[status] ?? '#969799'
+}
+
+/** 获取 tiny-pill 颜色类 */
+function getTinyPillClass(status: string): string {
+  switch (status) {
+    case 'pendingPay': return 'orange'
+    case 'paid':
+    case 'shipped': return 'green'
+    case 'canceled':
+    case 'completed': return ''
+    default: return ''
+  }
 }
 
 // ── 操作按钮定义 ──
@@ -230,7 +241,7 @@ function getActionButtons(status: string): ActionBtn[] {
   }
 }
 
-const actionLoadingId = ref<number | null>(null)
+const actionLoadingId = ref<string | null>(null)
 
 async function handleOrderAction(order: OrderData, action: string) {
   actionLoadingId.value = order.id
@@ -254,7 +265,6 @@ async function handleOrderAction(order: OrderData, action: string) {
       }
       case 'pay':
       case 'complete':
-        // 跳转详情页执行操作
         router.push(`/orders/${order.id}`)
         break
     }
@@ -281,49 +291,31 @@ onMounted(() => {
   min-height: 200px;
 }
 
-.order-card {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-card);
-  margin: var(--spacing-sm) var(--spacing-md);
-  padding: var(--spacing-md);
-  cursor: pointer;
+.orders-search {
+  margin: 14px 14px 12px;
 }
 
-.order-card__header {
+:deep(.van-tabs__wrap) {
+  background: #fff;
+  height: 54px;
+}
+
+:deep(.van-tab) {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.order-card__snapshot {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-sm);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-border-light);
-  min-height: 44px;
+  align-items: flex-start;
+  gap: 10px;
 }
 
-.order-card__store {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.order-card__items {
-  padding: var(--spacing-xs) 0;
-}
-
-.order-card__item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: 4px 0;
-  min-height: 44px;
-}
-
-.order-card__item-icon {
-  width: 40px;
-  height: 40px;
-  background: var(--color-bg);
-  border-radius: 4px;
+.order-card__item-cover {
+  width: 74px;
+  height: 74px;
+  background: linear-gradient(145deg, #cfddff, #ec715b);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -332,48 +324,50 @@ onMounted(() => {
 
 .order-card__item-info {
   flex: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  min-width: 0;
 }
 
 .order-card__item-name {
   font-size: var(--font-size-md);
   color: var(--color-text-primary);
+  font-weight: 800;
+  display: block;
+  line-height: 1.35;
 }
 
-.order-card__item-qty {
+.order-card__item-meta {
+  display: block;
   font-size: var(--font-size-sm);
   color: var(--color-text-hint);
+  margin-top: 4px;
 }
 
 .order-card__more {
   font-size: var(--font-size-sm);
   color: var(--color-text-hint);
-  padding: 4px 0;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
+  padding-top: 8px;
 }
 
-.order-card__amount {
-  text-align: right;
-  font-size: var(--font-size-md);
+.order-card__order-no {
+  color: var(--color-text-hint);
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-card__pay {
   color: var(--color-text-primary);
-  padding: var(--spacing-xs) 0;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
-.order-card__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-sm);
-  padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--color-border-light);
-  min-height: 44px;
-  align-items: center;
+.order-actions :deep(.van-button--small) {
+  min-width: 84px;
+  height: 36px;
+  border-radius: 999px !important;
+  font-weight: 800;
 }
 </style>

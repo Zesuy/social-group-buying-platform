@@ -63,8 +63,8 @@ class OrderControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
-        groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0]);
+        groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create address for buyer
         String addrResponse = mockMvc.perform(post(ADDRESSES_URL)
@@ -81,7 +81,7 @@ class OrderControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0]);
+        addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
     }
 
     private String loginAndGetToken(String phone) throws Exception {
@@ -101,11 +101,11 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
                                     "items": [
                                         {
-                                            "groupBuyItemId": %d,
+                                            "groupBuyItemId": "%s",
                                             "quantity": 2
                                         }
                                     ]
@@ -114,7 +114,7 @@ class OrderControllerTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.groupBuyId").value(groupBuyId))
+                .andExpect(jsonPath("$.data.groupBuyId").value(String.valueOf(groupBuyId)))
                 .andExpect(jsonPath("$.data.totalAmount").value(3980))
                 .andExpect(jsonPath("$.data.discountAmount").value(0))
                 .andExpect(jsonPath("$.data.payAmount").value(3980))
@@ -149,19 +149,19 @@ class OrderControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long endedGbId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
-        Long endedItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0]);
+        Long endedGbId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long endedItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(post(ORDER_PREVIEW_URL)
                         .header("Authorization", "Bearer " + buyerToken)
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
                                     "items": [
                                         {
-                                            "groupBuyItemId": %d,
+                                            "groupBuyItemId": "%s",
                                             "quantity": 1
                                         }
                                     ]
@@ -178,11 +178,11 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
                                     "items": [
                                         {
-                                            "groupBuyItemId": %d,
+                                            "groupBuyItemId": "%s",
                                             "quantity": 1
                                         }
                                     ]
@@ -199,11 +199,11 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
                                     "items": [
                                         {
-                                            "groupBuyItemId": %d,
+                                            "groupBuyItemId": "%s",
                                             "quantity": 999
                                         }
                                     ]
@@ -222,12 +222,12 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
                                     "remark": "请尽快发货",
                                     "items": [
                                         {
-                                            "groupBuyItemId": %d,
+                                            "groupBuyItemId": "%s",
                                             "quantity": 1
                                         }
                                     ]
@@ -236,7 +236,7 @@ class OrderControllerTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.id").isNumber())
+                .andExpect(jsonPath("$.data.id").isString())
                 .andExpect(jsonPath("$.data.orderNo").isString())
                 .andExpect(jsonPath("$.data.totalAmount").value(1990))
                 .andExpect(jsonPath("$.data.payAmount").value(1990))
@@ -270,9 +270,9 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)));
 
@@ -305,20 +305,20 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(get(MY_ORDERS_URL + "/" + orderId)
                         .header("Authorization", "Bearer " + buyerToken))
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.id").value(orderId))
+                .andExpect(jsonPath("$.data.id").value(String.valueOf(orderId)))
                 .andExpect(jsonPath("$.data.items[0].productName").value("测试商品A"));
     }
 
@@ -339,13 +339,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/cancel")
                         .header("Authorization", "Bearer " + buyerToken))
@@ -362,13 +362,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Cancel first
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/cancel")
@@ -390,13 +390,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
                         .header("Authorization", "Bearer " + buyerToken))
@@ -415,13 +415,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Pay first
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
@@ -442,13 +442,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Leader tries to pay the buyer's order
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
@@ -465,13 +465,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Cancel first
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/cancel")
@@ -495,13 +495,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Pay
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
@@ -530,13 +530,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Pay
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
@@ -563,13 +563,13 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Pay but don't ship
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")

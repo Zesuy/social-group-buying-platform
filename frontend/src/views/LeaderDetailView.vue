@@ -104,7 +104,7 @@ async function fetchData() {
   loading.value = true
   error.value = null
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     const data = await getLeaderHomepage(id)
     leaderData.value = data.leader
     storeData.value = data.store
@@ -124,7 +124,7 @@ async function loadMoreGroupBuys() {
   if (listLoading.value || !hasMore.value) return
   listLoading.value = true
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     const nextPage = listPage.value + 1
     const data = await getLeaderHomepage(id, nextPage)
     groupBuys.value = [...groupBuys.value, ...data.groupBuys.items]
@@ -156,7 +156,7 @@ async function toggleSubscribe() {
 
   subLoading.value = true
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     if (subscribed.value) {
       await unsubscribeLeader(id)
       subscribed.value = false
@@ -179,7 +179,7 @@ async function toggleSubscribe() {
   }
 }
 
-function goToDetail(id: number) {
+function goToDetail(id: string) {
   router.push(`/group-buys/${id}`)
 }
 
@@ -194,19 +194,21 @@ onMounted(() => {
 
 <style scoped>
 .leader-header {
-  background: var(--color-bg-card);
-  padding: var(--spacing-xl) var(--spacing-lg);
+  background: linear-gradient(135deg, var(--color-primary-deep), var(--color-primary-deep-light));
+  padding: 28px 20px 34px;
   display: flex;
   gap: var(--spacing-md);
   align-items: flex-start;
+  color: #fff;
 }
 
 .leader-header__avatar {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  border-radius: 14px;
   flex-shrink: 0;
   object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .leader-header__info {
@@ -215,15 +217,15 @@ onMounted(() => {
 }
 
 .leader-header__name {
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
   margin-bottom: 4px;
 }
 
 .leader-header__bio {
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.8);
   margin-bottom: 4px;
   line-height: 1.4;
 }
@@ -232,21 +234,26 @@ onMounted(() => {
   display: flex;
   gap: 4px;
   font-size: var(--font-size-sm);
-  color: var(--color-text-hint);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .leader-header__dot {
-  color: var(--color-border);
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .leader-section {
-  padding: var(--spacing-md);
+  padding: 12px 14px 0;
 }
 
 .leader-section__title {
-  font-size: var(--font-size-lg);
-  font-weight: 500;
-  margin-bottom: var(--spacing-sm);
+  font-size: 18px;
+  font-weight: 900;
+  margin-bottom: 10px;
   color: var(--color-text-primary);
+}
+
+.leader-section :deep(.van-button) {
+  height: var(--button-capsule-height);
+  font-weight: 900;
 }
 </style>

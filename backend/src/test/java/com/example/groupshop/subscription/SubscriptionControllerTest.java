@@ -37,7 +37,7 @@ class SubscriptionControllerTest extends MockMvcTestBase {
         String meResponse = mockMvc.perform(get("/api/v1/me")
                         .header("Authorization", "Bearer " + leaderToken))
                 .andReturn().getResponse().getContentAsString();
-        leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0]);
+        leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0].replace("\"", "").trim());
     }
 
     private String loginAndGetToken(String phone) throws Exception {
@@ -62,7 +62,7 @@ class SubscriptionControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.status").value("active"))
-                .andExpect(jsonPath("$.data.leaderId").value(leaderId));
+                .andExpect(jsonPath("$.data.leaderId").value(String.valueOf(leaderId)));
     }
 
     @Test
@@ -146,7 +146,7 @@ class SubscriptionControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.items").isArray())
-                .andExpect(jsonPath("$.data.items[0].leaderId").value(leaderId));
+                .andExpect(jsonPath("$.data.items[0].leaderId").value(String.valueOf(leaderId)));
     }
 
     @Test

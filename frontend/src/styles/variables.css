@@ -1,52 +1,76 @@
 /* ══════════════════════════════════════════════
    全局 CSS 变量 — H5 移动端主题
+   设计基线：温暖奶油背景 + 绿色零售 CTA + 移动 marketplace 信息流
+   Batch 05.8 Design Foundation
    ══════════════════════════════════════════════ */
 
 :root {
   /* ── 品牌色 ── */
-  --color-primary: #07c160;          /* 绿色主色（微信风格） */
-  --color-primary-dark: #06ad56;
-  --color-primary-light: #e8f8ee;
+  --color-primary: #10c468;          /* demo 绿色主色 / 零售 CTA */
+  --color-primary-dark: #08a957;
+  --color-primary-light: #e8fff2;
 
-  /* ── 价格色 ── */
-  --color-price: #ff4d4f;            /* 橙红色价格 */
-  --color-price-light: #fff1f0;
+  /* ── 深度品牌色（深色功能区，首页品牌区、个人中心头部等） ── */
+  --color-primary-deep: #1e3932;
+  --color-primary-deep-light: #2b5148;
+
+  /* ── 价格色（橙红，与普通正文区分） ── */
+  --color-price: #ff602a;            /* 橙红色价格 */
+  --color-price-light: #fff5df;
 
   /* ── 背景色 ── */
-  --color-bg: #f5f5f5;               /* 页面浅灰背景 */
+  --color-bg: #f5f6f7;              /* 温暖奶油页面背景 */
+  --color-bg-shell: #eef2f4;
+  --color-bg-cream: #f2f0eb;
   --color-bg-white: #ffffff;
   --color-bg-card: #ffffff;
+  --color-bg-surface: #f7f8fa;
 
   /* ── 文字色 ── */
-  --color-text-primary: #333333;
-  --color-text-secondary: #666666;
-  --color-text-hint: #999999;
-  --color-text-placeholder: #cccccc;
+  --color-text-primary: #16181d;
+  --color-text-secondary: #60646c;
+  --color-text-hint: #969ca5;
+  --color-text-placeholder: #c8c9cc;
   --color-text-disabled: #c8c9cc;
 
   /* ── 边框 ── */
-  --color-border: #ebedf0;
+  --color-border: #edf0f2;
   --color-border-light: #f0f0f0;
 
   /* ── 圆角 ── */
-  --radius-card: 8px;
-  --radius-sm: 4px;
-  --radius-lg: 12px;
+  --radius-sm: 8px;                  /* 普通卡片 */
+  --radius-card: 14px;               /* demo 圆角商品卡 */
+  --radius-lg: 18px;
+  --radius-pill: 50px;               /* 主 CTA 胶囊按钮 */
 
-  /* ── 间距 ── */
+  /* ── 间距（4 / 8 / 12 / 16 / 24 / 32） ── */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-lg: 16px;
   --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+
+  /* ── 阴影 ── */
+  --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.03);
+  --shadow-float: 0 12px 34px rgba(20, 28, 40, 0.10);
+  --shadow-fab: 0 0 6px rgba(0, 0, 0, 0.24), 0 8px 12px rgba(0, 0, 0, 0.14);
+  --shadow-nav: 0 1px 3px rgba(0, 0, 0, 0.10), 0 2px 2px rgba(0, 0, 0, 0.04);
 
   /* ── 字体 ── */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei',
+    'Noto Sans SC', sans-serif;
   --font-size-xs: 11px;
   --font-size-sm: 12px;
   --font-size-md: 14px;
   --font-size-lg: 16px;
-  --font-size-xl: 18px;
-  --font-size-xxl: 22px;
+  --font-size-xl: 19px;
+  --font-size-xxl: 24px;
+
+  /* ── 按钮尺寸 ── */
+  --button-capsule-height: 50px;     /* 主 CTA 胶囊高度 */
+  --button-capsule-radius: 50px;     /* 主 CTA 胶囊圆角 */
 
   /* ── Safe Area ── */
   --safe-area-top: env(safe-area-inset-top, 0px);
@@ -56,4 +80,9 @@
 
   /* ── 触控尺寸 ── */
   --touch-size-min: 44px;
+
+  /* ── Tab 栏高度 ── */
+  --tabbar-height: 76px;
+  --actionbar-height: 76px;
+  --topbar-height: 58px;
 }

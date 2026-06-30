@@ -31,12 +31,12 @@ import { navigateToHash, setLoggedIn } from './helpers/navigation'
 let healthOk = false
 let buyerToken: string
 let leaderToken: string
-let groupBuyId: number
-let groupBuyItemId: number
-let addressId: number
-let orderForCancelId: number   // pendingPay → 取消测试
-let orderForPayId: number      // pendingPay → 支付测试
-let completableOrderId: number // shipped → 确认收货测试
+let groupBuyId: string
+let groupBuyItemId: string
+let addressId: string
+let orderForCancelId: string   // pendingPay → 取消测试
+let orderForPayId: string      // pendingPay → 支付测试
+let completableOrderId: string // shipped → 确认收货测试
 
 test.describe('Real E2E: Checkout + Orders + Payment', () => {
   test.beforeAll(async () => {
@@ -174,8 +174,9 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     await page.waitForTimeout(3000)
 
     // 断言状态流转：页面应显示"订单已取消"横幅
-    await expect(page.locator('.order-canceled-banner')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=订单已取消')).toBeVisible({ timeout: 5000 })
+    const canceledBanner = page.locator('.order-canceled-banner')
+    await expect(canceledBanner).toBeVisible({ timeout: 5000 })
+    await expect(canceledBanner.getByText('订单已取消')).toBeVisible({ timeout: 5000 })
 
     // "取消订单"和"模拟支付"按钮应不再可见
     await expect(page.locator('button:has-text("取消订单")')).not.toBeVisible({ timeout: 3000 })

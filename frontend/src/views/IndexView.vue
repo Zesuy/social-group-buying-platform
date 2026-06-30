@@ -1,23 +1,39 @@
 <template>
   <PageLayout show-tab-bar>
-    <!-- 品牌区 -->
-    <div class="index-header">
-      <div class="index-header__brand">
-        <span class="index-header__title">团购商城</span>
+    <!-- 品牌区（深绿色背景） -->
+    <div class="index-brand">
+      <div class="index-brand__bar">
+        <div class="index-brand__logo">
+          <span class="index-brand__icon">邻</span>
+          <span class="index-brand__name">邻鲜团</span>
+        </div>
+        <div class="index-brand__pill">
+          <van-icon name="like" size="14" />
+          小程序提供服务
+        </div>
       </div>
     </div>
 
-    <!-- 提醒横幅 -->
-    <ReminderBanner message="下单前请先查看团购说明和发货时间" />
+    <!-- 关注公众号提醒 -->
+    <div class="index-follow-banner">
+      <span>关注公众号，收到活动和订单、物流通知</span>
+      <span class="index-follow-banner__btn">关注</span>
+    </div>
 
-    <!-- 频道 Tab 占位 -->
+    <!-- 搜索占位（pill 样式） -->
+    <div class="index-search marketplace-search">
+      <van-icon name="search" size="16" color="var(--color-text-hint)" />
+      <span>搜索商品或店铺</span>
+    </div>
+
+    <!-- 频道 Tab -->
     <ChannelTabs
       :tabs="channels"
       :active="activeChannel"
       @change="onChannelChange"
     />
 
-    <!-- 分类横滑占位 -->
+    <!-- 分类 cs -->
     <CategoryChips
       :chips="categories"
       :active="activeCategory"
@@ -55,6 +71,11 @@
         @retry="initLoad"
       />
     </div>
+
+    <!-- 灰态购物车浮动入口（非 MVP，只展示图标） -->
+    <div class="index-fab-cart floating-cart-entry" @click="onCartClick">
+      <van-icon name="cart-o" size="26" color="var(--color-primary)" />
+    </div>
   </PageLayout>
 </template>
 
@@ -63,19 +84,19 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
-import ReminderBanner from '@/components/ReminderBanner.vue'
 import ChannelTabs from '@/components/ChannelTabs.vue'
 import CategoryChips from '@/components/CategoryChips.vue'
 import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
+import { isFeatureDisabled } from '@/utils/non-mvp'
 import { listPublicGroupBuys } from '@/api/groupBuys'
 import type { PublicGroupBuyItem } from '@/types'
 
 const router = useRouter()
 
-// ── 频道 Tab（占位） ──
+// ── 频道 Tab ──
 const channels = [
   { key: 'recommend', label: '推荐' },
   { key: 'newest', label: '最新' },
@@ -87,7 +108,7 @@ function onChannelChange(key: string) {
   showToast('功能开发中，敬请期待')
 }
 
-// ── 分类（占位） ──
+// ── 分类 ──
 const categories = [
   { key: 'all', label: '全部' },
   { key: 'fruit', label: '水果' },
@@ -101,6 +122,14 @@ const activeCategory = ref('all')
 function onCategoryChange(key: string) {
   activeCategory.value = key
   showToast('分类筛选功能开发中')
+}
+
+// ── 购物车入口灰态 ──
+function onCartClick() {
+  if (isFeatureDisabled('cart')) {
+    showToast('购物车功能即将开放')
+    return
+  }
 }
 
 // ── 分页 ──
@@ -162,7 +191,7 @@ function onErrorRetry() {
   initLoad()
 }
 
-function goToDetail(id: number) {
+function goToDetail(id: string) {
   router.push(`/group-buys/${id}`)
 }
 
@@ -172,19 +201,89 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.index-header {
+/* ── 品牌区 ── */
+.index-brand {
+  background: #fff;
+  padding: 10px 14px 0;
+  padding-top: calc(var(--spacing-md) + var(--safe-area-top));
+}
+
+.index-brand__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.index-brand__logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.index-brand__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: var(--color-primary);
-  padding: var(--spacing-md) var(--spacing-lg);
-  padding-top: calc(var(--spacing-md) + env(safe-area-inset-top, 0px));
-}
-
-.index-header__title {
-  font-size: var(--font-size-xl);
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #fff;
+  font-weight: 900;
+  font-size: var(--font-size-lg);
 }
 
+.index-brand__name {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--color-primary);
+}
+
+.index-brand__pill {
+  border-radius: 99px;
+  background: var(--color-bg);
+  padding: 7px 12px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+/* ── 关注公众号横幅 ── */
+.index-follow-banner {
+  background: #fff5df;
+  color: #f26b2c;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.index-follow-banner__btn {
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-size: var(--font-size-sm);
+  flex-shrink: 0;
+}
+
+/* ── 搜索占位 ── */
+.index-search {
+  margin: var(--spacing-md);
+}
+
+/* ── 团购卡片区 ── */
 .index-feed {
-  padding: var(--spacing-md);
+  padding: 0 var(--spacing-md) var(--spacing-md);
+}
+
+/* ── 购物车浮动入口（灰态） ── */
+.index-fab-cart {
+  bottom: calc(var(--tabbar-height) + 16px + var(--safe-area-bottom));
 }
 </style>

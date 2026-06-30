@@ -1,31 +1,56 @@
 <template>
   <PageLayout show-tab-bar>
-    <ReminderBanner type="info">
-      选择开团类型后即可发布团购活动
-    </ReminderBanner>
+    <div class="app-topbar">
+      请选择开团类型
+    </div>
 
-    <div class="group-types-grid">
+    <div class="notice-strip">
+      <span>打开提醒，官方活动早知道</span>
+      <button type="button" @click="onNoticeClick">设置</button>
+    </div>
+
+    <div class="open-group-hero">
+      <div class="open-group-hero__mark">
+        <van-icon name="friends-o" />
+      </div>
+      <h1>请选择开团类型</h1>
+      <div class="open-group-hero__actions">
+        <button type="button" @click="onGuideClick('tutorial')">
+          开团教程
+          <van-icon name="arrow" />
+        </button>
+        <button type="button" @click="onGuideClick('newcomer')">
+          新人攻略
+          <van-icon name="arrow" />
+        </button>
+      </div>
+    </div>
+
+    <div class="group-types-list">
       <div
         v-for="type in groupTypes"
         :key="type.key"
         :class="[
-          'group-type-card',
-          { 'group-type-card--disabled': !type.available },
+          'group-type-item',
+          { 'group-type-item--disabled': !type.available },
         ]"
         @click="onCardClick(type)"
       >
-        <van-icon
-          :name="type.icon"
-          class="group-type-icon"
-          :class="{ 'group-type-icon--disabled': !type.available }"
-        />
-        <div class="group-type-label">{{ type.label }}</div>
-        <div class="group-type-subtitle">{{ type.subtitle }}</div>
-        <van-tag v-if="!type.available" plain class="group-type-tag">
-          即将开放
-        </van-tag>
+        <div class="group-type-icon-wrap" :class="`group-type-icon-wrap--${type.key}`">
+          <van-icon :name="type.icon" class="group-type-icon" />
+        </div>
+        <div class="group-type-copy">
+          <h2>{{ type.label }}</h2>
+          <p>{{ type.subtitle }}</p>
+        </div>
+        <span v-if="!type.available" class="group-type-tag">即将开放</span>
+        <van-icon name="arrow" class="group-type-arrow" />
       </div>
     </div>
+
+    <p class="open-group-rule" @click="onGuideClick('rule')">
+      《邻鲜团禁发商品及信息管理规范》
+    </p>
 
     <van-action-sheet
       v-model:show="showActionSheet"
@@ -44,7 +69,7 @@ import { showToast } from 'vant'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores'
 import PageLayout from '@/components/PageLayout.vue'
-import ReminderBanner from '@/components/ReminderBanner.vue'
+import { isFeatureDisabled } from '@/utils/non-mvp'
 
 interface GroupType {
   key: string
@@ -63,7 +88,9 @@ const actionSheetActions = [
   {
     name: '发布团购',
     callback: () => {
-      showToast('发布功能将在后续 batch 开放')
+      if (isFeatureDisabled('groupBuyPublish')) {
+        showToast('发布功能将在后续 batch 开放')
+      }
     },
   },
   {
@@ -107,6 +134,10 @@ const groupTypes: GroupType[] = [
 
 function onCardClick(type: GroupType) {
   if (!type.available) {
+    if (type.key === 'coupon' && isFeatureDisabled('coupon')) {
+      showToast('卡券团购将在后续开放')
+      return
+    }
     showToast('后续开放')
     return
   }
@@ -125,6 +156,16 @@ function onCardClick(type: GroupType) {
   showActionSheet.value = true
 }
 
+function onNoticeClick() {
+  if (isFeatureDisabled('wechatPush')) {
+    showToast('公众号提醒将在后续开放')
+  }
+}
+
+function onGuideClick(_type: string) {
+  showToast('内容将在后续开放')
+}
+
 function onActionSelect(action: (typeof actionSheetActions)[number]) {
   if (action.callback) {
     action.callback()
@@ -133,52 +174,133 @@ function onActionSelect(action: (typeof actionSheetActions)[number]) {
 </script>
 
 <style scoped>
-.group-types-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  padding: 16px;
+.notice-strip button,
+.open-group-hero__actions button {
+  border: 1px solid #aeeccd;
+  background: #fff;
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-weight: 800;
+  min-height: 36px;
 }
 
-.group-type-card {
+.open-group-hero {
+  padding: 18px 14px 16px;
+  text-align: center;
+}
+
+.open-group-hero__mark {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 8px;
+  border-radius: 30px;
+  background: #e8fff2;
+  color: var(--color-primary);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  font-size: 58px;
+}
+
+.open-group-hero h1 {
+  margin: 0 0 14px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.open-group-hero__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.group-types-list {
+  padding: 0 14px;
+}
+
+.group-type-item {
+  min-height: 76px;
   background: #fff;
-  border-radius: 8px;
-  padding: 24px 16px;
-  position: relative;
-  cursor: pointer;
+  border-radius: 12px;
+  padding: 13px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: var(--shadow-card);
 }
 
-.group-type-card--disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.group-type-item--disabled {
+  opacity: 0.62;
 }
 
-.group-type-icon {
-  font-size: 40px;
-  margin-bottom: 12px;
+.group-type-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   color: var(--color-primary);
+  background: var(--color-primary-light);
+  font-size: 28px;
 }
 
-.group-type-icon--disabled {
-  color: var(--color-text-hint, #999);
+.group-type-icon-wrap--presale {
+  color: #ff9d32;
+  background: #fff5df;
 }
 
-.group-type-label {
-  font-size: 16px;
-  font-weight: 600;
+.group-type-icon-wrap--coupon {
+  color: #ff6a2e;
+  background: #fff2e8;
 }
 
-.group-type-subtitle {
-  font-size: 12px;
+.group-type-icon-wrap--signup {
+  color: #22a7f0;
+  background: #edf5ff;
+}
+
+.group-type-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-type-copy h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.group-type-copy p {
+  margin: 4px 0 0;
   color: var(--color-text-hint);
-  margin-top: 4px;
+  font-size: 13px;
 }
 
 .group-type-tag {
-  margin-top: 8px;
+  color: #f36b2a;
+  background: #fff5df;
+  border: 1px solid #ffc49b;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.group-type-arrow {
+  color: var(--color-text-hint);
+  flex-shrink: 0;
+}
+
+.open-group-rule {
+  margin: 14px 14px 24px;
+  text-align: center;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 800;
 }
 </style>

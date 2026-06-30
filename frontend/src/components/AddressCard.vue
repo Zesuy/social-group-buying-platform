@@ -52,8 +52,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   click: [address: AddressData]
-  edit: [id: number]
-  delete: [id: number]
+  edit: [id: string]
+  delete: [id: string]
 }>()
 
 function handleClick() {
@@ -65,10 +65,12 @@ function handleClick() {
 .address-card {
   background: var(--color-bg-card);
   border-radius: var(--radius-card);
-  padding: var(--spacing-md) var(--spacing-lg);
-  margin-bottom: var(--spacing-sm);
+  padding: 14px;
+  margin-bottom: 10px;
   border: 2px solid transparent;
   transition: border-color 0.2s;
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(237, 240, 242, 0.72);
 }
 
 .address-card--selectable {
@@ -88,7 +90,7 @@ function handleClick() {
 
 .address-card__name {
   font-size: var(--font-size-lg);
-  font-weight: 500;
+  font-weight: 900;
   color: var(--color-text-primary);
 }
 
@@ -115,5 +117,11 @@ function handleClick() {
   padding-top: var(--spacing-sm);
   border-top: 1px solid var(--color-border-light);
   justify-content: flex-end;
+}
+
+.address-card__actions :deep(.van-button) {
+  min-width: 72px;
+  border-radius: 999px;
+  font-weight: 800;
 }
 </style>

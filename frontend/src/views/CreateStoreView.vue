@@ -1,8 +1,6 @@
 <template>
-  <div class="page-container">
-    <NavBar title="创建店铺" show-back @back="goBack" />
-
-    <div class="create-store__content">
+  <PageLayout title="创建店铺" show-back @back="goBack">
+    <div class="create-store__content app-content app-content--tight">
       <ReminderBanner v-if="leaderError" type="warning" :text="leaderError" />
 
       <van-form @submit="handleSubmit">
@@ -57,7 +55,7 @@
         </div>
       </van-form>
     </div>
-  </div>
+  </PageLayout>
 </template>
 
 <script setup lang="ts">
@@ -66,7 +64,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { createStore } from '@/api/stores'
-import NavBar from '@/components/NavBar.vue'
+import PageLayout from '@/components/PageLayout.vue'
 import ReminderBanner from '@/components/ReminderBanner.vue'
 
 const route = useRoute()
@@ -142,12 +140,27 @@ async function handleSubmit() {
 
 <style scoped>
 .create-store__content {
-  padding: 16px;
   background: var(--color-bg);
 }
 
+.create-store__content :deep(.van-cell-group) {
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(237, 240, 242, 0.72);
+}
+
+.create-store__content :deep(.van-cell) {
+  min-height: 52px;
+}
+
 .create-store__submit {
-  margin-top: 24px;
+  margin-top: var(--spacing-xl);
   padding: 0;
+}
+
+.create-store__submit :deep(.van-button) {
+  height: var(--button-capsule-height);
+  font-weight: 900;
 }
 </style>

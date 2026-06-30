@@ -42,8 +42,8 @@ function handleClick(key: string) {
 
 <style scoped>
 .category-chips {
-  background: var(--color-bg-card);
-  padding: var(--spacing-xs) var(--spacing-md) var(--spacing-sm);
+  background: var(--color-bg);
+  padding: 10px 14px;
 }
 
 .category-chips__scroll {
@@ -56,12 +56,12 @@ function handleClick(key: string) {
 
 .category-chips__item {
   flex-shrink: 0;
-  padding: 4px 14px;
-  font-size: var(--font-size-sm);
+  padding: 9px 18px;
+  font-size: var(--font-size-md);
   color: var(--color-text-secondary);
-  background: var(--color-bg);
-  border-radius: 16px;
-  min-height: 30px;
+  background: #fff;
+  border-radius: 8px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   cursor: pointer;
@@ -71,5 +71,6 @@ function handleClick(key: string) {
   color: var(--color-primary);
   background: var(--color-primary-light);
   font-weight: 500;
+  background: #dff8eb;
 }
 </style>

@@ -1,8 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import BottomTabBar from '@/components/BottomTabBar.vue'
+import { useAuthStore } from '@/stores'
+import { showToast } from 'vant'
+
+vi.mock('vant', async () => {
+  const actual = await vi.importActual<typeof import('vant')>('vant')
+  return {
+    ...actual,
+    showToast: vi.fn(),
+  }
+})
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -18,6 +28,7 @@ const router = createRouter({
 describe('BottomTabBar', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.mocked(showToast).mockClear()
   })
 
   it('should render 5 tabs', () => {
@@ -41,8 +52,37 @@ describe('BottomTabBar', () => {
     const labels = wrapper.findAllComponents({ name: 'VanTabbarItem' })
     expect(labels[0].text()).toContain('首页')
     expect(labels[1].text()).toContain('订单')
-    expect(labels[2].text()).toContain('一键开团')
+    expect(labels[2].text()).toContain('开团')
     expect(labels[3].text()).toContain('消息')
     expect(labels[4].text()).toContain('我的')
+  })
+
+  it('should mark current top-level tab as active', async () => {
+    await router.push('/orders')
+    await router.isReady()
+
+    const wrapper = mount(BottomTabBar, {
+      global: {
+        plugins: [router, createPinia()],
+      },
+    })
+
+    expect(wrapper.findComponent({ name: 'VanTabbar' }).props('modelValue')).toBe(1)
+  })
+
+  it('should show login toast when unauthenticated auth tab is selected', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const authStore = useAuthStore()
+    authStore.logout()
+
+    const wrapper = mount(BottomTabBar, {
+      global: {
+        plugins: [router, pinia],
+      },
+    })
+
+    await wrapper.findComponent({ name: 'VanTabbar' }).vm.$emit('change', 1)
+    expect(showToast).toHaveBeenCalledWith('请先登录')
   })
 })
