@@ -25,6 +25,16 @@ import {
   List,
   PullRefresh,
   Switch,
+  Tabs,
+  Tab,
+  Search,
+  Radio,
+  RadioGroup,
+  ActionSheet,
+  Image as VanImage,
+  Step,
+  Steps,
+  Dialog,
 } from 'vant'
 
 // 注册项目中使用的 Vant 组件
@@ -48,4 +58,14 @@ config.global.components = {
   VanList: List,
   VanPullRefresh: PullRefresh,
   VanSwitch: Switch,
+  VanTabs: Tabs,
+  VanTab: Tab,
+  VanSearch: Search,
+  VanRadio: Radio,
+  VanRadioGroup: RadioGroup,
+  VanActionSheet: ActionSheet,
+  VanImage: VanImage,
+  VanStep: Step,
+  VanSteps: Steps,
+  VanDialog: Dialog,
 }

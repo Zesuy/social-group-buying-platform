@@ -280,6 +280,28 @@ async function mockAllEndpoints(page: Page) {
       }),
     })
   })
+
+  // 订单详情（创建订单后跳转的详情页需要）
+  await page.route('**/api/v1/my/orders/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          id: 9001, orderNo: '2026062900001',
+          groupBuyId: 100, storeId: 20, leaderId: 10,
+          totalAmount: 2990, discountAmount: 0, payAmount: 2990,
+          payStatus: 'unpaid', orderStatus: 'pendingPay',
+          receiverName: '张三', receiverPhone: '13800000000',
+          province: '浙江省', city: '杭州市', district: '西湖区',
+          detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号',
+          items: [{ id: 1, groupBuyItemId: 1001, productName: '蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
+        },
+        traceId: 'e2e_order_detail',
+      }),
+    })
+  })
 }
 
 test.describe('Public browsing and checkout E2E', () => {
@@ -389,7 +411,9 @@ test.describe('Public browsing and checkout E2E', () => {
 
     // Should redirect to order detail page
     await expect(page).toHaveURL(/#\/orders\/9001/, { timeout: 5000 })
-    await expect(page.getByRole('heading', { name: '订单提交成功' })).toBeVisible({ timeout: 5000 })
+    // New order detail shows order info, not the old placeholder
+    await expect(page.locator('text=订单编号')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=2026062900001')).toBeVisible()
   })
 
   test('unauthenticated subscribe redirects to login', async ({ page }) => {

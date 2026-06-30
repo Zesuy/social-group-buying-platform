@@ -19,6 +19,19 @@ async function navigateToHash(page: Page, hashPath: string) {
  * Mock 后端响应辅助
  */
 async function mockAuthEndpoints(page: Page) {
+  // 首页团购列表（抑制 Vite proxy 404 噪音）
+  await page.route('**/api/v1/group-buys*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: { items: [], page: 1, pageSize: 20, total: 0, hasMore: false },
+        traceId: 'e2e_noise_suppress',
+      }),
+    })
+  })
+
   // Mock GET /api/v1/me — 根据 token 返回不同状态
   await page.route('**/api/v1/me', async (route) => {
     const headers = route.request().headers()

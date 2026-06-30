@@ -56,9 +56,16 @@ describe('getOrderStatusText', () => {
 })
 
 describe('getDeliveryTypeText', () => {
-  it('should return correct text for known types', () => {
+  it('should return correct text for express', () => {
     expect(getDeliveryTypeText('express')).toBe('快递配送')
-    expect(getDeliveryTypeText('selfPickup')).toBe('自提')
+  })
+
+  it('should return correct text for pickup', () => {
+    expect(getDeliveryTypeText('pickup')).toBe('到店自提')
+  })
+
+  it('should return correct text for local_delivery', () => {
+    expect(getDeliveryTypeText('local_delivery')).toBe('同城配送')
   })
 
   it('should return the original value for unknown type', () => {
