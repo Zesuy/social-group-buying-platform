@@ -23,10 +23,15 @@ function goBack() {
 <style scoped>
 .leader-layout {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--color-bg);
 }
 
+.leader-header :deep(.van-nav-bar) {
+  box-shadow: var(--shadow-nav);
+}
+
 .leader-content {
-  padding: var(--spacing-md);
+  padding: 12px 14px;
 }
 </style>

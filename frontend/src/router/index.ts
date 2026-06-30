@@ -18,7 +18,7 @@ const routes: RouteRecordRaw[] = [
     path: '/open-group',
     name: 'openGroup',
     component: () => import('@/views/OpenGroupView.vue'),
-    meta: { title: '一键开团', showTabBar: true },
+    meta: { title: '开团', showTabBar: true },
   },
   {
     path: '/messages',
@@ -85,6 +85,26 @@ const routes: RouteRecordRaw[] = [
     name: 'createStore',
     component: () => import('@/views/CreateStoreView.vue'),
     meta: { title: '创建店铺', requiresAuth: true },
+  },
+  {
+    path: '/subscriptions',
+    name: 'subscriptions',
+    component: () => import('@/views/FeaturePlaceholderView.vue'),
+    meta: {
+      title: '订阅列表',
+      requiresAuth: true,
+      placeholderText: '订阅列表将在后续 batch 开放',
+    },
+  },
+  {
+    path: '/member-cards',
+    name: 'memberCards',
+    component: () => import('@/views/FeaturePlaceholderView.vue'),
+    meta: {
+      title: '会员卡',
+      requiresAuth: true,
+      placeholderText: '会员卡展示将在后续 batch 开放',
+    },
   },
   {
     path: '/leader',

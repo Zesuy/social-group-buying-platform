@@ -55,7 +55,7 @@ class FullChainRegressionTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("{\"name\":\"全链路店铺\",\"defaultDeliveryType\":\"express\"}"))
                 .andReturn().getResponse().getContentAsString();
-        leaderId = Long.parseLong(storeResponse.split("\"leader\":\\{\"id\":")[1].split(",")[0]);
+        leaderId = Long.parseLong(storeResponse.split("\"leader\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // 3. Leader creates group buy
         String gbResponse = mockMvc.perform(post(GROUP_BUYS_URL)
@@ -82,8 +82,8 @@ class FullChainRegressionTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
-        groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0]);
+        groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
     }
 
     private String loginAndGetToken(String phone) throws Exception {
@@ -107,7 +107,7 @@ class FullChainRegressionTest extends MockMvcTestBase {
         // Buyer browses group buy detail
         mockMvc.perform(get("/api/v1/group-buys/" + groupBuyId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.groupBuy.id").value(groupBuyId));
+                .andExpect(jsonPath("$.data.groupBuy.id").value(String.valueOf(groupBuyId)));
 
         // ── 3. Buyer creates address ──────────────────────────────────
         String addrResponse = mockMvc.perform(post(ADDRESSES_URL)
@@ -124,7 +124,7 @@ class FullChainRegressionTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0]);
+        addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // ── 3. Buyer previews order ───────────────────────────────────
         mockMvc.perform(post(ORDER_PREVIEW_URL)
@@ -132,11 +132,11 @@ class FullChainRegressionTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
                                     "items": [
                                         {
-                                            "groupBuyItemId": %d,
+                                            "groupBuyItemId": "%s",
                                             "quantity": 2
                                         }
                                     ]
@@ -152,12 +152,12 @@ class FullChainRegressionTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
                                     "remark": "全链路测试",
                                     "items": [
                                         {
-                                            "groupBuyItemId": %d,
+                                            "groupBuyItemId": "%s",
                                             "quantity": 2
                                         }
                                     ]
@@ -165,7 +165,7 @@ class FullChainRegressionTest extends MockMvcTestBase {
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(orderResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(orderResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // ── 3. Buyer simulates payment ────────────────────────────────
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
@@ -186,7 +186,7 @@ class FullChainRegressionTest extends MockMvcTestBase {
         mockMvc.perform(get(STORE_ORDERS_URL + "/" + orderId)
                         .header("Authorization", "Bearer " + leaderToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id").value(orderId))
+                .andExpect(jsonPath("$.data.id").value(String.valueOf(orderId)))
                 .andExpect(jsonPath("$.data.orderStatus").value("paid"));
 
         // ── 4. Leader ships the order ─────────────────────────────────
@@ -203,7 +203,7 @@ class FullChainRegressionTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.order.orderStatus").value("shipped"))
                 .andExpect(jsonPath("$.data.order.shippedAt").isNotEmpty())
-                .andExpect(jsonPath("$.data.shipment.id").isNumber())
+                .andExpect(jsonPath("$.data.shipment.id").isString())
                 .andExpect(jsonPath("$.data.shipment.deliveryType").value("express"))
                 .andExpect(jsonPath("$.data.shipment.logisticsCompany").value("中通快递"))
                 .andExpect(jsonPath("$.data.shipment.trackingNo").value("ZT999888"));
@@ -235,7 +235,7 @@ class FullChainRegressionTest extends MockMvcTestBase {
                         .header("Authorization", "Bearer " + buyerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items").isArray())
-                .andExpect(jsonPath("$.data.items[0].leaderId").value(leaderId));
+                .andExpect(jsonPath("$.data.items[0].leaderId").value(String.valueOf(leaderId)));
 
         // Buyer unsubscribes
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/v1/leaders/" + leaderId + "/subscription")

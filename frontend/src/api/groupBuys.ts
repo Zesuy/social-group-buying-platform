@@ -34,7 +34,7 @@ export async function listPublicGroupBuys(
  * @param groupBuyId 团购 ID
  */
 export async function getPublicGroupBuyDetail(
-  groupBuyId: number,
+  groupBuyId: string,
 ): Promise<GroupBuyDetailData> {
   const res = await request.get(`/group-buys/${groupBuyId}`) as ApiResponse<GroupBuyDetailData>
   return res.data

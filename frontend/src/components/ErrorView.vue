@@ -1,12 +1,14 @@
 <template>
   <div class="error-view">
-    <van-icon name="fail" :size="iconSize" :color="iconColor" />
+    <div class="error-view__illustration">
+      <van-icon name="warn-o" :size="iconSize" :color="iconColor" />
+    </div>
     <p class="error-view__message">{{ message }}</p>
     <van-button
       v-if="showRetry"
       type="primary"
       size="small"
-      plain
+      round
       @click="$emit('retry')"
     >
       重新加载
@@ -23,7 +25,7 @@ withDefaults(defineProps<{
 }>(), {
   message: '加载失败，请稍后重试',
   showRetry: true,
-  iconSize: '56px',
+  iconSize: '36px',
   iconColor: 'var(--color-text-hint)',
 })
 
@@ -42,10 +44,22 @@ defineEmits<{
   min-height: 200px;
 }
 
+.error-view__illustration {
+  width: 120px;
+  height: 100px;
+  border-radius: 30px;
+  background: #fff7e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
 .error-view__message {
-  margin: 16px 0;
+  margin: 0 0 16px;
   color: var(--color-text-secondary);
   font-size: var(--font-size-md);
   text-align: center;
+  line-height: 1.5;
 }
 </style>

@@ -10,10 +10,10 @@ import { ref } from 'vue'
 
 export const useCheckoutStore = defineStore('checkout', () => {
   // ── 下单上下文 ──
-  const groupBuyId = ref<number | null>(null)
-  const groupBuyItemId = ref<number | null>(null)
+  const groupBuyId = ref<string | null>(null)
+  const groupBuyItemId = ref<string | null>(null)
   const quantity = ref(1)
-  const selectedAddressId = ref<number | null>(null)
+  const selectedAddressId = ref<string | null>(null)
   const remark = ref('')
 
   // 商品快照（用于 checkout 页快速展示）
@@ -28,8 +28,8 @@ export const useCheckoutStore = defineStore('checkout', () => {
    * 从团购详情进入 checkout 时调用
    */
   function setCheckoutContext(params: {
-    groupBuyId: number
-    groupBuyItemId: number
+    groupBuyId: string
+    groupBuyItemId: string
     quantity: number
     title?: string
     coverImageUrl?: string | null
@@ -58,7 +58,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     snapshot.value = null
   }
 
-  function setAddress(addressId: number): void {
+  function setAddress(addressId: string): void {
     selectedAddressId.value = addressId
   }
 

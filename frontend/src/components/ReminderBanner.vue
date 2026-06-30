@@ -29,20 +29,21 @@ const iconName = computed(() => {
   display: flex;
   align-items: center;
   padding: 10px 12px;
-  margin: 0 12px 12px;
-  border-radius: 8px;
+  margin: 0 14px 12px;
+  border-radius: 12px;
   font-size: 13px;
   line-height: 1.5;
+  font-weight: 700;
 }
 
 .reminder-banner--info {
-  background-color: #f0f9ff;
-  color: #1a6eb5;
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
 }
 
 .reminder-banner--warning {
-  background-color: #fff7e6;
-  color: #b57c1a;
+  background-color: #fff5df;
+  color: #f26b2c;
 }
 
 .reminder-banner--success {

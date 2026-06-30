@@ -20,7 +20,7 @@ import type {
  * @param pageSize 每页数量，默认 20
  */
 export async function getLeaderHomepage(
-  leaderId: number,
+  leaderId: string,
   page = 1,
   pageSize = 20,
 ): Promise<LeaderHomepageData> {
@@ -37,7 +37,7 @@ export async function getLeaderHomepage(
  * @param source 订阅来源（如 'homepage', 'groupBuyDetail'）
  */
 export async function subscribeLeader(
-  leaderId: number,
+  leaderId: string,
   source?: string,
 ): Promise<SubscriptionData> {
   const res = await request.post(`/leaders/${leaderId}/subscription`, {
@@ -52,7 +52,7 @@ export async function subscribeLeader(
  * @param leaderId 团长 ID
  */
 export async function unsubscribeLeader(
-  leaderId: number,
+  leaderId: string,
 ): Promise<void> {
   await request.delete(`/leaders/${leaderId}/subscription`) as EmptySuccessResponse
 }

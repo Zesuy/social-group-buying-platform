@@ -149,7 +149,7 @@ test.describe('App smoke test', () => {
     // Check tab labels
     await expect(tabs.nth(0)).toContainText('首页')
     await expect(tabs.nth(1)).toContainText('订单')
-    await expect(tabs.nth(2)).toContainText('一键开团')
+    await expect(tabs.nth(2)).toContainText('开团')
     await expect(tabs.nth(3)).toContainText('消息')
     await expect(tabs.nth(4)).toContainText('我的')
   })

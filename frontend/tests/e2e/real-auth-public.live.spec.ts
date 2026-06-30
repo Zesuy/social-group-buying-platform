@@ -29,8 +29,8 @@ import { navigateToHash, setLoggedIn } from './helpers/navigation'
 
 // ── 测试级共享数据 ──
 let buyerToken: string
-let leaderId: number
-let groupBuyId: number
+let leaderId: string
+let groupBuyId: string
 
 test.describe('Real E2E: Auth + Public Browsing', () => {
   test.beforeAll(async () => {
@@ -193,8 +193,8 @@ test.describe('Real E2E: Auth + Public Browsing', () => {
     // 团长主页应显示店铺名称（真实数据断言）
     await expect(page.locator(`text=${STORE_NAME}`).first()).toBeVisible({ timeout: 10000 })
 
-    // 团长主页应显示 leader-info 区域
-    await expect(page.locator('.leader-info')).toBeVisible({ timeout: 5000 })
+    // 团长主页应显示团长信息区域
+    await expect(page.locator('.leader-header')).toBeVisible({ timeout: 5000 })
   })
 
   test('authenticated user sees subscribed state on group buy detail', async ({ page }) => {

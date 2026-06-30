@@ -38,7 +38,7 @@ export async function createAddress(data: CreateAddressRequest): Promise<Address
  * @param data 要更新的字段
  */
 export async function updateAddress(
-  addressId: number,
+  addressId: string,
   data: UpdateAddressRequest,
 ): Promise<AddressData> {
   const res = await request.patch(`/my/addresses/${addressId}`, data) as ApiResponse<AddressData>
@@ -50,6 +50,6 @@ export async function updateAddress(
  *
  * @param addressId 地址 ID
  */
-export async function deleteAddress(addressId: number): Promise<void> {
+export async function deleteAddress(addressId: string): Promise<void> {
   await request.delete(`/my/addresses/${addressId}`) as EmptySuccessResponse
 }

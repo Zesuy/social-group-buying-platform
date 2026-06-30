@@ -59,8 +59,8 @@ class MemberCardControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0]);
-        Long groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0]);
+        Long groupBuyId = Long.parseLong(gbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long groupBuyItemId = Long.parseLong(gbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create address for buyer
         String addrResponse = mockMvc.perform(post(ADDRESSES_URL)
@@ -77,7 +77,7 @@ class MemberCardControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0]);
+        Long addressId = Long.parseLong(addrResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create and pay an order (creates a member relation)
         String orderResponse = mockMvc.perform(post(ORDERS_URL)
@@ -85,13 +85,13 @@ class MemberCardControllerTest extends MockMvcTestBase {
                         .contentType("application/json")
                         .content("""
                                 {
-                                    "groupBuyId": %d,
-                                    "addressId": %d,
-                                    "items": [{"groupBuyItemId": %d, "quantity": 1}]
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
                                 }
                                 """.formatted(groupBuyId, addressId, groupBuyItemId)))
                 .andReturn().getResponse().getContentAsString();
-        Long orderId = Long.parseLong(orderResponse.split("\"id\":")[1].split(",")[0]);
+        Long orderId = Long.parseLong(orderResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/simulate-pay")
                 .header("Authorization", "Bearer " + buyerToken));
@@ -115,16 +115,16 @@ class MemberCardControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.items").isArray())
-                .andExpect(jsonPath("$.data.items[0].id").isNumber())
+                .andExpect(jsonPath("$.data.items[0].id").isString())
                 .andExpect(jsonPath("$.data.items[0].levelName").value("V0"))
                 .andExpect(jsonPath("$.data.items[0].growthValue").isNumber())
                 .andExpect(jsonPath("$.data.items[0].totalOrderAmount").isNumber())
                 .andExpect(jsonPath("$.data.items[0].totalOrders").isNumber())
                 // Nested leader object
-                .andExpect(jsonPath("$.data.items[0].leader.id").isNumber())
+                .andExpect(jsonPath("$.data.items[0].leader.id").isString())
                 .andExpect(jsonPath("$.data.items[0].leader.displayName").isString())
                 // Nested store object
-                .andExpect(jsonPath("$.data.items[0].store.id").isNumber())
+                .andExpect(jsonPath("$.data.items[0].store.id").isString())
                 .andExpect(jsonPath("$.data.items[0].store.name").isString());
     }
 

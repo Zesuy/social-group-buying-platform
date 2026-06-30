@@ -2,24 +2,37 @@
   <PageLayout title="编辑地址" show-back @back="goBack">
     <LoadingView v-if="loading" />
     <ErrorView v-if="error && !loading" :message="error" @retry="fetchAddress" />
-    <AddressForm
-      v-if="address && !loading"
-      :address="address"
-      :loading="submitting"
-      @submit="handleSubmit"
-    />
+    <div v-if="address && !loading">
+      <AddressForm
+        ref="addressFormRef"
+        :address="address"
+        :loading="submitting"
+        @submit="handleSubmit"
+      />
+      <!-- 删除地址 -->
+      <div class="address-edit__danger">
+        <button class="btn danger" :disabled="submitting" @click="handleDelete">
+          删除地址
+        </button>
+      </div>
+    </div>
+    <template v-if="address && !loading && !submitting" #action>
+      <div class="fixed-actions single">
+        <button class="btn primary" @click="handleSave">保存修改</button>
+      </div>
+    </template>
   </PageLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showConfirmDialog, showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import AddressForm from '@/components/AddressForm.vue'
-import { listAddresses, updateAddress } from '@/api/addresses'
+import { deleteAddress, listAddresses, updateAddress } from '@/api/addresses'
 import type { AddressData } from '@/types'
 
 const route = useRoute()
@@ -29,12 +42,13 @@ const address = ref<AddressData | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const submitting = ref(false)
+const addressFormRef = ref<InstanceType<typeof AddressForm> | null>(null)
 
 async function fetchAddress() {
   loading.value = true
   error.value = null
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     const all = await listAddresses()
     const found = all.find(a => a.id === id)
     if (found) {
@@ -73,6 +87,35 @@ async function handleSubmit(data: {
   }
 }
 
+/** 底部保存按钮 → 触发 AddressForm 内部表单验证和提交 */
+function handleSave() {
+  addressFormRef.value?.submit()
+}
+
+async function handleDelete() {
+  if (!address.value) return
+  try {
+    await showConfirmDialog({
+      title: '确认删除',
+      message: '确定要删除这个地址吗？',
+    })
+  } catch {
+    return
+  }
+
+  submitting.value = true
+  try {
+    await deleteAddress(address.value.id)
+    showToast('删除成功')
+    router.replace('/addresses')
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    showToast(apiErr.message || '删除失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
 function goBack() {
   router.back()
 }
@@ -81,3 +124,15 @@ onMounted(() => {
   fetchAddress()
 })
 </script>
+
+<style scoped>
+.address-edit__danger {
+  padding: 0 14px 12px;
+  margin-top: -4px;
+}
+
+.address-edit__danger .btn {
+  width: 100%;
+  height: 46px;
+}
+</style>

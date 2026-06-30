@@ -1,6 +1,11 @@
 <template>
   <PageLayout title="新增地址" show-back @back="goBack">
-    <AddressForm :loading="submitting" @submit="handleSubmit" />
+    <AddressForm ref="addressFormRef" :loading="submitting" @submit="handleSubmit" />
+    <template #action>
+      <div class="fixed-actions single">
+        <button class="btn primary" :disabled="submitting" @click="handleSave">保存地址</button>
+      </div>
+    </template>
   </PageLayout>
 </template>
 
@@ -17,6 +22,7 @@ const router = useRouter()
 const route = useRoute()
 const checkoutStore = useCheckoutStore()
 const submitting = ref(false)
+const addressFormRef = ref<InstanceType<typeof AddressForm> | null>(null)
 
 const isFromCheckout = computed(() => route.query.from === 'checkout')
 
@@ -35,7 +41,6 @@ async function handleSubmit(data: {
     showToast('地址保存成功')
 
     if (isFromCheckout.value) {
-      // 从 checkout 来的：选中新地址并返回 checkout
       checkoutStore.setAddress(created.id)
       router.replace('/checkout')
     } else {
@@ -47,6 +52,10 @@ async function handleSubmit(data: {
   } finally {
     submitting.value = false
   }
+}
+
+function handleSave() {
+  addressFormRef.value?.submit()
 }
 
 function goBack() {

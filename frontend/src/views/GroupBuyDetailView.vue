@@ -12,14 +12,16 @@
 
     <!-- 内容 -->
     <template v-if="groupBuy && !loading">
-      <div class="detail-content">
+      <div class="detail-content app-content--buybar">
         <!-- 封面 -->
-        <ImageWithFallback
-          :src="groupBuy.coverImageUrl"
-          width="100%"
-          height="220px"
-          fit="cover"
-        />
+        <div class="hero detail-hero-cover">
+          <ImageWithFallback
+            :src="groupBuy.coverImageUrl"
+            width="100%"
+            height="220px"
+            fit="cover"
+          />
+        </div>
 
         <!-- 团长/店铺信任区 -->
         <LeaderTrustBlock
@@ -28,6 +30,20 @@
           :store="store"
           @click="goToLeader"
         />
+
+        <div v-if="subscribed !== null" class="detail-subscribe-row">
+          <button class="btn ghost" type="button" @click="goToLeader">
+            店铺主页
+          </button>
+          <button
+            class="btn primary"
+            type="button"
+            :disabled="subLoading"
+            @click="toggleSubscribe"
+          >
+            {{ subscribed ? '已订阅' : '+ 订阅团长' }}
+          </button>
+        </div>
 
         <!-- 团购信息 -->
         <div class="detail-info-card">
@@ -109,40 +125,35 @@
           </div>
         </div>
 
-        <!-- 底部占位 -->
-        <div style="height: 80px" />
+        <!-- 灰态购物车浮动入口（非 MVP，不接真实逻辑） -->
+        <button class="detail-fab-cart floating-cart-entry" type="button" @click="onCartClick">
+          <van-icon name="cart-o" size="26" color="var(--color-primary)" />
+        </button>
       </div>
-    </template>
 
-    <!-- 底部固定操作栏 -->
-    <template #action>
-      <van-button
-        v-if="isPurchasable"
-        round
-        type="primary"
-        :disabled="!selectedItemId"
-        @click="handleBuy"
-      >
-        立即购买
-      </van-button>
-      <van-button
-        v-else
-        round
-        disabled
-        type="default"
-      >
-        {{ buyDisabledText }}
-      </van-button>
-      <van-button
-        v-if="subscribed !== null"
-        round
-        plain
-        :type="subscribed ? 'default' : 'primary'"
-        :loading="subLoading"
-        @click="toggleSubscribe"
-      >
-        {{ subscribed ? '已订阅' : '订阅' }}
-      </van-button>
+      <div class="buybar">
+        <button class="mini" type="button" @click="router.push('/')">
+          <van-icon name="wap-home-o" size="22" />
+          <span>主页</span>
+        </button>
+        <button class="mini" type="button" @click="onCartClick">
+          <van-icon name="cart-o" size="22" />
+          <span>购物车</span>
+        </button>
+        <button
+          class="big"
+          type="button"
+          :disabled="!isPurchasable || !selectedItemId"
+          @click="handleBuy"
+        >
+          <div class="faces" aria-hidden="true">
+            <span>买</span><span>团</span><span>省</span>
+          </div>
+          {{ isPurchasable ? '跟团购买' : buyDisabledText }}
+          <span v-if="selectedItemId" class="detail-buybar__sub">立即购买 · 已选 {{ quantity }} 件</span>
+          <span v-else-if="isPurchasable" class="detail-buybar__sub">先选商品</span>
+        </button>
+      </div>
     </template>
   </PageLayout>
 </template>
@@ -162,6 +173,7 @@ import { useCheckoutStore } from '@/stores'
 import { getPublicGroupBuyDetail } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { getDeliveryTypeText } from '@/utils'
+import { isFeatureDisabled } from '@/utils/non-mvp'
 import type {
   GroupBuyDetail,
   LeaderDetail,
@@ -185,7 +197,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 // ── 交互状态 ──
-const selectedItemId = ref<number | null>(null)
+const selectedItemId = ref<string | null>(null)
 const quantity = ref(1)
 const subLoading = ref(false)
 
@@ -217,7 +229,7 @@ async function fetchDetail() {
   loading.value = true
   error.value = null
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     const data = await getPublicGroupBuyDetail(id)
     groupBuy.value = data.groupBuy
     leader.value = data.leader
@@ -263,6 +275,12 @@ function handleBuy() {
     unitPriceAmount: items.value.find(i => i.id === selectedItemId.value)?.groupPriceAmount || 0,
   })
   router.push('/checkout')
+}
+
+function onCartClick() {
+  if (isFeatureDisabled('cart')) {
+    showToast('购物车功能即将开放')
+  }
 }
 
 // ── 订阅/取消订阅 ──
@@ -315,18 +333,36 @@ onMounted(() => {
 
 <style scoped>
 .detail-content {
-  padding-bottom: 16px;
+  position: relative;
+}
+
+.detail-hero-cover {
+  background: var(--color-primary-deep);
+  margin: 0;
+}
+
+.detail-hero-cover :deep(.image-with-fallback__placeholder) {
+  background: linear-gradient(135deg, #bdd4ff, #ffd0c0);
+}
+
+.detail-subscribe-row {
+  margin: -2px 14px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .detail-info-card {
   background: var(--color-bg-card);
-  padding: var(--spacing-md) var(--spacing-lg);
-  margin-top: var(--spacing-sm);
+  border-radius: var(--radius-card);
+  margin: 0 14px 12px;
+  padding: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .detail-info-card__title {
-  font-size: var(--font-size-xl);
-  font-weight: 600;
+  font-size: 24px;
+  font-weight: 900;
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-xs);
   line-height: 1.4;
@@ -343,6 +379,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
 }
 
 .detail-info-card__meta-item {
@@ -364,21 +403,24 @@ onMounted(() => {
 
 .detail-items {
   background: var(--color-bg-card);
-  margin-top: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-card);
+  margin: 0 14px 12px;
+  padding: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .detail-items__title {
-  font-size: var(--font-size-lg);
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 900;
   margin-bottom: var(--spacing-md);
+  color: var(--color-text-primary);
 }
 
 .detail-item {
   display: flex;
   gap: var(--spacing-md);
   align-items: flex-start;
-  padding: var(--spacing-sm) 0;
+  padding: 12px 0;
   border-bottom: 1px solid var(--color-border-light);
 }
 
@@ -395,9 +437,9 @@ onMounted(() => {
 }
 
 .detail-item__name {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
   color: var(--color-text-primary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .detail-item__stock {
@@ -405,5 +447,16 @@ onMounted(() => {
   gap: var(--spacing-sm);
   font-size: var(--font-size-xs);
   color: var(--color-text-hint);
+}
+
+.detail-fab-cart {
+  bottom: calc(92px + var(--safe-area-bottom));
+  border: 0;
+}
+
+.detail-buybar__sub {
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 2px;
 }
 </style>

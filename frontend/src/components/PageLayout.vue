@@ -42,6 +42,7 @@ defineEmits<{
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--color-bg);
 }
 
@@ -49,15 +50,16 @@ defineEmits<{
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  background-color: var(--color-bg);
 }
 
 /* NavBar 组件已使用 Vant fixed + placeholder 自动占位，此处无需额外 padding */
 
 .page-layout__content--with-tabbar {
-  padding-bottom: 50px;
+  padding-bottom: calc(var(--tabbar-height) + 14px + var(--safe-area-bottom));
 }
 
 .page-layout__content--with-action {
-  padding-bottom: 60px;
+  padding-bottom: calc(var(--actionbar-height) + 14px + var(--safe-area-bottom));
 }
 </style>

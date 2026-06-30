@@ -31,7 +31,7 @@ class AuthControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.user.id").isNumber())
+                .andExpect(jsonPath("$.data.user.id").isString())
                 .andExpect(jsonPath("$.data.user.nickname").value("测试用户1"))
                 .andExpect(jsonPath("$.data.user.phone").value("13800000001"))
                 .andExpect(jsonPath("$.data.user.hasLeader").value(false));
@@ -63,7 +63,7 @@ class AuthControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
-                .andExpect(jsonPath("$.data.user.id").isNumber())
+                .andExpect(jsonPath("$.data.user.id").isString())
                 .andExpect(jsonPath("$.data.user.nickname").value("已有用户"))
                 .andExpect(jsonPath("$.data.user.phone").value("13800000002"));
     }
@@ -133,7 +133,7 @@ class AuthControllerTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.user.id").isNumber())
+                .andExpect(jsonPath("$.data.user.id").isString())
                 .andExpect(jsonPath("$.data.user.nickname").value("当前用户"))
                 .andExpect(jsonPath("$.data.user.phone").value("13800000100"))
                 .andExpect(jsonPath("$.data.leader").doesNotExist())

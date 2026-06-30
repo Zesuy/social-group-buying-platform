@@ -213,8 +213,12 @@ onMounted(() => {
 <style scoped>
 .store-header {
   text-align: center;
-  padding: 24px 16px;
-  background: white;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  background: var(--color-primary-deep);
+  border-radius: var(--radius-card);
+  margin: 12px 14px;
+  color: #fff;
+  box-shadow: var(--shadow-card);
 }
 
 .store-logo {
@@ -230,21 +234,24 @@ onMounted(() => {
   justify-content: center;
   font-size: 40px;
   color: var(--color-text-hint);
-  background-color: var(--color-bg);
+  background-color: var(--color-bg-surface);
+  border-radius: 50%;
 }
 
 .store-name {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: var(--font-size-xxl);
+  font-weight: 900;
   margin-top: 12px;
-  color: var(--color-text-primary);
+  color: #fff;
 }
 
 .store-info-section {
-  background: white;
-  padding: 16px;
-  margin-top: 12px;
-  border-radius: 8px;
+  background: var(--color-bg-card);
+  padding: 14px;
+  margin: 0 14px 12px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(237, 240, 242, 0.72);
 }
 
 .store-info-row {
@@ -272,17 +279,32 @@ onMounted(() => {
 }
 
 .store-actions {
-  padding: 24px 16px;
+  padding: var(--spacing-xl) 14px;
+}
+
+.store-actions :deep(.van-button) {
+  height: var(--button-capsule-height);
+  font-weight: 900;
 }
 
 .edit-section {
-  padding: 16px 0;
+  padding: 12px 0;
+}
+
+.edit-section :deep(.van-cell-group--inset) {
+  margin: 0 14px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 .edit-delivery-section {
-  padding: 16px 16px 0;
-  margin-top: 12px;
-  background: white;
+  padding: var(--spacing-lg) var(--spacing-lg) 0;
+  margin-top: var(--spacing-sm);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
+  margin-left: 14px;
+  margin-right: 14px;
+  box-shadow: var(--shadow-card);
 }
 
 .edit-delivery-label {
@@ -292,6 +314,11 @@ onMounted(() => {
 }
 
 .edit-actions {
-  padding: 24px 16px;
+  padding: var(--spacing-xl) 14px;
+}
+
+.edit-actions :deep(.van-button) {
+  height: var(--button-capsule-height);
+  font-weight: 900;
 }
 </style>

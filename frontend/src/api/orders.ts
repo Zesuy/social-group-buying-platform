@@ -53,7 +53,7 @@ export async function listMyOrders(
 /**
  * 我的订单详情
  */
-export async function getMyOrder(orderId: number): Promise<OrderData> {
+export async function getMyOrder(orderId: string): Promise<OrderData> {
   const res = await request.get(`/my/orders/${orderId}`) as ApiResponse<OrderData>
   return res.data
 }
@@ -61,7 +61,7 @@ export async function getMyOrder(orderId: number): Promise<OrderData> {
 /**
  * 模拟支付（仅待支付订单可用）
  */
-export async function simulatePay(orderId: number): Promise<OrderData> {
+export async function simulatePay(orderId: string): Promise<OrderData> {
   const res = await request.post(`/orders/${orderId}/simulate-pay`) as ApiResponse<OrderData>
   return res.data
 }
@@ -69,7 +69,7 @@ export async function simulatePay(orderId: number): Promise<OrderData> {
 /**
  * 取消订单（仅待支付订单可用）
  */
-export async function cancelOrder(orderId: number): Promise<OrderData> {
+export async function cancelOrder(orderId: string): Promise<OrderData> {
   const res = await request.post(`/orders/${orderId}/cancel`) as ApiResponse<OrderData>
   return res.data
 }
@@ -77,7 +77,7 @@ export async function cancelOrder(orderId: number): Promise<OrderData> {
 /**
  * 确认收货（仅已发货订单可用）
  */
-export async function completeOrder(orderId: number): Promise<OrderData> {
+export async function completeOrder(orderId: string): Promise<OrderData> {
   const res = await request.post(`/orders/${orderId}/complete`) as ApiResponse<OrderData>
   return res.data
 }

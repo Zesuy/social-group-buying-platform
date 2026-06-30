@@ -1,17 +1,15 @@
 <template>
   <div class="loading-view">
-    <van-loading
-      :size="size"
-      :type="type"
-      :color="color"
-    >
-      <template v-if="$slots.default">
-        <slot />
-      </template>
-      <template v-else>
-        <span class="loading-view__text">加载中...</span>
-      </template>
-    </van-loading>
+    <div class="loading-view__spinner">
+      <van-loading
+        :size="size"
+        :type="type"
+        :color="color"
+      />
+    </div>
+    <p class="loading-view__text">
+      <slot>{{ text }}</slot>
+    </p>
   </div>
 </template>
 
@@ -20,10 +18,12 @@ withDefaults(defineProps<{
   size?: string
   type?: 'circular' | 'spinner'
   color?: string
+  text?: string
 }>(), {
   size: '32px',
   type: 'circular',
   color: 'var(--color-primary)',
+  text: '加载中...',
 })
 </script>
 
@@ -37,8 +37,18 @@ withDefaults(defineProps<{
   min-height: 200px;
 }
 
+.loading-view__spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
 .loading-view__text {
-  margin-top: 12px;
   color: var(--color-text-hint);
   font-size: var(--font-size-md);
 }

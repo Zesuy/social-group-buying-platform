@@ -1,12 +1,13 @@
 <template>
   <van-tabbar
-    :value="active"
+    :model-value="active"
     @change="onChange"
     active-color="var(--color-primary)"
     inactive-color="var(--color-text-hint)"
     route
     placeholder
     safe-area-inset-bottom
+    :border="false"
   >
     <van-tabbar-item
       v-for="tab in tabs"
@@ -35,7 +36,7 @@ interface TabItem {
 const tabs: TabItem[] = [
   { to: '/', icon: 'home-o', label: '首页' },
   { to: '/orders', icon: 'orders-o', label: '订单', requiresAuth: true },
-  { to: '/open-group', icon: 'add-square', label: '一键开团', requiresAuth: true },
+  { to: '/open-group', icon: 'add-square', label: '开团', requiresAuth: true },
   { to: '/messages', icon: 'chat-o', label: '消息' },
   { to: '/profile', icon: 'contact-o', label: '我的', requiresAuth: true },
 ]

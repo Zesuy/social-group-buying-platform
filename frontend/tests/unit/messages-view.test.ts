@@ -33,7 +33,7 @@ describe('MessagesView', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('后续版本上线')
+    expect(wrapper.text()).toContain('不请求消息或推送接口')
   })
 
   it('should not invoke any API', () => {

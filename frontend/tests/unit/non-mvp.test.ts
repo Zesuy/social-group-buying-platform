@@ -8,6 +8,10 @@ import {
   isPointsMallDisabled,
   isWechatPushDisabled,
   isAdminPanelDisabled,
+  isGroupBuyPublishDisabled,
+  isLeaderShippingDisabled,
+  isSubscriptionsDisabled,
+  isMemberCardsDisabled,
   isFeatureDisabled,
 } from '@/utils/non-mvp'
 
@@ -43,6 +47,13 @@ describe('non-MVP gate checks', () => {
   it('should disable admin panel', () => {
     expect(isAdminPanelDisabled()).toBe(true)
   })
+
+  it('should disable later frontend batch features', () => {
+    expect(isGroupBuyPublishDisabled()).toBe(true)
+    expect(isLeaderShippingDisabled()).toBe(true)
+    expect(isSubscriptionsDisabled()).toBe(true)
+    expect(isMemberCardsDisabled()).toBe(true)
+  })
 })
 
 describe('isFeatureDisabled', () => {
@@ -55,6 +66,10 @@ describe('isFeatureDisabled', () => {
     expect(isFeatureDisabled('pointsMall')).toBe(true)
     expect(isFeatureDisabled('wechatPush')).toBe(true)
     expect(isFeatureDisabled('adminPanel')).toBe(true)
+    expect(isFeatureDisabled('groupBuyPublish')).toBe(true)
+    expect(isFeatureDisabled('leaderShipping')).toBe(true)
+    expect(isFeatureDisabled('subscriptions')).toBe(true)
+    expect(isFeatureDisabled('memberCards')).toBe(true)
   })
 
   it('should return true for unknown features', () => {

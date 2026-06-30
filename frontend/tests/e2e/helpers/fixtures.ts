@@ -23,9 +23,7 @@ import {
 } from './liveApi'
 import {
   BUYER_NICKNAME,
-  BUYER_PHONE,
   LEADER_NICKNAME,
-  LEADER_PHONE,
   TEST_AVATAR_URL,
   STORE_NAME,
   STORE_DESCRIPTION,
@@ -59,31 +57,31 @@ import {
 
 export interface BuyerFixture {
   token: string
-  userId: number
+  userId: string
 }
 
 export interface LeaderFixture {
   token: string
-  userId: number
-  leaderId: number
-  storeId: number
+  userId: string
+  leaderId: string
+  storeId: string
 }
 
 export interface ProductFixture {
-  productId: number
+  productId: string
 }
 
 export interface GroupBuyFixture {
-  groupBuyId: number
-  groupBuyItemId: number
+  groupBuyId: string
+  groupBuyItemId: string
 }
 
 export interface AddressFixture {
-  addressId: number
+  addressId: string
 }
 
 export interface OrderFixture {
-  orderId: number
+  orderId: string
 }
 
 export interface PreparedData {
@@ -96,18 +94,27 @@ export interface PreparedData {
 
 // ── Fixture 函数 ──
 
+function uniquePhone(prefix: '138' | '139'): string {
+  const digits = `${Date.now()}${Math.floor(Math.random() * 100000)}`
+    .replace(/\D/g, '')
+    .slice(-8)
+    .padStart(8, '0')
+  return `${prefix}${digits}`
+}
+
 /**
  * 创建买家用户（模拟登录）
  */
 export async function createBuyer(apiContext: APIRequestContext): Promise<BuyerFixture> {
   const data = await apiLogin(apiContext, {
     nickname: BUYER_NICKNAME,
-    phone: BUYER_PHONE,
+    phone: uniquePhone('139'),
     avatarUrl: TEST_AVATAR_URL,
   })
+  const token = data.accessToken
   return {
-    token: data.accessToken,
-    userId: data.user.id as number,
+    token,
+    userId: (data.user as Record<string, unknown>).id as string,
   }
 }
 
@@ -117,7 +124,7 @@ export async function createBuyer(apiContext: APIRequestContext): Promise<BuyerF
 export async function createLeader(apiContext: APIRequestContext): Promise<LeaderFixture> {
   const data = await apiLogin(apiContext, {
     nickname: LEADER_NICKNAME,
-    phone: LEADER_PHONE,
+    phone: uniquePhone('138'),
     avatarUrl: TEST_AVATAR_URL,
   })
   const token = data.accessToken
@@ -130,15 +137,11 @@ export async function createLeader(apiContext: APIRequestContext): Promise<Leade
     defaultDeliveryType: DEFAULT_DELIVERY_TYPE,
   })
 
-  // 检查响应结构
-  const leader = storeData.leader as Record<string, unknown>
-  const store = storeData.store as Record<string, unknown>
-
   return {
     token,
-    userId: data.user.id as number,
-    leaderId: leader.id as number,
-    storeId: store.id as number,
+    userId: (data.user as Record<string, unknown>).id as string,
+    leaderId: (storeData.leader as Record<string, unknown>).id as string,
+    storeId: (storeData.store as Record<string, unknown>).id as string,
   }
 }
 
@@ -157,7 +160,7 @@ export async function createProduct(
     stock: PRODUCT_STOCK,
   })
   return {
-    productId: data.id as number,
+    productId: data.id as string,
   }
 }
 
@@ -167,7 +170,7 @@ export async function createProduct(
 export async function createGroupBuy(
   apiContext: APIRequestContext,
   leaderToken: string,
-  productId: number,
+  productId: string,
 ): Promise<GroupBuyFixture> {
   const data = await apiCreateGroupBuy(apiContext, leaderToken, {
     title: GROUP_BUY_TITLE,
@@ -192,8 +195,8 @@ export async function createGroupBuy(
   const items = data.items as Array<Record<string, unknown>>
 
   return {
-    groupBuyId: groupBuy.id as number,
-    groupBuyItemId: items[0].id as number,
+    groupBuyId: groupBuy.id as string,
+    groupBuyItemId: items[0].id as string,
   }
 }
 
@@ -214,7 +217,7 @@ export async function createAddress(
     isDefault: ADDRESS_IS_DEFAULT,
   })
   return {
-    addressId: data.id as number,
+    addressId: data.id as string,
   }
 }
 
@@ -224,9 +227,9 @@ export async function createAddress(
 export async function createOrder(
   apiContext: APIRequestContext,
   buyerToken: string,
-  groupBuyId: number,
-  addressId: number,
-  groupBuyItemId: number,
+  groupBuyId: string,
+  addressId: string,
+  groupBuyItemId: string,
   quantity = 1,
 ): Promise<OrderFixture> {
   const data = await apiCreateOrder(apiContext, buyerToken, {
@@ -235,7 +238,7 @@ export async function createOrder(
     items: [{ groupBuyItemId, quantity }],
   })
   return {
-    orderId: data.id as number,
+    orderId: data.id as string,
   }
 }
 
@@ -245,7 +248,7 @@ export async function createOrder(
 export async function payOrder(
   apiContext: APIRequestContext,
   buyerToken: string,
-  orderId: number,
+  orderId: string,
 ): Promise<void> {
   await apiSimulatePay(apiContext, buyerToken, orderId)
 }
@@ -256,7 +259,7 @@ export async function payOrder(
 export async function shipOrder(
   apiContext: APIRequestContext,
   leaderToken: string,
-  orderId: number,
+  orderId: string,
 ): Promise<void> {
   await apiShipOrderRaw(apiContext, leaderToken, orderId, {
     deliveryType: 'express',

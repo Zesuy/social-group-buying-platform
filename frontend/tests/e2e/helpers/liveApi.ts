@@ -36,7 +36,7 @@ export function getApiBaseURL(): string {
 export async function createApiContext(config?: ApiConfig): Promise<APIRequestContext> {
   const baseURL = config?.baseURL || getApiBaseURL()
   return pwRequest.newContext({
-    baseURL: `${baseURL}/api/v1`,
+    baseURL: `${baseURL}/api/v1/`,
     extraHTTPHeaders: {
       'Content-Type': 'application/json',
     },
@@ -51,7 +51,7 @@ export async function createApiContext(config?: ApiConfig): Promise<APIRequestCo
  */
 export async function healthCheck(apiContext: APIRequestContext): Promise<boolean> {
   try {
-    const res = await apiContext.get('/health', { timeout: 5000 })
+    const res = await apiContext.get('health', { timeout: 5000 })
     return res.ok()
   } catch {
     return false
@@ -92,7 +92,7 @@ export async function apiLogin(
   apiContext: APIRequestContext,
   body: { nickname: string; phone: string; avatarUrl?: string },
 ): Promise<{ accessToken: string; user: Record<string, unknown> }> {
-  const res = await apiContext.post('/auth/mock-login', { data: body })
+  const res = await apiContext.post('auth/mock-login', { data: body })
   const json = await res.json()
   if (!json.success) {
     throw new Error(`Login failed: ${json.error?.code} ${json.error?.message}`)
@@ -107,7 +107,7 @@ export async function apiFetchMe(
   apiContext: APIRequestContext,
   token: string,
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.get('/me', {
+  const res = await apiContext.get('me', {
     headers: { Authorization: `Bearer ${token}` },
   })
   const json = await res.json()
@@ -130,7 +130,7 @@ export async function apiCreateStore(
     defaultDeliveryType: string
   },
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post('/stores', {
+  const res = await apiContext.post('stores', {
     headers: { Authorization: `Bearer ${token}` },
     data: body,
   })
@@ -155,7 +155,7 @@ export async function apiCreateProduct(
     stock: number
   },
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post('/my/store/products', {
+  const res = await apiContext.post('my/store/products', {
     headers: { Authorization: `Bearer ${token}` },
     data: body,
   })
@@ -174,7 +174,7 @@ export async function apiCreateGroupBuy(
   token: string,
   body: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post('/my/store/group-buys', {
+  const res = await apiContext.post('my/store/group-buys', {
     headers: { Authorization: `Bearer ${token}` },
     data: body,
   })
@@ -201,7 +201,7 @@ export async function apiCreateAddress(
     isDefault?: boolean
   },
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post('/my/addresses', {
+  const res = await apiContext.post('my/addresses', {
     headers: { Authorization: `Bearer ${token}` },
     data: body,
   })
@@ -219,13 +219,13 @@ export async function apiCreateOrder(
   apiContext: APIRequestContext,
   token: string,
   body: {
-    groupBuyId: number
-    addressId: number
-    items: Array<{ groupBuyItemId: number; quantity: number }>
+    groupBuyId: string
+    addressId: string
+    items: Array<{ groupBuyItemId: string; quantity: number }>
     remark?: string | null
   },
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post('/orders', {
+  const res = await apiContext.post('orders', {
     headers: { Authorization: `Bearer ${token}` },
     data: body,
   })
@@ -242,9 +242,9 @@ export async function apiCreateOrder(
 export async function apiSimulatePay(
   apiContext: APIRequestContext,
   token: string,
-  orderId: number,
+  orderId: string,
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post(`/orders/${orderId}/simulate-pay`, {
+  const res = await apiContext.post(`orders/${orderId}/simulate-pay`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   const json = await res.json()
@@ -260,9 +260,9 @@ export async function apiSimulatePay(
 export async function apiCancelOrder(
   apiContext: APIRequestContext,
   token: string,
-  orderId: number,
+  orderId: string,
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post(`/orders/${orderId}/cancel`, {
+  const res = await apiContext.post(`orders/${orderId}/cancel`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   const json = await res.json()
@@ -278,14 +278,14 @@ export async function apiCancelOrder(
 export async function apiShipOrder(
   apiContext: APIRequestContext,
   token: string,
-  orderId: number,
+  orderId: string,
   body: {
     deliveryType: string
     logisticsCompany?: string
     trackingNo?: string
   },
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post(`/my/store/orders/${orderId}/ship`, {
+  const res = await apiContext.post(`my/store/orders/${orderId}/ship`, {
     headers: { Authorization: `Bearer ${token}` },
     data: body,
   })
@@ -302,9 +302,9 @@ export async function apiShipOrder(
 export async function apiCompleteOrder(
   apiContext: APIRequestContext,
   token: string,
-  orderId: number,
+  orderId: string,
 ): Promise<Record<string, unknown>> {
-  const res = await apiContext.post(`/orders/${orderId}/complete`, {
+  const res = await apiContext.post(`orders/${orderId}/complete`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   const json = await res.json()

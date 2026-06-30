@@ -31,12 +31,13 @@ const displayAmount = computed(() => formatAmount(props.amount))
 
 <style scoped>
 .price-text {
-  font-weight: 600;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .price-text--sm { font-size: var(--font-size-sm); }
 .price-text--md { font-size: var(--font-size-md); }
-.price-text--lg { font-size: var(--font-size-lg); }
-.price-text--xl { font-size: var(--font-size-xl); }
+.price-text--lg { font-size: 17px; }
+.price-text--xl { font-size: var(--font-size-xxl); }
 </style>

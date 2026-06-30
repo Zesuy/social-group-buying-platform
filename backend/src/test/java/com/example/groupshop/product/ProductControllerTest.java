@@ -80,8 +80,8 @@ class ProductControllerTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.id").isNumber())
-                .andExpect(jsonPath("$.data.storeId").isNumber())
+                .andExpect(jsonPath("$.data.id").isString())
+                .andExpect(jsonPath("$.data.storeId").isString())
                 .andExpect(jsonPath("$.data.name").value("白玉蜜桃"))
                 .andExpect(jsonPath("$.data.description").value("山东蒙阴产地直发"))
                 .andExpect(jsonPath("$.data.basePriceAmount").value(2990))
@@ -200,14 +200,14 @@ class ProductControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long productId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long productId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(get(PRODUCTS_URL + "/" + productId)
                         .header("Authorization", "Bearer " + leaderToken))
                 .andExpect(status().isOk())
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
-                .andExpect(jsonPath("$.data.id").value(productId))
+                .andExpect(jsonPath("$.data.id").value(String.valueOf(productId)))
                 .andExpect(jsonPath("$.data.name").value("详情测试商品"))
                 .andExpect(jsonPath("$.data.status").value("active"));
     }
@@ -237,7 +237,7 @@ class ProductControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long productId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long productId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         mockMvc.perform(patch(PRODUCTS_URL + "/" + productId)
                         .header("Authorization", "Bearer " + leaderToken)
@@ -286,7 +286,7 @@ class ProductControllerTest extends MockMvcTestBase {
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
-        Long productId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0]);
+        Long productId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Delete
         mockMvc.perform(delete(PRODUCTS_URL + "/" + productId)

@@ -54,6 +54,6 @@ describe('GroupBuyDetail out-of-stock', () => {
       props: { item: { ...baseItem, minPriceAmount: 0, soldCount: 100 } },
     })
     expect(wrapper.text()).toContain('¥0.00')
-    expect(wrapper.text()).toContain('已售 100')
+    expect(wrapper.text()).toContain('100人已团')
   })
 })

@@ -7,6 +7,7 @@
       :style="imgStyle"
       class="image-with-fallback__img"
       @error="onError"
+      @load="onLoad"
     />
     <div v-else class="image-with-fallback__placeholder">
       <van-icon name="photo" :size="iconSize" color="var(--color-text-placeholder)" />
@@ -35,6 +36,7 @@ const props = withDefaults(defineProps<{
 defineEmits<{ click: [] }>()
 
 const hasError = ref(false)
+const loaded = ref(false)
 
 const imgSrc = computed(() => {
   if (hasError.value) return props.fallbackSrc || null
@@ -53,6 +55,8 @@ const imgStyle = computed(() => ({
   width: '100%',
   height: '100%',
   objectFit: props.fit,
+  opacity: loaded.value ? 1 : 0,
+  transition: 'opacity 0.3s ease-in',
 }))
 
 const iconSize = computed(() => {
@@ -62,6 +66,10 @@ const iconSize = computed(() => {
 
 function onError() {
   hasError.value = true
+}
+
+function onLoad() {
+  loaded.value = true
 }
 </script>
 

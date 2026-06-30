@@ -211,8 +211,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Product detail.
@@ -238,8 +238,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       requestBody:
         required: true
         content:
@@ -273,8 +273,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Product soft-deleted successfully (empty data).
@@ -362,8 +362,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Group buy detail with items.
@@ -389,8 +389,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       requestBody:
         required: true
         content:
@@ -427,8 +427,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Group buy ended successfully.
@@ -479,8 +479,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Group buy detail with leader, store, items and viewer info.
@@ -501,8 +501,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
         - name: page
           in: query
           schema:
@@ -576,8 +576,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       requestBody:
         required: true
         content:
@@ -611,8 +611,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Address deleted.
@@ -731,8 +731,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Order detail.
@@ -757,8 +757,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Order canceled.
@@ -785,8 +785,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Payment simulated successfully.
@@ -816,8 +816,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Order completed successfully (receipt confirmed).
@@ -881,8 +881,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Store order detail.
@@ -910,8 +910,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       requestBody:
         required: true
         content:
@@ -950,8 +950,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       requestBody:
         required: true
         content:
@@ -983,8 +983,8 @@ paths:
           in: path
           required: true
           schema:
-            type: integer
-            format: int64
+            type: string
+            description: ID（string）
       responses:
         '200':
           description: Subscription canceled (idempotent, returns empty data).
@@ -1278,8 +1278,8 @@ components:
         - hasLeader
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         nickname:
           type: string
           minLength: 1
@@ -1292,12 +1292,12 @@ components:
         hasLeader:
           type: boolean
         leaderId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
           nullable: true
         storeId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
           nullable: true
       additionalProperties: false
     CurrentUserSuccessResponse:
@@ -1338,8 +1338,8 @@ components:
         - hasLeader
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         nickname:
           type: string
           minLength: 1
@@ -1352,12 +1352,12 @@ components:
         hasLeader:
           type: boolean
         leaderId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
           nullable: true
         storeId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
           nullable: true
       additionalProperties: false
     LeaderSummary:
@@ -1369,8 +1369,8 @@ components:
         - followerCount
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
           minLength: 1
@@ -1394,8 +1394,8 @@ components:
         - name
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         name:
           type: string
           minLength: 1
@@ -1509,8 +1509,8 @@ components:
         - displayName
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
           minLength: 1
@@ -1529,11 +1529,11 @@ components:
         - status
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         leaderId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         name:
           type: string
           minLength: 1
@@ -1662,11 +1662,11 @@ components:
         - status
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         storeId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         name:
           type: string
           minLength: 1
@@ -1784,8 +1784,8 @@ components:
         - groupStock
       properties:
         productId:
-          type: integer
-          format: int64
+          type: string
+          description: ID（string）
           nullable: true
         product:
           $ref: '#/components/schemas/CreateGroupBuyInlineProduct'
@@ -1856,8 +1856,8 @@ components:
         - id
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: ID（string）
         displayName:
           type: string
           minLength: 1
@@ -1894,14 +1894,14 @@ components:
         - status
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         storeId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         leaderId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         title:
           type: string
           minLength: 1
@@ -1977,8 +1977,8 @@ components:
         - status
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         title:
           type: string
         coverImageUrl:
@@ -2007,8 +2007,8 @@ components:
         - displayName
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
         avatarUrl:
@@ -2022,8 +2022,8 @@ components:
         - name
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         name:
           type: string
       additionalProperties: false
@@ -2072,8 +2072,8 @@ components:
         - displayName
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
         avatarUrl:
@@ -2089,8 +2089,8 @@ components:
         - name
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         name:
           type: string
         logoUrl:
@@ -2108,11 +2108,11 @@ components:
         - soldCount
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         productId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
         groupPriceAmount:
@@ -2178,8 +2178,8 @@ components:
         - displayName
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
         avatarUrl:
@@ -2200,8 +2200,8 @@ components:
         - name
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         name:
           type: string
         logoUrl:
@@ -2260,8 +2260,8 @@ components:
         - isDefault
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         receiverName:
           type: string
         receiverPhone:
@@ -2361,8 +2361,8 @@ components:
         - payAmount
       properties:
         groupBuyId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         address:
           $ref: '#/components/schemas/OrderPreviewAddress'
         items:
@@ -2392,8 +2392,8 @@ components:
         - fullAddress
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         receiverName:
           type: string
         receiverPhone:
@@ -2422,11 +2422,11 @@ components:
         - soldCount
       properties:
         groupBuyItemId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         productId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         productName:
           type: string
         skuName:
@@ -2455,11 +2455,11 @@ components:
         - items
       properties:
         groupBuyId:
-          type: integer
-          format: int64
+          type: string
+          description: ID（string）
         addressId:
-          type: integer
-          format: int64
+          type: string
+          description: ID（string）
         items:
           type: array
           items:
@@ -2472,8 +2472,8 @@ components:
         - quantity
       properties:
         groupBuyItemId:
-          type: integer
-          format: int64
+          type: string
+          description: ID（string）
         quantity:
           type: integer
           minimum: 1
@@ -2546,19 +2546,19 @@ components:
         - orderStatus
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         orderNo:
           type: string
         groupBuyId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         storeId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         leaderId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         totalAmount:
           type: integer
           minimum: 0
@@ -2615,14 +2615,14 @@ components:
         - totalAmount
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         groupBuyItemId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         productId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         productName:
           type: string
         skuName:
@@ -2645,11 +2645,11 @@ components:
         - items
       properties:
         groupBuyId:
-          type: integer
-          format: int64
+          type: string
+          description: ID（string）
         addressId:
-          type: integer
-          format: int64
+          type: string
+          description: ID（string）
         remark:
           type: string
           nullable: true
@@ -2671,14 +2671,14 @@ components:
         - soldCount
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         groupBuyId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         productId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
           minLength: 1
@@ -2760,11 +2760,11 @@ components:
         - deliveryType
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         orderId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         deliveryType:
           type: string
         logisticsCompany:
@@ -2814,17 +2814,17 @@ components:
         - status
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         userId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         leaderId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         storeId:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         status:
           type: string
         source:
@@ -2898,8 +2898,8 @@ components:
         - totalOrders
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         levelName:
           type: string
         growthValue:
@@ -2923,8 +2923,8 @@ components:
         - displayName
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         displayName:
           type: string
         avatarUrl:
@@ -2938,8 +2938,8 @@ components:
         - name
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
         name:
           type: string
         logoUrl:
