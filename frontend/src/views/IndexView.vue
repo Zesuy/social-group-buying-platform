@@ -1,80 +1,92 @@
 <template>
   <PageLayout show-tab-bar>
-    <!-- 品牌区（深绿色背景） -->
-    <div class="index-brand">
-      <div class="index-brand__bar">
-        <div class="index-brand__logo">
-          <span class="index-brand__icon">邻</span>
-          <span class="index-brand__name">邻鲜团</span>
-        </div>
-        <div class="index-brand__pill">
-          <van-icon name="like" size="14" />
-          小程序提供服务
+    <div class="index-shell">
+      <div class="index-brand">
+        <div class="index-brand__bar">
+          <div class="index-brand__logo" aria-label="邻鲜团">
+            <span class="index-brand__icon">邻</span>
+            <span class="index-brand__name">邻鲜团</span>
+          </div>
+          <div class="index-brand__pill">
+            <van-icon name="like" size="14" />
+            <span>邻鲜团 小程序提供服务</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- 关注公众号提醒 -->
-    <div class="index-follow-banner">
-      <span>关注公众号，收到活动和订单、物流通知</span>
-      <span class="index-follow-banner__btn">关注</span>
-    </div>
-
-    <!-- 搜索占位（pill 样式） -->
-    <div class="index-search marketplace-search">
-      <van-icon name="search" size="16" color="var(--color-text-hint)" />
-      <span>搜索商品或店铺</span>
-    </div>
-
-    <!-- 频道 Tab -->
-    <ChannelTabs
-      :tabs="channels"
-      :active="activeChannel"
-      @change="onChannelChange"
-    />
-
-    <!-- 分类 cs -->
-    <CategoryChips
-      :chips="categories"
-      :active="activeCategory"
-      @change="onCategoryChange"
-    />
-
-    <!-- 团购卡片流 -->
-    <div class="index-feed">
-      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-        <van-list
-          v-model:loading="loading"
-          :finished="!hasMore"
-          finished-text="没有更多了"
-          :error="error !== null"
-          error-text="加载失败，点击重试"
-          @load="onLoadMore"
-          @error="onErrorRetry"
+      <div class="index-follow-banner">
+        <span>关注公众号，收到活动和订单、物流通知</span>
+        <button type="button" class="index-follow-banner__btn" @click="onWechatNoticeClick">
+          关注
+        </button>
+        <button
+          type="button"
+          class="index-follow-banner__close"
+          aria-label="关闭关注提示"
+          @click="showToast('公众号提醒仅作占位展示')"
         >
-          <GroupBuyFeedCard
-            v-for="item in items"
-            :key="item.id"
-            :item="item"
-            @click="goToDetail(item.id)"
-          />
-          <EmptyState v-if="isEmpty" description="暂无团购活动" />
-        </van-list>
-      </van-pull-refresh>
+          <van-icon name="cross" />
+        </button>
+      </div>
 
-      <!-- 首次加载 -->
-      <LoadingView v-if="firstLoading" />
-      <!-- 错误重试 -->
-      <ErrorView
-        v-if="showError"
-        :message="error ?? undefined"
-        @retry="initLoad"
+      <div class="index-tabs">
+        <ChannelTabs
+          :tabs="channels"
+          :active="activeChannel"
+          @change="onChannelChange"
+        />
+        <button type="button" class="index-coupon-entry" @click="onCouponClick">
+          <van-icon name="coupon-o" size="16" />
+          领券
+          <van-icon name="arrow" size="12" />
+        </button>
+      </div>
+
+      <CategoryChips
+        :chips="categories"
+        :active="activeCategory"
+        @change="onCategoryChange"
       />
-    </div>
 
-    <!-- 灰态购物车浮动入口（非 MVP，只展示图标） -->
-    <div class="index-fab-cart floating-cart-entry" @click="onCartClick">
-      <van-icon name="cart-o" size="26" color="var(--color-primary)" />
+      <div class="index-feed">
+        <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+          <van-list
+            v-model:loading="loading"
+            :finished="!hasMore"
+            finished-text="没有更多了"
+            :error="error !== null"
+            error-text="加载失败，点击重试"
+            @load="onLoadMore"
+            @error="onErrorRetry"
+          >
+            <GroupBuyFeedCard
+              v-for="item in visibleItems"
+              :key="item.id"
+              :item="item"
+              @click="goToDetail(item.id)"
+              @share="onShareClick"
+              @subscribe="onSubscribeClick"
+            />
+            <EmptyState v-if="isEmpty" description="暂无团购活动" />
+          </van-list>
+        </van-pull-refresh>
+
+        <LoadingView v-if="firstLoading" />
+        <ErrorView
+          v-if="showError"
+          :message="error ?? undefined"
+          @retry="initLoad"
+        />
+      </div>
+
+      <button
+        type="button"
+        class="index-fab-cart floating-cart-entry"
+        aria-label="购物车"
+        @click="onCartClick"
+      >
+        <van-icon name="cart-o" size="28" color="var(--color-primary)" />
+      </button>
     </div>
   </PageLayout>
 </template>
@@ -98,9 +110,9 @@ const router = useRouter()
 
 // ── 频道 Tab ──
 const channels = [
-  { key: 'recommend', label: '推荐' },
+  { key: 'recommend', label: '全部' },
+  { key: 'video', label: '视频' },
   { key: 'newest', label: '最新' },
-  { key: 'popular', label: '热门' },
 ]
 const activeChannel = ref('recommend')
 function onChannelChange(key: string) {
@@ -110,13 +122,12 @@ function onChannelChange(key: string) {
 
 // ── 分类 ──
 const categories = [
-  { key: 'all', label: '全部' },
-  { key: 'fruit', label: '水果' },
-  { key: 'veg', label: '蔬菜' },
-  { key: 'meat', label: '肉禽' },
-  { key: 'seafood', label: '海鲜' },
-  { key: 'snack', label: '零食' },
-  { key: 'drink', label: '饮品' },
+  { key: 'all', label: '综合' },
+  { key: 'fresh', label: '生鲜' },
+  { key: 'food', label: '食品' },
+  { key: 'clothing', label: '服饰' },
+  { key: 'beauty', label: '美妆' },
+  { key: 'daily', label: '百货' },
 ]
 const activeCategory = ref('all')
 function onCategoryChange(key: string) {
@@ -132,6 +143,26 @@ function onCartClick() {
   }
 }
 
+function onWechatNoticeClick() {
+  if (isFeatureDisabled('wechatPush')) {
+    showToast('公众号推送将在后续开放')
+  }
+}
+
+function onCouponClick() {
+  if (isFeatureDisabled('coupon')) {
+    showToast('优惠券不在 MVP 范围内')
+  }
+}
+
+function onShareClick() {
+  showToast('分享能力仅作占位展示')
+}
+
+function onSubscribeClick() {
+  showToast('请进入团长主页完成订阅')
+}
+
 // ── 分页 ──
 const items = ref<PublicGroupBuyItem[]>([])
 const page = ref(1)
@@ -144,6 +175,7 @@ const initialized = ref(false)
 const firstLoading = computed(() => !initialized.value && loading.value)
 const isEmpty = computed(() => initialized.value && !error.value && items.value.length === 0)
 const showError = computed(() => error.value && items.value.length === 0)
+const visibleItems = computed(() => items.value)
 
 async function fetchList(p: number): Promise<boolean> {
   try {
@@ -201,17 +233,23 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ── 品牌区 ── */
+.index-shell {
+  min-height: calc(100vh - var(--tabbar-height));
+  background: var(--color-bg);
+  padding-bottom: calc(var(--tabbar-height) + 14px + var(--safe-area-bottom));
+}
+
 .index-brand {
   background: #fff;
   padding: 10px 14px 0;
-  padding-top: calc(var(--spacing-md) + var(--safe-area-top));
+  padding-top: calc(10px + var(--safe-area-top));
 }
 
 .index-brand__bar {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 42px;
 }
 
 .index-brand__logo {
@@ -221,8 +259,8 @@ onMounted(() => {
 }
 
 .index-brand__icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   background: var(--color-primary);
   display: flex;
@@ -241,49 +279,107 @@ onMounted(() => {
 
 .index-brand__pill {
   border-radius: 99px;
-  background: var(--color-bg);
-  padding: 7px 12px;
+  background: #f5f6f7;
+  padding: 7px 10px;
   font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  color: #4f555f;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   margin-left: auto;
+  min-width: 0;
+  justify-content: center;
+  line-height: 1.2;
 }
 
-/* ── 关注公众号横幅 ── */
+.index-brand__pill span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .index-follow-banner {
   background: #fff5df;
   color: #f26b2c;
-  padding: 10px 14px;
+  margin: 0 14px 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.index-follow-banner span:first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .index-follow-banner__btn {
   background: var(--color-primary);
   color: #fff;
-  border-radius: 999px;
-  padding: 5px 14px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  min-height: 32px;
   font-size: var(--font-size-sm);
+  font-weight: 800;
   flex-shrink: 0;
 }
 
-/* ── 搜索占位 ── */
-.index-search {
-  margin: var(--spacing-md);
+.index-follow-banner__close {
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: #b9a891;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* ── 团购卡片区 ── */
+.index-tabs {
+  position: relative;
+  background: #fff;
+  margin-bottom: 10px;
+}
+
+.index-tabs :deep(.channel-tabs) {
+  padding-right: 96px;
+}
+
+.index-coupon-entry {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  min-height: 54px;
+  border: 0;
+  background: transparent;
+  color: #ff7a2f;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+}
+
+.index-shell :deep(.category-chips) {
+  padding-top: 0;
+  padding-bottom: 10px;
+}
+
 .index-feed {
   padding: 0 var(--spacing-md) var(--spacing-md);
 }
 
-/* ── 购物车浮动入口（灰态） ── */
 .index-fab-cart {
   bottom: calc(var(--tabbar-height) + 16px + var(--safe-area-bottom));
+  border: 0;
+  opacity: 1;
+  box-shadow: var(--shadow-float);
 }
 </style>
