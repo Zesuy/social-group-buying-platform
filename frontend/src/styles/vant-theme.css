@@ -81,6 +81,7 @@
 }
 
 .van-nav-bar {
+  padding-top: var(--safe-area-top);
   min-height: var(--topbar-height);
   box-shadow: var(--shadow-nav);
 }

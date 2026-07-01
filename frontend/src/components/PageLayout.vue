@@ -66,7 +66,7 @@ defineEmits<{
   background-color: var(--color-bg);
 }
 
-/* NavBar 组件已使用 Vant fixed + placeholder 自动占位，此处无需额外 padding */
+/* NavBar 作为 flex 子项在正常文档流中；内容区域 flex:1 填充剩余高度 */
 
 .page-layout__content--with-tabbar {
   scroll-padding-bottom: 14px;

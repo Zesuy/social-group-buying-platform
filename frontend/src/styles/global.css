@@ -280,6 +280,7 @@ input[type='radio'] {
   background: var(--color-bg-card);
   border-radius: var(--radius-card);
   margin-bottom: 12px;
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 .form-title {
@@ -298,7 +299,7 @@ input[type='radio'] {
   min-height: 52px;
 }
 .field label { color: #262b32; font-weight: 700; }
-.field .value { color: #60646c; min-width: 0; word-break: break-word; }
+.field .value { color: var(--color-text-secondary); min-width: 0; word-break: break-word; }
 .field:last-child { border-bottom: none; }
 
 /* ── 订单步骤条（横向 4 步） ── */

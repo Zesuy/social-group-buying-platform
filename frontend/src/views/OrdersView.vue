@@ -376,8 +376,8 @@ onMounted(() => {
 }
 
 .order-card__item-cover {
-  width: 74px;
-  height: 74px;
+  width: 72px;
+  height: 72px;
   background: linear-gradient(145deg, #cfddff, #ec715b);
   border-radius: 8px;
   display: flex;
