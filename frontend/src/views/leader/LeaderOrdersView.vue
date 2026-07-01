@@ -1,88 +1,239 @@
 <template>
-  <PageLayout title="团长订单列表" show-back @back="goBack">
-    <div class="orders-content">
-      <van-tabs v-model:active="activeTab" @change="onTabChange">
-        <van-tab v-for="tab in tabs" :key="tab.key" :title="tab.label" />
-      </van-tabs>
+  <PageLayout title="团长订单管理" show-back @back="goBack">
+    <LoadingView v-if="firstLoading" />
+    <ErrorView v-else-if="showError" :message="error ?? undefined" @retry="load" />
 
-      <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
-        <van-list
-          v-model:loading="loading"
-          :finished="!hasMore"
-          finished-text="没有更多了"
-          :error="error !== null"
-          error-text="加载失败，点击重试"
-          :immediate-check="false"
-          @load="loadMore"
-        >
-          <div v-for="o in items" :key="o.id" class="order-card" @click="goToDetail(o.id)">
-            <div class="order-head">
-              <b>{{ o.orderNo }}</b>
-              <span class="status-chip">{{ getOrderStatusText(o.orderStatus) }}</span>
-            </div>
-            <div class="order-body">
-              <div class="row" style="gap:10px">
-                <div class="fake-img-sm">{{ o.items?.[0]?.productName?.charAt(0) || '?' }}</div>
-                <div class="grow">
-                  <b>{{ o.buyerNickname || o.receiverName }}</b>
-                  <p class="muted" style="margin:4px 0;font-size:13px">{{ o.items?.[0]?.productName }}{{ o.items?.length > 1 ? ` 等${o.items.length}件` : '' }} x{{ o.items?.[0]?.quantity }}</p>
-                  <b style="color:#ff602a;font-size:18px">{{ formatAmount(o.payAmount) }}</b>
+    <div v-else class="orders-root">
+      <!-- 状态筛选 chips（同 /leader/products 模式） -->
+      <div class="row gap-10 overflow-hidden chips-wrap">
+        <span
+          v-for="c in chips"
+          :key="c.key"
+          class="chip"
+          :class="{ active: activeChip === c.key }"
+          @click="onChipChange(c.key)"
+        >{{ c.label }}</span>
+      </div>
+
+      <!-- 搜索占位（同 /leader/products 模式） -->
+      <div class="marketplace-search">
+        <van-icon name="search" size="16" />
+        <span>搜索订单号 / 买家 / 商品</span>
+      </div>
+
+      <div class="orders-list">
+        <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+          <van-list
+            v-model:loading="loading"
+            :finished="!hasMore"
+            finished-text="没有更多了"
+            :error="error !== null"
+            error-text="加载失败，点击重试"
+            :immediate-check="false"
+            @load="loadMore"
+          >
+            <!-- 紧凑订单卡片（同 /leader/products 的列表密度） -->
+            <div
+              v-for="order in items"
+              :key="order.id"
+              class="order-row"
+              @click="goToDetail(order.id)"
+            >
+              <div class="order-row__cover">{{ (order.items[0]?.productName || '订').slice(0, 2) }}</div>
+              <div class="order-row__info">
+                <div class="order-row__name van-multi-ellipsis--l2">
+                  {{ order.items[0]?.productName || '团购商品' }}
                 </div>
-                <button v-if="o.orderStatus === 'paid'" class="btn primary" @click.stop="goToDetail(o.id)">去发货</button>
+                <div class="order-row__meta">
+                  <span v-if="(order as any).buyerName">买家：{{ (order as any).buyerName }}</span>
+                  <span>订单号 {{ order.orderNo }}</span>
+                </div>
+              </div>
+              <div class="order-row__right">
+                <span :class="['order-row__status', `order-row__status--${order.orderStatus}`]">
+                  {{ getOrderStatusText(order.orderStatus) }}
+                </span>
+                <AppButton variant="primary" size="sm" @click.stop="goToDetail(order.id)">
+                  {{ order.orderStatus === 'paid' ? '发货' : '查看' }}
+                </AppButton>
               </div>
             </div>
-          </div>
 
-          <EmptyState v-if="isEmpty" description="暂无订单" />
-        </van-list>
-      </van-pull-refresh>
+            <EmptyState v-if="isEmpty" description="暂无订单" />
+          </van-list>
+        </van-pull-refresh>
+      </div>
     </div>
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
+import LoadingView from '@/components/LoadingView.vue'
+import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import AppButton from '@/components/AppButton.vue'
 import { usePagination } from '@/composables/usePagination'
 import { listLeaderOrders } from '@/api/leaderOrders'
-import { getOrderStatusText, formatAmount } from '@/utils'
+import { getOrderStatusText } from '@/utils/status'
 
 const router = useRouter()
-const activeTab = ref(0)
-const tabs = [
+
+const chips = [
   { key: '', label: '全部' },
   { key: 'paid', label: '待发货' },
   { key: 'shipped', label: '已发货' },
   { key: 'completed', label: '已完成' },
   { key: 'canceled', label: '已取消' },
 ]
+const activeChip = ref('')
 
-const { items, loading, refreshing, error, hasMore, isEmpty, load, refresh, loadMore } = usePagination(
-  (page, pageSize) => listLeaderOrders(tabs[activeTab.value]?.key || undefined, page, pageSize),
+const {
+  items, loading, refreshing, error, hasMore, isEmpty,
+  initialized, load, refresh, loadMore, reset,
+} = usePagination(
+  (page, pageSize) => listLeaderOrders(activeChip.value || undefined, page, pageSize),
 )
 
+const firstLoading = computed(() => !initialized.value && loading.value)
+const showError = computed(() => !!error.value && items.value.length === 0)
+
+function onChipChange(key: string) {
+  activeChip.value = key
+  reset()
+  load()
+}
+
+async function onRefresh() {
+  await refresh()
+  if (error.value) {
+    showToast('刷新失败')
+  }
+}
+
 function goBack() { router.back() }
-function onTabChange() { load() }
-function onRefresh() { refresh() }
 function goToDetail(id: string) { router.push(`/leader/orders/${id}`) }
-watch(activeTab, () => { load() })
+
+onMounted(() => { load() })
 </script>
 
 <style scoped>
-.orders-content { background: var(--color-bg); min-height: 200px; padding: 14px; }
+.orders-root {
+  background: var(--color-bg);
+  min-height: 200px;
+  padding-bottom: 14px;
+}
 
-/* ── Tab 样式覆写 — demo .tabs 视觉 ── */
-.orders-content :deep(.van-tabs__wrap) { background:#fff; height:54px; }
-.orders-content :deep(.van-tab) { font-size:18px; color:#60646c; padding-bottom:13px; }
-.orders-content :deep(.van-tab--active) { color:#111; font-weight:900; }
-.orders-content :deep(.van-tabs__line) { background:var(--color-primary); height:3px; border-radius:6px; bottom:9px; }
+.chips-wrap {
+  padding: 10px 14px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
 
-/* ── 订单卡片 ── */
-.order-card { background:#fff; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 0 rgba(0,0,0,.03); }
-.order-head { padding:12px 14px; border-bottom:1px solid #edf0f2; display:flex; align-items:center; justify-content:space-between; font-size:13px; }
-.order-body { padding:12px 14px; }
-.fake-img-sm { width:72px; height:72px; border-radius:8px; background:linear-gradient(145deg,#dcefe0,#a1c49f); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; flex:none; font-size:20px; }
-.status-chip { background:#eafaf1; color:var(--color-primary); padding:4px 8px; border-radius:99px; font-size:12px; font-weight:900; white-space:nowrap; }
+/* ── chip 与 /leader/products 一致 ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  background: #f2f3f5;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+}
+.chip.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* ── 搜索占位 ── */
+.marketplace-search {
+  margin: 0 14px 12px;
+}
+
+/* ── 列表 ── */
+.orders-list {
+  padding: 0 14px;
+}
+
+/* ── 紧凑订单行（同 ProductListItem 密度） ── */
+.order-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--color-bg-card);
+  border-radius: 12px;
+  padding: 13px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+.order-row:active {
+  opacity: 0.85;
+}
+
+.order-row__cover {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #cfddff, #ec715b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  font-size: 14px;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 18%);
+}
+
+.order-row__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.order-row__name {
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.35;
+  margin-bottom: 2px;
+}
+
+.order-row__meta {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-hint);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.order-row__right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.order-row__status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: #f2f4f5;
+  color: var(--color-text-hint);
+}
+.order-row__status--pendingPay { background: #fff2e8; color: #f36b2a; }
+.order-row__status--paid { background: #eafaf1; color: var(--color-primary); }
+.order-row__status--shipped { background: #eafaf1; color: var(--color-primary); }
+.order-row__status--completed { background: #f2f4f5; color: var(--color-text-hint); }
+.order-row__status--canceled { background: #f2f4f5; color: var(--color-text-hint); }
 </style>

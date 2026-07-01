@@ -6,124 +6,80 @@
     <template v-else-if="order">
       <div class="order-detail">
         <!-- 已取消 - 特殊横幅 -->
-        <div v-if="order.orderStatus === 'canceled'" class="card pad" style="text-align:center;padding:24px">
+        <AppCard v-if="order.orderStatus === 'canceled'" class="order-cancel-banner">
           <van-icon name="clear" :size="48" color="var(--color-text-hint)" />
-          <p style="font-weight:900;font-size:18px;margin:8px 0 16px;color:var(--color-text-hint)">订单已取消</p>
-          <div class="order-step" style="margin-bottom:0">
-            <div>已下单</div>
-            <div>已支付</div>
-            <div>待发货</div>
-            <div>完成</div>
-          </div>
-        </div>
+          <p class="order-cancel-text">订单已取消</p>
+          <OrderStatusSteps status="canceled" />
+        </AppCard>
 
         <!-- 订单进度步骤（横向 4 步） -->
-        <div v-else class="order-step">
-          <div :class="{ done: stepActive >= 0 }">已下单</div>
-          <div :class="{ done: stepActive >= 1 }">已支付</div>
-          <div :class="{ done: stepActive >= 2 }">待发货</div>
-          <div :class="{ done: stepActive >= 3 }">完成</div>
-        </div>
+        <OrderStatusSteps v-else :status="order.orderStatus" />
 
         <!-- 状态卡 -->
-        <div v-if="order.orderStatus !== 'canceled'" class="card pad">
-          <div class="between">
+        <AppCard v-if="order.orderStatus !== 'canceled'">
+          <div class="order-status-row">
             <b>{{ getStatusLabel(order.orderStatus) }}</b>
-            <span class="muted">{{ getStatusDescription(order.orderStatus) }}</span>
+            <span class="order-status-desc">{{ getStatusDescription(order.orderStatus) }}</span>
           </div>
-        </div>
+        </AppCard>
 
         <!-- 收货地址 -->
-        <div class="card pad">
-          <h3 style="margin:0 0 6px;font-size:16px">收货地址</h3>
-          <p style="font-weight:900">{{ order.receiverName }} {{ order.receiverPhone }}</p>
-          <p class="muted" style="margin:0">{{ order.fullAddress }}</p>
-        </div>
+        <AppCard>
+          <h3 class="order-section-title">收货地址</h3>
+          <p class="order-receiver">{{ order.receiverName }} {{ order.receiverPhone }}</p>
+          <p class="order-address">{{ order.fullAddress }}</p>
+        </AppCard>
 
         <!-- 商品列表 -->
-        <div class="card pad">
-          <div v-for="item in order.items" :key="item.id" class="row" style="gap:12px;padding:8px 0">
-            <div class="order-item__img-placeholder">
-              <van-icon name="photo" :size="32" color="var(--color-text-hint)" />
-            </div>
-            <div class="grow">
-              <b>{{ item.productName }}</b>
-              <p class="muted" style="margin:2px 0">数量 x{{ item.quantity }}</p>
-              <b style="color:var(--color-price)">¥{{ formatPrice(item.unitPriceAmount) }}</b>
-            </div>
-          </div>
-        </div>
+        <OrderSnapshotCard :items="order.items" :totalAmount="order.payAmount" />
 
         <!-- 订单信息（form-card 模式） -->
-        <div class="form-card">
-          <div class="form-title">订单信息</div>
-          <div class="field">
-            <label>订单编号</label>
-            <span class="value">{{ order.orderNo }}</span>
-            <span></span>
-          </div>
-          <div v-if="order.paidAt" class="field">
-            <label>支付时间</label>
-            <span class="value">{{ formatDate(order.paidAt) }}</span>
-            <span></span>
-          </div>
-          <div v-if="order.shippedAt" class="field">
-            <label>发货时间</label>
-            <span class="value">{{ formatDate(order.shippedAt) }}</span>
-            <span></span>
-          </div>
-          <div v-if="order.completedAt" class="field">
-            <label>完成时间</label>
-            <span class="value">{{ formatDate(order.completedAt) }}</span>
-            <span></span>
-          </div>
-          <div v-if="order.remark" class="field">
-            <label>备注</label>
-            <span class="value">{{ order.remark }}</span>
-            <span></span>
-          </div>
-          <div class="field">
-            <label>实付金额</label>
-            <span class="value" style="color:var(--color-price);font-weight:900">¥{{ formatPrice(order.payAmount) }}</span>
-            <span></span>
-          </div>
-        </div>
+        <AppFormCard title="订单信息">
+          <AppFormRow label="订单编号">{{ order.orderNo }}</AppFormRow>
+          <AppFormRow v-if="order.paidAt" label="支付时间">{{ formatDateTime(order.paidAt) }}</AppFormRow>
+          <AppFormRow v-if="order.shippedAt" label="发货时间">{{ formatDateTime(order.shippedAt) }}</AppFormRow>
+          <AppFormRow v-if="order.completedAt" label="完成时间">{{ formatDateTime(order.completedAt) }}</AppFormRow>
+          <AppFormRow v-if="order.remark" label="备注">{{ order.remark }}</AppFormRow>
+          <AppFormRow label="实付金额">
+            <PriceText :amount="order.payAmount" color="var(--color-price)" />
+          </AppFormRow>
+        </AppFormCard>
       </div>
     </template>
 
     <!-- 底部操作栏 -->
     <template v-if="order" #action>
-      <div class="fixed-actions">
+      <AppFixedActions>
         <template v-if="order.orderStatus === 'pendingPay'">
-          <button class="btn ghost" :disabled="actionLoading" @click="handleCancel">取消订单</button>
-          <button class="btn primary" :disabled="actionLoading" @click="handlePay">模拟支付</button>
+          <AppButton variant="ghost" :disabled="actionLoading" @click="handleCancel">取消订单</AppButton>
+          <AppButton variant="primary" :disabled="actionLoading" @click="handlePay">模拟支付</AppButton>
         </template>
 
-        <button
+        <AppButton
           v-else-if="order.orderStatus === 'shipped'"
-          class="btn primary"
+          variant="primary"
           :disabled="actionLoading"
           @click="handleComplete"
-        >确认收货</button>
+        >确认收货</AppButton>
 
-        <button
+        <AppButton
           v-else-if="order.orderStatus === 'paid'"
-          class="btn primary"
+          variant="primary"
           disabled
-        >等待卖家发货</button>
+        >等待卖家发货</AppButton>
 
-        <button
+        <AppButton
           v-else-if="order.orderStatus === 'completed'"
-          class="btn primary"
+          variant="primary"
           disabled
-        >已完成</button>
+        >已完成</AppButton>
 
-        <button
+        <AppButton
           v-else-if="order.orderStatus === 'canceled'"
-          class="btn ghost"
+          variant="ghost"
           disabled
-        >已取消</button>
-      </div>
+        >已取消</AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -135,7 +91,16 @@ import { showToast, showConfirmDialog } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
+import AppCard from '@/components/AppCard.vue'
+import AppFormCard from '@/components/AppFormCard.vue'
+import AppFormRow from '@/components/AppFormRow.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppButton from '@/components/AppButton.vue'
+import OrderStatusSteps from '@/components/OrderStatusSteps.vue'
+import OrderSnapshotCard from '@/components/OrderSnapshotCard.vue'
+import PriceText from '@/components/PriceText.vue'
 import { getMyOrder, simulatePay, cancelOrder, completeOrder } from '@/api/orders'
+import { formatDateTime } from '@/utils/format'
 import type { OrderData } from '@/types'
 
 const route = useRoute()
@@ -146,19 +111,6 @@ const order = ref<OrderData | null>(null)
 const actionLoading = ref(false)
 
 const orderId = computed(() => route.params.id as string)
-
-/** 订单状态到步骤索引的映射 */
-const statusStepMap: Record<string, number> = {
-  pendingPay: 0,
-  paid: 1,
-  shipped: 2,
-  completed: 3,
-}
-
-const stepActive = computed(() => {
-  if (!order.value) return 0
-  return statusStepMap[order.value.orderStatus] ?? 0
-})
 
 /** 状态标签文字 */
 function getStatusLabel(status: string): string {
@@ -182,21 +134,6 @@ function getStatusDescription(status: string): string {
     canceled: '已取消',
   }
   return map[status] || ''
-}
-
-/** 将整数分格式化为显示字符串 */
-function formatPrice(amount: number): string {
-  return (amount / 100).toFixed(2)
-}
-
-/**
- * 将 ISO 日期字符串格式化为 "YYYY-MM-DD HH:mm"
- */
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 async function fetchOrder() {
@@ -283,15 +220,42 @@ onMounted(() => {
   padding: 8px 14px;
 }
 
-/* ── 商品图占位 ── */
-.order-item__img-placeholder {
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  background: var(--color-bg);
+.order-cancel-banner {
+  text-align: center;
+}
+
+.order-cancel-text {
+  font-weight: 900;
+  font-size: 18px;
+  margin: 8px 0 16px;
+  color: var(--color-text-hint);
+}
+
+.order-status-row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+}
+
+.order-status-desc {
+  color: var(--color-text-hint);
+  font-size: var(--font-size-sm);
+}
+
+.order-section-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.order-receiver {
+  font-weight: 900;
+  margin: 0 0 4px;
+}
+
+.order-address {
+  color: var(--color-text-hint);
+  font-size: var(--font-size-sm);
+  margin: 0;
 }
 </style>

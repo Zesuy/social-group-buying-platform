@@ -16,7 +16,7 @@
           <span>店铺头图 / 客服信息</span>
         </section>
 
-        <section class="leader-header leader-store-card">
+        <AppCard class="leader-store-card">
           <div class="leader-store-card__main">
             <div class="leader-store-card__identity">
               <img
@@ -39,24 +39,24 @@
               </div>
             </div>
             <div class="leader-store-card__actions">
-              <button class="btn" type="button" @click="onServiceClick">
+              <AppButton variant="ghost" @click="onServiceClick">
                 <van-icon name="service-o" />
                 客服
-              </button>
-              <button
-                class="btn primary"
-                type="button"
+              </AppButton>
+              <AppButton
+                variant="primary"
+                :loading="subLoading"
                 :disabled="subLoading"
                 @click="toggleSubscribe"
               >
                 {{ subscribed ? '已订阅' : '+订阅' }}
-              </button>
+              </AppButton>
             </div>
           </div>
 
           <div class="leader-coupon">
             <span>新人立减5元</span>
-            <button type="button" class="btn orange" @click="onCouponClick">领取</button>
+            <AppButton variant="primary" @click="onCouponClick">领取</AppButton>
           </div>
 
           <div class="leader-benefits">
@@ -69,13 +69,13 @@
               <b>跟团赢积分</b>
             </button>
           </div>
-        </section>
+        </AppCard>
 
-        <button type="button" class="leader-showcase" @click="onShowcaseClick">
+        <AppCard class="leader-showcase" clickable @click="onShowcaseClick">
           <b>团员晒单</b>
           <span>“收到啦，包装很好，价格也划算...”</span>
           <div class="leader-showcase__photo">晒单图</div>
-        </button>
+        </AppCard>
 
         <nav class="leader-tabs" aria-label="团购排序">
           <button
@@ -123,6 +123,8 @@ import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppCard from '@/components/AppCard.vue'
 import { useAuthStore } from '@/stores'
 import { getLeaderHomepage, subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { isFeatureDisabled } from '@/utils/non-mvp'

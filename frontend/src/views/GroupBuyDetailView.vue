@@ -145,7 +145,7 @@
                   type="button"
                   class="btn primary"
                   :disabled="!isPurchasable"
-                  @click="handleSummaryBuy"
+                  @click="openSkuSheetForSummary"
                 >
                   跟团购买
                 </button>
@@ -176,26 +176,15 @@
                   <span>库存 {{ item.groupStock }}</span>
                   <span>已售 {{ item.soldCount }}</span>
                 </div>
-                <van-stepper
-                  v-if="isPurchasable && selectedItemId === item.id"
-                  v-model="quantity"
-                  :min="1"
-                  :max="item.groupStock"
-                  :disable-input="true"
-                  integer
-                  theme="round"
-                  button-size="26"
-                  @change="onQuantityChange"
-                />
               </div>
               <van-button
-                v-if="isPurchasable && selectedItemId !== item.id && item.groupStock > 0"
+                v-if="isPurchasable && item.groupStock > 0"
                 size="small"
                 round
                 type="primary"
-                @click="selectItem(item)"
+                @click="openSkuSheet(item)"
               >
-                选择
+                {{ selectedItemId === item.id ? '已选' : '选择' }}
               </van-button>
               <van-tag v-if="item.groupStock <= 0" type="danger" size="medium">已售罄</van-tag>
             </div>
@@ -271,7 +260,7 @@
           </div>
         </section>
 
-        <button class="detail-fab-cart floating-cart-entry" type="button" aria-label="购物车" @click="onCartClick">
+        <button class="detail-fab-cart floating-cart-entry" type="button" aria-label="购物车" @click="openCartSheet">
           <van-icon name="cart-o" size="26" color="var(--color-primary)" />
         </button>
       </div>
@@ -285,25 +274,38 @@
           <van-icon name="orders-o" size="23" />
           <span>订单</span>
         </button>
-        <button class="mini" type="button" @click="onCartClick">
+        <button class="mini" type="button" @click="openCartSheet">
           <van-icon name="cart-o" size="23" />
           <span>购物车</span>
         </button>
         <button
           class="big"
           type="button"
-          :disabled="!isPurchasable || !selectedItemId"
-          @click="handleBuy"
+          :disabled="!isPurchasable"
+          @click="openSkuSheetForBuybar"
         >
           <div class="faces" aria-hidden="true">
             <span>买</span><span>团</span><span>邻</span>
           </div>
           {{ isPurchasable ? '跟团购买' : buyDisabledText }}
-          <span v-if="selectedItemId" class="detail-buybar__sub">立即购买 · 已选 {{ quantity }} 件</span>
-          <span v-else-if="isPurchasable" class="detail-buybar__sub">先选商品</span>
-          <span v-if="totalSold > 0" class="detail-buybar__sub">{{ totalSold }}人已跟团</span>
+          <span v-if="isPurchasable" class="detail-buybar__sub">{{ totalSold }}人已跟团</span>
         </button>
       </div>
+      <!-- SKU 规格弹窗 -->
+      <SkuSheet
+        v-model="skuSheetVisible"
+        :item="skuTargetItem"
+        @add-to-cart="onSkuAddToCart"
+        @buy-now="onSkuBuyNow"
+      />
+
+      <!-- 购物车预览弹窗（本地内存，无后端购物车 API） -->
+      <CartPreviewSheet
+        v-model="cartSheetVisible"
+        :items="cartItems"
+        :total-amount="cartTotalAmount"
+        @checkout="onCartCheckout"
+      />
     </template>
   </PageLayout>
 </template>
@@ -322,7 +324,9 @@ import { useCheckoutStore } from '@/stores'
 import { getPublicGroupBuyDetail } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { getDeliveryTypeText } from '@/utils'
-import { isFeatureDisabled } from '@/utils/non-mvp'
+import SkuSheet from '@/components/SkuSheet.vue'
+import CartPreviewSheet from '@/components/CartPreviewSheet.vue'
+import type { CartSheetItem } from '@/components/CartPreviewSheet.vue'
 import type {
   GroupBuyDetail,
   LeaderDetail,
@@ -345,8 +349,13 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const selectedItemId = ref<string | null>(null)
-const quantity = ref(1)
 const subLoading = ref(false)
+
+// SKU sheet & 购物车弹窗
+const skuSheetVisible = ref(false)
+const cartSheetVisible = ref(false)
+const skuTargetItem = ref<PublicGroupBuyDetailItem | null>(null)
+const cartItems = ref<CartSheetItem[]>([])
 
 const hasAnyStock = computed(() => items.value.some(i => i.groupStock > 0))
 const isPurchasable = computed(() => {
@@ -420,51 +429,109 @@ async function fetchDetail() {
   }
 }
 
-function selectItem(item: PublicGroupBuyDetailItem) {
-  if (item.groupStock <= 0) return
+/** 购物车商品总金额 */
+const cartTotalAmount = computed(() =>
+  cartItems.value.reduce((sum, item) => sum + item.unitPriceAmount * item.quantity, 0),
+)
+
+/** 打开 SKU 弹窗选择一个商品 */
+function openSkuSheet(item: PublicGroupBuyDetailItem) {
   selectedItemId.value = item.id
-  quantity.value = 1
+  skuTargetItem.value = item
+  skuSheetVisible.value = true
 }
 
-function onQuantityChange(val: number | string) {
-  quantity.value = Number(val)
+/** 摘要卡 "跟团购买" — 选第一个可买商品 */
+function openSkuSheetForSummary() {
+  if (items.value.length === 0) return
+  const target = items.value.find(i => i.id === selectedItemId.value && i.groupStock > 0)
+    ?? items.value.find(i => i.groupStock > 0)
+  if (target) openSkuSheet(target)
+  else showToast('暂无库存')
 }
 
-function handleSummaryBuy() {
-  if (!selectedItemId.value && items.value.length > 0) {
-    const firstAvailable = items.value.find(item => item.groupStock > 0)
-    if (firstAvailable) selectItem(firstAvailable)
+/** 底部购买栏 "跟团购买" — 同摘要逻辑 */
+function openSkuSheetForBuybar() {
+  openSkuSheetForSummary()
+}
+
+/** SKU sheet "加入购物车" → 本地内存 */
+function onSkuAddToCart(payload: { itemId: string; quantity: number; deliveryType: string }) {
+  const item = items.value.find(i => i.id === payload.itemId)
+  if (!item) return
+  const existing = cartItems.value.find(c => c.itemId === item.id)
+  if (existing) {
+    existing.quantity += payload.quantity
+  } else {
+    cartItems.value.push({
+      itemId: item.id,
+      productName: item.displayName,
+      skuName: payload.deliveryType === 'express' ? '全国包邮' : payload.deliveryType === 'pickup' ? '同城自提' : '同城配送',
+      quantity: payload.quantity,
+      unitPriceAmount: item.groupPriceAmount,
+    })
   }
-  handleBuy()
+  showToast('已加入购物车')
+  cartSheetVisible.value = true
 }
 
-function handleBuy() {
+/** SKU sheet "立即购买" → checkout */
+function onSkuBuyNow(payload: { itemId: string; quantity: number; deliveryType: string }) {
   if (!authStore.isLoggedIn) {
     router.push(`/login?redirect=${route.fullPath}`)
     return
   }
-  if (!selectedItemId.value || !groupBuy.value) {
-    showToast('请选择商品')
-    return
-  }
-
+  if (!groupBuy.value) return
+  const item = items.value.find(i => i.id === payload.itemId)
+  if (!item) return
   checkoutStore.setCheckoutContext({
     groupBuyId: groupBuy.value.id,
-    groupBuyItemId: selectedItemId.value,
-    quantity: quantity.value,
+    groupBuyItemId: payload.itemId,
+    quantity: payload.quantity,
     title: groupBuy.value.title,
     coverImageUrl: groupBuy.value.coverImageUrl,
-    displayName: items.value.find(i => i.id === selectedItemId.value)?.displayName || '',
-    unitPriceAmount: items.value.find(i => i.id === selectedItemId.value)?.groupPriceAmount || 0,
+    displayName: item.displayName,
+    unitPriceAmount: item.groupPriceAmount,
   })
   router.push('/checkout')
 }
 
-function onCartClick() {
-  if (isFeatureDisabled('cart')) {
-    showToast('购物车功能即将开放')
+/** 打开购物车弹窗（本地内存，无后端） */
+function openCartSheet() {
+  if (cartItems.value.length === 0) {
+    showToast('购物车为空')
+    return
   }
+  skuSheetVisible.value = false
+  cartSheetVisible.value = true
 }
+
+/** 购物车弹窗 "去结算" — 汇总选中商品 */
+function onCartCheckout() {
+  const checkedItems = cartItems.value.filter(i => (i as CartSheetItem & { checked?: boolean }).checked !== false)
+  if (checkedItems.length === 0) { showToast('请选择商品'); return }
+  if (!authStore.isLoggedIn) {
+    router.push(`/login?redirect=${route.fullPath}`)
+    return
+  }
+  if (!groupBuy.value) return
+  // 用购物车中第一件商品跳到 checkout（MVP 简化：一次只买一种商品）
+  const first = checkedItems[0]
+  if (!first.itemId) { showToast('请选择商品'); return }
+  const item = items.value.find(i => i.id === first.itemId)
+  if (!item) return
+  checkoutStore.setCheckoutContext({
+    groupBuyId: groupBuy.value.id,
+    groupBuyItemId: first.itemId,
+    quantity: first.quantity,
+    title: groupBuy.value.title,
+    coverImageUrl: groupBuy.value.coverImageUrl,
+    displayName: item.displayName,
+    unitPriceAmount: item.groupPriceAmount,
+  })
+  router.push('/checkout')
+}
+
 
 async function toggleSubscribe() {
   if (!authStore.isLoggedIn) {

@@ -5,34 +5,35 @@
 
     <!-- 地址列表 -->
     <div class="addresses-scroll" v-if="!loading">
-      <div
+      <AppCard
         v-for="addr in addresses"
         :key="addr.id"
-        class="list-item"
-        :class="{ 'list-item--selectable': isSelectMode }"
+        :clickable="isSelectMode"
         @click="handleAddressClick(addr)"
       >
-        <div class="grow">
-          <b>{{ addr.receiverName }} {{ addr.receiverPhone }}</b>
-          <p class="muted" style="margin:2px 0">{{ addr.fullAddress }}</p>
-          <span v-if="addr.isDefault" class="status-chip">默认</span>
+        <div class="address-card__row">
+          <div class="address-card__info">
+            <b>{{ addr.receiverName }} {{ addr.receiverPhone }}</b>
+            <p class="address-card__detail">{{ addr.fullAddress }}</p>
+            <AppStatusPill v-if="addr.isDefault" label="默认" variant="green" />
+          </div>
+          <AppButton v-if="!isSelectMode" variant="ghost" @click.stop="handleEdit(addr.id)">
+            编辑
+          </AppButton>
         </div>
-        <div v-if="!isSelectMode" style="display:flex;gap:8px;align-items:center">
-          <button class="btn ghost" @click.stop="handleEdit(addr.id)">编辑</button>
-        </div>
-      </div>
+      </AppCard>
 
       <!-- 空态 -->
       <EmptyState v-if="addresses.length === 0" description="还没有收货地址">
-        <button class="btn primary" @click="goToNew" style="margin-top:10px">新增地址</button>
+        <AppButton variant="primary" class="addresses-empty__btn" @click="goToNew">新增地址</AppButton>
       </EmptyState>
     </div>
 
     <!-- 固定新增按钮 -->
     <template v-if="!loading" #action>
-      <div class="fixed-actions single">
-        <button class="btn primary" @click="goToNew">+ 新增收货地址</button>
-      </div>
+      <AppFixedActions single>
+        <AppButton variant="primary" @click="goToNew">+ 新增收货地址</AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -44,6 +45,10 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import AppCard from '@/components/AppCard.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppStatusPill from '@/components/AppStatusPill.vue'
 import { useCheckoutStore } from '@/stores'
 import { listAddresses } from '@/api/addresses'
 import type { AddressData } from '@/types'
@@ -100,5 +105,25 @@ onMounted(() => {
 <style scoped>
 .addresses-scroll {
   padding: 12px 14px 0;
+}
+
+.address-card__row {
+  display: flex;
+  gap: 8px;
+}
+
+.address-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.address-card__detail {
+  margin: 2px 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.addresses-empty__btn {
+  margin-top: 10px;
 }
 </style>

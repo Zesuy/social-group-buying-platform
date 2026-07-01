@@ -25,11 +25,10 @@
     <template v-if="preview && !loading && !error">
       <div class="checkout-content">
         <!-- 收货地址 -->
-        <div class="checkout-section" @click="goToAddresses">
-          <div class="checkout-section__header">
-            <van-icon name="location" color="var(--color-primary)" />
-            <span class="checkout-section__title">收货地址</span>
-          </div>
+        <CheckoutSection title="收货地址" @click="goToAddresses">
+          <template #header-right>
+            <van-icon name="arrow" color="var(--color-text-hint)" size="16" />
+          </template>
           <div v-if="addressInfo" class="checkout-address">
             <div class="checkout-address__header">
               <span class="checkout-address__name">{{ addressInfo.receiverName }}</span>
@@ -40,15 +39,10 @@
           <div v-else class="checkout-address checkout-address--empty">
             请选择收货地址
           </div>
-          <van-icon name="arrow" color="var(--color-text-hint)" size="16" />
-        </div>
+        </CheckoutSection>
 
         <!-- 商品明细 -->
-        <div class="checkout-section">
-          <div class="checkout-section__header">
-            <van-icon name="shop" color="var(--color-primary)" />
-            <span class="checkout-section__title">商品</span>
-          </div>
+        <CheckoutSection title="商品信息">
           <div v-for="item in preview.items" :key="item.groupBuyItemId" class="checkout-item">
             <div class="checkout-item__info">
               <span class="checkout-item__name">{{ item.productName }}</span>
@@ -79,10 +73,10 @@
               修改
             </van-button>
           </div>
-        </div>
+        </CheckoutSection>
 
         <!-- 备注 -->
-        <div class="checkout-section">
+        <AppFormCard>
           <van-field
             v-model="remark"
             type="textarea"
@@ -92,53 +86,43 @@
             autosize
             @blur="onRemarkChange"
           />
-        </div>
+        </AppFormCard>
 
         <!-- 协议 -->
-        <div class="checkout-section">
-          <div class="checkout-agreement">
-            <van-checkbox v-model="agreed" shape="square" checked-color="var(--color-primary)">
-              提交即代表同意
-              <span class="checkout-agreement__link">《团购协议》</span>
-            </van-checkbox>
-          </div>
-        </div>
+        <CheckoutSection>
+          <van-checkbox v-model="agreed" shape="square" checked-color="var(--color-primary)">
+            提交即代表同意
+            <span class="checkout-agreement__link">《团购协议》</span>
+          </van-checkbox>
+        </CheckoutSection>
 
         <!-- 金额区 -->
-        <div class="checkout-section">
+        <CheckoutSection>
           <OrderAmountBreakdown
             :total-amount="preview.totalAmount"
             :discount-amount="preview.discountAmount"
             :pay-amount="preview.payAmount"
           />
-        </div>
+        </CheckoutSection>
 
         <!-- 底部占位 -->
-        <div style="height: 80px" />
+        <div class="checkout-spacer" />
       </div>
     </template>
 
-    <!-- 底部提交栏 -->
-    <template v-if="preview && !error" #action>
-      <div class="checkout-action-bar">
-        <div class="checkout-action-bar__amount">
-          <span class="checkout-action-bar__label">合计：</span>
-          <PriceText
-            :amount="preview.payAmount"
-            size="xl"
-            color="var(--color-price)"
-          />
-        </div>
-        <van-button
-          round
-          type="primary"
+    <!-- 底部提交栏（仅在有效下单信息时显示） -->
+    <template v-if="checkoutStore.groupBuyId && checkoutStore.groupBuyItemId" #action>
+      <AppFixedActions single>
+        <AppButton
+          variant="primary"
+          block
           :loading="submitting"
           :disabled="!canSubmit"
           @click="handleSubmit"
         >
           提交订单
-        </van-button>
-      </div>
+        </AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -152,6 +136,10 @@ import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import PriceText from '@/components/PriceText.vue'
 import OrderAmountBreakdown from '@/components/OrderAmountBreakdown.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppFormCard from '@/components/AppFormCard.vue'
+import CheckoutSection from '@/components/CheckoutSection.vue'
 import { useCheckoutStore } from '@/stores'
 import { listAddresses } from '@/api/addresses'
 import { previewOrder, createOrder } from '@/api/orders'
@@ -345,38 +333,6 @@ onMounted(() => {
   padding: 8px 14px;
 }
 
-.checkout-section {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-card);
-  margin: 0 0 12px;
-  padding: 14px;
-  display: block;
-  position: relative;
-  cursor: pointer;
-  box-shadow: var(--shadow-card);
-  border: 1px solid rgba(237, 240, 242, 0.72);
-}
-
-.checkout-section > :deep(.van-icon:last-child) {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.checkout-section__header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: var(--spacing-xs);
-}
-
-.checkout-section__title {
-  font-size: var(--font-size-md);
-  font-weight: 900;
-  color: var(--color-text-primary);
-}
-
 .checkout-address {
   flex: 1;
   min-width: 0;
@@ -440,31 +396,11 @@ onMounted(() => {
   color: var(--color-text-hint);
 }
 
-.checkout-agreement {
-  width: 100%;
-}
-
 .checkout-agreement__link {
   color: var(--color-primary);
 }
 
-.checkout-action-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: var(--spacing-sm);
-}
-
-.checkout-action-bar__amount {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.checkout-action-bar__label {
-  font-size: var(--font-size-md);
-  color: var(--color-text-secondary);
-  font-weight: 800;
+.checkout-spacer {
+  height: 80px;
 }
 </style>

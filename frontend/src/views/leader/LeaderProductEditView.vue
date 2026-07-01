@@ -4,16 +4,18 @@
     <ErrorView v-else-if="error" :message="error" @retry="fetchProduct" />
     <template v-else-if="product">
       <div class="content-area">
-        <ProductForm ref="formRef" :product="product" :submitting="saving" />
-        <button class="btn danger" style="width:100%;height:46px" :disabled="saving" @click="handleDelete">删除商品</button>
+        <AppCard>
+          <ProductForm ref="formRef" :product="product" :submitting="saving" />
+        </AppCard>
+        <AppButton variant="danger" block :disabled="saving" @click="handleDelete">删除商品</AppButton>
       </div>
     </template>
 
     <template #action>
-      <div v-if="product" class="fixed-actions">
-        <button class="btn ghost" :disabled="saving" @click="handleToggleStatus">{{ product?.status === 'active' ? '下架' : '上架' }}</button>
-        <button class="btn primary" :disabled="saving" @click="handleSave">{{ saving ? '保存中...' : '保存修改' }}</button>
-      </div>
+      <AppFixedActions v-if="product">
+        <AppButton variant="ghost" :disabled="saving" @click="handleToggleStatus">{{ product?.status === 'active' ? '下架' : '上架' }}</AppButton>
+        <AppButton variant="primary" :disabled="saving" @click="handleSave">{{ saving ? '保存中...' : '保存修改' }}</AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -25,6 +27,9 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import ProductForm from '@/components/ProductForm.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppCard from '@/components/AppCard.vue'
 import { getProduct, updateProduct, deleteProduct } from '@/api/products'
 import type { ProductData } from '@/types'
 const route = useRoute()
@@ -71,12 +76,6 @@ async function handleDelete() {
 onMounted(() => { fetchProduct() })
 </script>
 <style scoped>
-.content-area { padding: 16px 0; }
-.fixed-actions { background: #fff; border-top: 1px solid #eee; padding: 10px 14px calc(10px + var(--safe-area-bottom,0px)); display: grid; grid-template-columns:1fr 1fr; gap:12px; }
-.fixed-actions .btn { height:50px; font-size:18px; border-radius:8px; }
-.btn { border:0; border-radius:9px; padding:8px 14px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; font-size:14px; }
-.btn.primary { background:var(--color-primary); color:#fff; }
-.btn.ghost { background:#fff; color:#666; border:1px solid #e7eaee; }
-.btn.danger { background:#fff; color:#f25541; border:1px solid #ffd3cc; }
-.btn:disabled { opacity:0.5; }
+.content-area { padding: 16px 14px calc(var(--actionbar-height) + var(--safe-area-bottom) + 14px); }
+.content-area .app-button--danger { margin-top: 12px; }
 </style>

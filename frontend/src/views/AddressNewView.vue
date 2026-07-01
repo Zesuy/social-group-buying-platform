@@ -2,9 +2,9 @@
   <PageLayout title="新增地址" show-back @back="goBack">
     <AddressForm ref="addressFormRef" :loading="submitting" @submit="handleSubmit" />
     <template #action>
-      <div class="fixed-actions single">
-        <button class="btn primary" :disabled="submitting" @click="handleSave">保存地址</button>
-      </div>
+      <AppFixedActions single>
+        <AppButton variant="primary" :disabled="submitting" @click="handleSave">保存地址</AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -15,6 +15,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import AddressForm from '@/components/AddressForm.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppButton from '@/components/AppButton.vue'
 import { useCheckoutStore } from '@/stores'
 import { createAddress } from '@/api/addresses'
 

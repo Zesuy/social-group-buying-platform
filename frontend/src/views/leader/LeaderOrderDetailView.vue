@@ -7,68 +7,66 @@
       <div class="order-detail">
         <!-- 状态标签 -->
         <div class="status-banner">
-          <van-tag size="medium" :type="statusTagType as any">
+          <AppStatusPill
+            :variant="statusVariant"
+            size="sm"
+          >
             {{ getOrderStatusText(order.orderStatus) }}
-          </van-tag>
+          </AppStatusPill>
         </div>
 
         <!-- 收货地址 -->
-        <div class="card pad">
-          <h4>收货信息</h4>
+        <AppCard>
+          <h4 class="section-title">收货信息</h4>
           <p class="receiver-info">{{ order.receiverName }} {{ order.receiverPhone }}</p>
           <p class="receiver-address">{{ order.fullAddress }}</p>
-        </div>
+        </AppCard>
 
         <!-- 商品列表 -->
-        <div class="card pad">
-          <h4>商品信息</h4>
+        <AppCard>
+          <h4 class="section-title">商品信息</h4>
           <div v-for="item in order.items" :key="item.id" class="order-item">
             <div class="order-item__info">
               <span class="order-item__name">{{ item.productName }}</span>
-              <span class="order-item__price">{{ formatAmount(item.unitPriceAmount) }}</span>
+              <PriceText :amount="item.unitPriceAmount" size="sm" />
             </div>
             <div class="order-item__meta">
               <span>数量 x{{ item.quantity }}</span>
-              <span>小计：{{ formatAmount(item.totalAmount) }}</span>
+              <span>小计：<PriceText :amount="item.totalAmount" size="sm" /></span>
             </div>
           </div>
-        </div>
+        </AppCard>
 
         <!-- 支付信息 -->
-        <div class="card pad">
-          <h4>支付信息</h4>
-          <div class="info-row">
-            <span>支付金额</span>
-            <span class="price">{{ formatAmount(order.payAmount) }}</span>
-          </div>
-          <div class="info-row">
-            <span>支付状态</span>
-            <span>{{ getPayStatusText(order.payStatus) }}</span>
-          </div>
-          <div v-if="order.paidAt" class="info-row">
-            <span>支付时间</span>
-            <span>{{ formatDate(order.paidAt) }}</span>
-          </div>
-        </div>
+        <AppCard>
+          <h4 class="section-title">支付信息</h4>
+          <AppFormRow label="支付金额">
+            <PriceText :amount="order.payAmount" size="md" color="var(--color-price)" />
+          </AppFormRow>
+          <AppFormRow label="支付状态">
+            {{ getPayStatusText(order.payStatus) }}
+          </AppFormRow>
+          <AppFormRow v-if="order.paidAt" label="支付时间">
+            {{ formatDateTime(order.paidAt) }}
+          </AppFormRow>
+        </AppCard>
 
         <!-- 发货信息 -->
-        <div v-if="order.orderStatus === 'shipped' || order.orderStatus === 'completed'" class="card pad">
-          <h4>发货信息</h4>
-          <div class="info-row">
-            <span>发货状态</span>
-            <span>{{ getOrderStatusText(order.orderStatus) }}</span>
-          </div>
-          <div v-if="order.shippedAt" class="info-row">
-            <span>发货时间</span>
-            <span>{{ formatDate(order.shippedAt) }}</span>
-          </div>
-        </div>
+        <AppCard v-if="order.orderStatus === 'shipped' || order.orderStatus === 'completed'">
+          <h4 class="section-title">发货信息</h4>
+          <AppFormRow label="发货状态">
+            {{ getOrderStatusText(order.orderStatus) }}
+          </AppFormRow>
+          <AppFormRow v-if="order.shippedAt" label="发货时间">
+            {{ formatDateTime(order.shippedAt) }}
+          </AppFormRow>
+        </AppCard>
 
         <!-- 发货表单（仅待发货状态） -->
-        <div v-if="order.orderStatus === 'paid'" class="card pad">
-          <h4>确认发货</h4>
+        <AppCard v-if="order.orderStatus === 'paid'">
+          <h4 class="section-title">确认发货</h4>
           <ShipmentForm :submitting="shipLoading" @submit="handleShip" />
-        </div>
+        </AppCard>
       </div>
     </template>
   </PageLayout>
@@ -82,8 +80,12 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import ShipmentForm from '@/components/ShipmentForm.vue'
+import AppCard from '@/components/AppCard.vue'
+import AppFormRow from '@/components/AppFormRow.vue'
+import AppStatusPill from '@/components/AppStatusPill.vue'
+import PriceText from '@/components/PriceText.vue'
 import { getLeaderOrder, shipOrder } from '@/api/leaderOrders'
-import { getOrderStatusText, getPayStatusText, formatAmount } from '@/utils'
+import { getOrderStatusText, getPayStatusText, formatDateTime } from '@/utils'
 import type { LeaderOrderData } from '@/types'
 
 const route = useRoute()
@@ -96,15 +98,15 @@ const shipLoading = ref(false)
 
 const orderId = computed(() => route.params.id as string)
 
-const statusTagType = computed(() => {
-  const map: Record<string, string> = {
-    paid: 'danger',
-    shipped: 'warning',
-    completed: 'success',
-    canceled: 'default',
-    pendingPay: 'warning',
+const statusVariant = computed(() => {
+  const map: Record<string, 'green' | 'orange' | 'gray' | 'red'> = {
+    paid: 'orange',
+    shipped: 'green',
+    completed: 'green',
+    canceled: 'gray',
+    pendingPay: 'orange',
   }
-  return map[order.value?.orderStatus || ''] || 'default'
+  return map[order.value?.orderStatus || ''] || 'gray'
 })
 
 async function fetchOrder() {
@@ -142,13 +144,6 @@ async function handleShip(data: {
   }
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 onMounted(() => {
   fetchOrder()
 })
@@ -159,25 +154,16 @@ onMounted(() => {
   padding: 8px 14px 80px;
 }
 
-.card {
-  background: var(--color-bg-white);
-  border-radius: 10px;
-  margin-bottom: 10px;
-}
-
-.pad {
-  padding: 14px;
-}
-
 .status-banner {
   padding: 12px 0;
   text-align: center;
 }
 
-h4 {
+.section-title {
   margin: 0 0 10px;
   font-size: var(--font-size-md);
   color: var(--color-text-primary);
+  font-weight: 900;
 }
 
 .receiver-info {
@@ -211,29 +197,11 @@ h4 {
   color: var(--color-text-primary);
 }
 
-.order-item__price {
-  color: var(--color-price);
-  font-weight: 900;
-}
-
 .order-item__meta {
   display: flex;
   justify-content: space-between;
   font-size: var(--font-size-sm);
   color: var(--color-text-hint);
   margin-top: 4px;
-}
-
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-  font-size: var(--font-size-sm);
-}
-
-.info-row .price {
-  color: var(--color-price);
-  font-weight: 900;
 }
 </style>

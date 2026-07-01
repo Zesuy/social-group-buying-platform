@@ -15,9 +15,9 @@
           <div class="profile-name-row">
             <span v-if="isLoggedIn && user" class="profile-name">{{ user.nickname }}</span>
             <span v-else class="profile-name profile-name--guest">点击登录</span>
-            <span v-if="isLoggedIn" class="status-chip">
+            <AppStatusPill v-if="isLoggedIn" variant="green" size="sm">
               {{ isLeader ? '创建者' : '买家' }}
-            </span>
+            </AppStatusPill>
           </div>
           <button type="button" class="profile-home-btn" @click.stop="handleHeaderClick">
             主页
@@ -30,58 +30,50 @@
       </div>
 
       <!-- 统计行 -->
-      <div class="stat-row">
-        <div>
-          <div class="num">¥0</div>
-          <span>余额</span>
+      <AppCard>
+        <div class="stat-row">
+          <div>
+            <div class="num">¥0</div>
+            <span>余额</span>
+          </div>
+          <div>
+            <div class="num">0</div>
+            <span>团员</span>
+          </div>
+          <div>
+            <div class="num">{{ isLeader ? 1 : 0 }}</div>
+            <span>店铺</span>
+          </div>
+          <div>
+            <div class="num">0</div>
+            <span>社群</span>
+          </div>
         </div>
-        <div>
-          <div class="num">0</div>
-          <span>团员</span>
-        </div>
-        <div>
-          <div class="num">{{ isLeader ? 1 : 0 }}</div>
-          <span>店铺</span>
-        </div>
-        <div>
-          <div class="num">0</div>
-          <span>社群</span>
-        </div>
-      </div>
+      </AppCard>
 
       <!-- 功能卡片 -->
-      <div class="profile-feature-card">
-        <div class="profile-feature-card__header">
-          <h2>{{ isLeader ? '团长功能' : '团员功能' }}</h2>
-          <button v-if="isLoggedIn" type="button" @click="onSwitchRoleClick">
-            切换{{ isLeader ? '团员' : '团长' }}功能
-          </button>
-        </div>
-        <div class="grid-4">
-          <button
-            v-for="entry in featureEntries"
-            :key="entry.label"
-            type="button"
-            class="profile-feature"
-            @click="handleFeatureClick(entry)"
-          >
-            <span class="profile-feature__icon">
-              <van-icon :name="entry.icon" />
-            </span>
-            <span>{{ entry.label }}</span>
-          </button>
-        </div>
-      </div>
+      <ProfileFeatureGrid
+        :title="isLeader ? '团长功能' : '团员功能'"
+        :entries="featureEntries"
+        :columns="4"
+        @item-click="handleFeatureClick"
+      >
+        <template #header-right>
+          <AppButton v-if="isLoggedIn" variant="plain" class="profile-switch-btn" @click="onSwitchRoleClick">
+            切换功能
+          </AppButton>
+        </template>
+      </ProfileFeatureGrid>
 
       <!-- 推荐卡片 -->
-      <div class="profile-recommend-card">
-        <h2>猜你喜欢</h2>
-        <p>更多个性化推荐将在后续版本开放。</p>
-      </div>
+      <AppCard>
+        <h2 class="recommend-title">猜你喜欢</h2>
+        <p class="recommend-desc">更多个性化推荐将在后续版本开放。</p>
+      </AppCard>
 
       <!-- 退出 -->
       <div v-if="isLoggedIn" class="logout-section">
-        <van-button type="default" block round @click="handleLogout">退出登录</van-button>
+        <AppButton variant="danger" block pill @click="handleLogout">退出登录</AppButton>
       </div>
     </div>
   </PageLayout>
@@ -94,16 +86,18 @@ import { showToast, showConfirmDialog } from 'vant'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import PageLayout from '@/components/PageLayout.vue'
+import AppCard from '@/components/AppCard.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppStatusPill from '@/components/AppStatusPill.vue'
+import ProfileFeatureGrid from '@/components/ProfileFeatureGrid.vue'
+import type { ProfileGridEntry } from '@/components/ProfileFeatureGrid.vue'
 import { isFeatureDisabled, type NonMvpFeature } from '@/utils/non-mvp'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const { isLoggedIn, isLeader, user, leader } = storeToRefs(authStore)
 
-interface ProfileFeatureEntry {
-  label: string
-  icon: string
-  to?: string
+interface ProfileFeatureEntry extends ProfileGridEntry {
   disabledFeature?: NonMvpFeature
 }
 
@@ -152,13 +146,13 @@ function handleHeaderClick() {
   }
 }
 
-function onDisabledFeature(feature: NonMvpFeature) {
-  if (isFeatureDisabled(feature)) {
+function onDisabledFeature(feature: string) {
+  if (isFeatureDisabled(feature as NonMvpFeature)) {
     showToast('即将开放')
   }
 }
 
-function handleFeatureClick(entry: ProfileFeatureEntry) {
+function handleFeatureClick(entry: ProfileGridEntry) {
   if (!isLoggedIn.value && entry.to !== undefined) {
     router.push(`/login?redirect=${entry.to}`)
     return
@@ -227,6 +221,7 @@ async function handleLogout() {
 .profile-name-row {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .profile-name {
@@ -256,71 +251,42 @@ async function handleLogout() {
   font-weight: 800;
 }
 
-.profile-feature-card,
-.profile-recommend-card {
-  background: #fff;
-  border-radius: var(--radius-card);
-  padding: 14px;
-  margin-bottom: 12px;
-  box-shadow: var(--shadow-card);
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  text-align: center;
 }
 
-.profile-feature-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+.stat-row .num {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--color-text-primary);
+  margin-bottom: 4px;
 }
 
-.profile-feature-card__header h2,
-.profile-recommend-card h2 {
+.stat-row span {
+  font-size: 12px;
+  color: var(--color-text-hint);
+}
+
+.profile-switch-btn {
+  font-size: var(--font-size-sm);
+  min-height: 34px;
+  padding: 0 10px;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-card);
+}
+
+.recommend-title {
   margin: 0;
   font-size: 20px;
   font-weight: 900;
+  color: var(--color-text-primary);
 }
 
-.profile-feature-card__header button {
-  border: 1px solid #e7eaee;
-  background: #fff;
-  color: #666;
-  border-radius: 999px;
-  padding: 7px 12px;
-  min-height: 36px;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.profile-feature {
-  border: 0;
-  background: transparent;
-  color: #4f555f;
-  text-align: center;
-  min-height: 74px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.profile-feature__icon {
-  width: 40px;
-  height: 40px;
-  border: 2px solid #222;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary);
-  background: #fff;
-  font-size: 22px;
-}
-
-.profile-recommend-card {
-  text-align: center;
-}
-
-.profile-recommend-card p {
+.recommend-desc {
   margin: 8px 0 0;
   color: var(--color-text-hint);
   font-size: 13px;
@@ -328,17 +294,5 @@ async function handleLogout() {
 
 .logout-section {
   margin-top: 24px;
-  padding: 0 14px;
-}
-
-.logout-section :deep(.van-button) {
-  height: var(--button-capsule-height);
-  font-weight: 900;
-}
-
-.stat-row {
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  margin: 12px 14px;
 }
 </style>

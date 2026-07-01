@@ -6,76 +6,69 @@
     <template v-else-if="detail">
       <div class="detail-content">
         <!-- 1. 基本信息卡 -->
-        <div class="card pad">
-          <div v-if="!editing" class="between">
-            <h2 style="margin:0;font-size:20px;font-weight:900">{{ detail.groupBuy.title }}</h2>
-            <span class="status-chip">{{ getGroupBuyStatusText(detail.groupBuy.status) }}</span>
-          </div>
-          <p v-if="!editing" class="muted" style="margin:8px 0 0;font-size:13px">
-            开始：{{ detail.groupBuy.startTime || '立即' }}｜结束：{{ detail.groupBuy.endTime || '长期' }}｜配送：{{ getDeliveryTypeText(detail.groupBuy.deliveryType) }}
-          </p>
+        <AppCard>
+          <template v-if="!editing">
+            <div class="gb-detail-header">
+              <h2 class="gb-detail-title">{{ detail.groupBuy.title }}</h2>
+              <AppStatusPill :label="getGroupBuyStatusText(detail.groupBuy.status)" variant="green" />
+            </div>
+            <p class="gb-detail-meta">
+              开始：{{ detail.groupBuy.startTime || '立即' }}｜结束：{{ detail.groupBuy.endTime || '长期' }}｜配送：{{ getDeliveryTypeText(detail.groupBuy.deliveryType) }}
+            </p>
+          </template>
 
           <!-- 编辑模式 -->
-          <div v-if="editing" class="edit-form">
-            <div class="field"><label>标题</label><input v-model="editForm.title" class="input" /></div>
-            <div class="field"><label>介绍</label><textarea v-model="editForm.introduction" class="textarea"></textarea></div>
-            <div class="field"><label>封面URL</label><input v-model="editForm.coverImageUrl" class="input" /></div>
-            <div class="field"><label>配送</label>
-              <div style="display:flex;gap:8px">
-                <label v-for="d in ['express','pickup','local_delivery']" :key="d" style="display:flex;align-items:center;gap:4px;font-size:13px">
-                  <input type="radio" v-model="editForm.deliveryType" :value="d" /> {{ {express:'快递',pickup:'自提',local_delivery:'同城'}[d] }}
-                </label>
-              </div>
-            </div>
-            <div class="field"><label>发货时间</label><input v-model="editForm.shippingTime" class="input" placeholder="如：48小时内发货" /></div>
-            <div class="field"><label>开始时间</label><input v-model="editForm.startTime" type="datetime-local" class="input" /></div>
-            <div class="field"><label>结束时间</label><input v-model="editForm.endTime" type="datetime-local" class="input" /></div>
-            <div style="display:flex;gap:12px;justify-content:flex-end;padding:14px">
-              <button class="btn" @click="cancelEdit">取消</button>
-              <button class="btn primary" :disabled="editLoading" @click="saveEdit">{{ editLoading ? '保存中...' : '保存' }}</button>
+          <div v-if="editing" class="gb-edit-section">
+            <van-field v-model="editForm.title" label="标题" />
+            <van-field v-model="editForm.introduction" label="介绍" type="textarea" autosize />
+            <van-field v-model="editForm.coverImageUrl" label="封面URL" />
+            <van-field label="配送">
+              <template #input>
+                <div class="gb-delivery-options">
+                  <label v-for="d in ['express','pickup','local_delivery']" :key="d" class="gb-radio-label">
+                    <input type="radio" v-model="editForm.deliveryType" :value="d" /> {{ {express:'快递',pickup:'自提',local_delivery:'同城'}[d] }}
+                  </label>
+                </div>
+              </template>
+            </van-field>
+            <van-field v-model="editForm.shippingTime" label="发货时间" placeholder="如：48小时内发货" />
+            <van-field v-model="editForm.startTime" label="开始时间" type="datetime-local" />
+            <van-field v-model="editForm.endTime" label="结束时间" type="datetime-local" />
+            <div class="gb-edit-actions">
+              <AppButton variant="ghost" @click="cancelEdit">取消</AppButton>
+              <AppButton variant="primary" :loading="editLoading" @click="saveEdit">{{ editLoading ? '保存中...' : '保存' }}</AppButton>
             </div>
           </div>
 
           <div v-if="detail.groupBuy.introduction && !editing" class="intro-text">{{ detail.groupBuy.introduction }}</div>
           <img v-if="detail.groupBuy.coverImageUrl && !editing" :src="detail.groupBuy.coverImageUrl" class="cover-img" />
-        </div>
+        </AppCard>
 
         <!-- 2. 商品列表 -->
-        <div v-for="item in detail.items" :key="item.id" class="card pad">
-          <div class="row" style="gap:12px">
+        <AppCard v-for="item in detail.items" :key="item.id">
+          <div class="gb-item-row">
             <div class="fake-img">{{ item.displayName.charAt(0) }}</div>
-            <div class="grow">
+            <div class="gb-item-info">
               <b>{{ item.displayName }}</b>
-              <p class="muted" style="margin:4px 0">团购价 {{ formatAmount(item.groupPriceAmount) }}｜库存 {{ item.groupStock }}</p>
-              <p class="muted" style="margin:0">已团 {{ item.soldCount }}</p>
+              <p class="gb-item-meta">团购价 <PriceText :amount="item.groupPriceAmount" size="sm" />｜库存 {{ item.groupStock }}</p>
+              <p class="gb-item-meta gb-item-sold">已团 {{ item.soldCount }}</p>
             </div>
           </div>
-        </div>
+        </AppCard>
 
         <!-- 3. 团购操作 -->
-        <div class="form-card">
-          <div class="form-title">团购操作</div>
-          <div class="field" @click="editing = true">
-            <label>编辑基础信息</label>
-            <span class="value">标题、介绍、封面</span>
-            <b class="muted">›</b>
-          </div>
-          <div v-if="detail.groupBuy.status === 'published'" class="field" @click="handleEndGroupBuy">
-            <label>结束团购</label>
-            <span class="value">需要二次确认</span>
-            <b class="muted">›</b>
-          </div>
-        </div>
+        <AppFormCard title="团购操作">
+          <AppFormRow label="编辑基础信息" value="标题、介绍、封面" arrow clickable @click="editing = true" />
+          <AppFormRow v-if="detail.groupBuy.status === 'published'" label="结束团购" value="需要二次确认" arrow clickable @click="handleEndGroupBuy" />
+        </AppFormCard>
       </div>
-    </template>
 
-    <template #action>
-      <div v-if="detail" class="fixed-actions">
-        <button class="btn ghost" @click="editing = true">编辑基础信息</button>
-        <button v-if="detail?.groupBuy.status === 'published'" class="btn danger" :disabled="endLoading" @click="handleEndGroupBuy">
+      <AppFixedActions :single="detail?.groupBuy.status !== 'published'">
+        <AppButton variant="ghost" @click="editing = true">编辑基础信息</AppButton>
+        <AppButton v-if="detail?.groupBuy.status === 'published'" variant="danger" :loading="endLoading" @click="handleEndGroupBuy">
           {{ endLoading ? '处理中...' : '结束团购' }}
-        </button>
-      </div>
+        </AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -87,8 +80,15 @@ import { showToast, showConfirmDialog } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
+import AppCard from '@/components/AppCard.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppFormCard from '@/components/AppFormCard.vue'
+import AppFormRow from '@/components/AppFormRow.vue'
+import AppStatusPill from '@/components/AppStatusPill.vue'
+import PriceText from '@/components/PriceText.vue'
 import { getMyGroupBuy, updateMyGroupBuy, endGroupBuy } from '@/api/leaderGroupBuys'
-import { getGroupBuyStatusText, getDeliveryTypeText, formatAmount } from '@/utils'
+import { getGroupBuyStatusText, getDeliveryTypeText } from '@/utils'
 import type { GroupBuyManageDetailData } from '@/types'
 
 const route = useRoute()
@@ -140,30 +140,20 @@ onMounted(() => { fetchDetail() })
 
 <style scoped>
 .detail-content { padding: 14px 14px 80px; }
-.card { background:#fff; border-radius:14px; margin-bottom:12px; box-shadow:0 1px 0 rgba(0,0,0,.03); }
-.pad { padding:14px; }
-.between { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.row { display:flex; align-items:center; }
-.grow { flex:1; }
-.muted { color:#969ca5; }
-.status-chip { background:#eafaf1; color:var(--color-primary); padding:4px 8px; border-radius:99px; font-size:12px; font-weight:900; white-space:nowrap; }
 .intro-text { margin-top:12px; color:#666; font-size:14px; line-height:1.6; }
 .cover-img { width:100%; margin-top:12px; border-radius:8px; }
 .fake-img { width:90px; height:90px; border-radius:8px; background:linear-gradient(145deg,#dcefe0,#a1c49f); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; flex:none; }
-.form-card { background:#fff; border-radius:14px; margin-bottom:12px; overflow:hidden; }
-.form-title { font-weight:900; font-size:18px; padding:14px; border-bottom:1px solid #edf0f2; }
-.field { display:grid; grid-template-columns:94px 1fr auto; gap:8px; align-items:center; padding:13px 14px; border-bottom:1px solid #edf0f2; min-height:52px; cursor:pointer; }
-.field label { color:#262b32; font-weight:700; font-size:14px; }
-.field .value { color:#9aa0a6; font-size:14px; }
-.fixed-actions { background:#fff; border-top:1px solid #eee; padding:10px 14px calc(10px + var(--safe-area-bottom,0px)); display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-.fixed-actions .btn { height:50px; font-size:18px; border-radius:8px; }
-.btn { border:0; border-radius:9px; padding:8px 14px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; font-size:14px; }
-.btn.primary { background:var(--color-primary); color:#fff; }
-.btn.ghost { background:#fff; color:#666; border:1px solid #e7eaee; }
-.btn.danger { background:#fff; color:#f25541; border:1px solid #ffd3cc; }
-.btn:disabled { opacity:0.5; }
-.edit-form { margin-top:12px; }
-.edit-form .field { padding:8px 0; border-bottom:1px solid #edf0f2; grid-template-columns:80px 1fr; }
-.input { height:38px; background:#f7f8fa; border-radius:8px; border:1px solid #eef0f3; padding:0 10px; color:#555; width:100%; font-size:14px; outline:none; }
-.textarea { min-height:80px; background:#f7f8fa; border-radius:8px; border:1px solid #eef0f3; padding:10px; color:#555; width:100%; font-size:14px; font-family:inherit; outline:none; resize:vertical; }
+
+/* ── 替换内联 style 的类 ── */
+.gb-detail-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.gb-detail-title { margin:0; font-size:20px; font-weight:900; }
+.gb-detail-meta { margin:8px 0 0; font-size:13px; color:#969ca5; }
+.gb-edit-section { margin-top:12px; }
+.gb-delivery-options { display:flex; gap:8px; }
+.gb-radio-label { display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; }
+.gb-edit-actions { display:flex; gap:12px; justify-content:flex-end; padding:14px; }
+.gb-item-row { display:flex; align-items:center; gap:12px; }
+.gb-item-info { flex:1; min-width:0; }
+.gb-item-meta { margin:4px 0; color:#969ca5; font-size:var(--font-size-sm); }
+.gb-item-sold { margin:0; }
 </style>

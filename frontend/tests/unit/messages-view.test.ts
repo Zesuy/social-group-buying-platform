@@ -16,14 +16,15 @@ describe('MessagesView', () => {
     setActivePinia(createPinia())
   })
 
-  it('should render empty state', () => {
+  it('should render placeholder messages', () => {
     const wrapper = mount(MessagesView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
 
-    expect(wrapper.text()).toContain('暂无消息')
+    expect(wrapper.text()).toContain('订单待发货提醒')
+    expect(wrapper.text()).toContain('物流更新')
   })
 
   it('should show reminder banner', () => {

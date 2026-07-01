@@ -6,11 +6,11 @@
     </div>
 
     <template #action>
-      <div class="fixed-actions single">
-        <button class="btn primary" :disabled="saving" @click="handleSave">
+      <AppFixedActions single>
+        <AppButton variant="primary" :disabled="saving" @click="handleSave">
           {{ saving ? '保存中...' : '保存商品' }}
-        </button>
-      </div>
+        </AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -22,6 +22,8 @@ import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ProductForm from '@/components/ProductForm.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppButton from '@/components/AppButton.vue'
 import { createProduct } from '@/api/products'
 
 const router = useRouter()
@@ -62,38 +64,5 @@ async function handleSave() {
 <style scoped>
 .content-area {
   padding: 16px 0;
-}
-.fixed-actions {
-  background: #fff;
-  border-top: 1px solid #eee;
-  padding: 10px 14px calc(10px + var(--safe-area-bottom, 0px));
-  display: grid;
-  gap: 12px;
-}
-.fixed-actions.single {
-  grid-template-columns: 1fr;
-}
-.fixed-actions .btn {
-  height: 50px;
-  font-size: 18px;
-  border-radius: 8px;
-}
-.btn {
-  border: 0;
-  border-radius: 9px;
-  padding: 8px 14px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  font-size: 14px;
-}
-.btn.primary {
-  background: var(--color-primary);
-  color: #fff;
-}
-.btn:disabled {
-  opacity: 0.5;
 }
 </style>
