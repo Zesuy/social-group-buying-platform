@@ -21,16 +21,13 @@
       <slot />
     </main>
 
-    <!-- 底部操作栏（可选） -->
-    <FixedActionBar v-if="$slots.action">
-      <slot name="action" />
-    </FixedActionBar>
+    <!-- 底部操作栏（可选）— 不做额外包装，由调用方提供 AppFixedActions -->
+    <slot name="action" />
   </div>
 </template>
 
 <script setup lang="ts">
 import NavBar from './NavBar.vue'
-import FixedActionBar from './FixedActionBar.vue'
 
 defineProps<{
   title?: string
@@ -66,13 +63,7 @@ defineEmits<{
   background-color: var(--color-bg);
 }
 
-/* NavBar 作为 flex 子项在正常文档流中；内容区域 flex:1 填充剩余高度 */
-
-.page-layout__content--with-tabbar {
-  scroll-padding-bottom: 14px;
-}
-
 .page-layout__content--with-action {
-  scroll-padding-bottom: 14px;
+  padding-bottom: calc(var(--actionbar-height) + var(--safe-area-bottom));
 }
 </style>

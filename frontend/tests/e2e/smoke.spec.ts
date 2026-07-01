@@ -187,10 +187,10 @@ test.describe('App smoke test', () => {
     await expect(page).toHaveURL(/#\/profile/, { timeout: 8000 })
   })
 
-  test('should show messages tab with empty state', async ({ page }) => {
+  test('should show messages tab with placeholder messages', async ({ page }) => {
     await navigateToHash(page, '/messages')
 
-    // Check empty state is shown
-    await expect(page.locator('text=暂无消息')).toBeVisible({ timeout: 5000 })
+    // Check placeholder messages are shown
+    await expect(page.locator('text=订单待发货提醒')).toBeVisible({ timeout: 5000 })
   })
 })

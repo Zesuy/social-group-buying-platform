@@ -4,16 +4,17 @@
       我购买的订单
     </div>
 
-    <div class="notice-strip orders-notice">
-      <span>关注公众号，收到活动和订单、物流通知</span>
-      <button type="button" @click="onWechatNoticeClick">关注</button>
-    </div>
+    <AppNoticeStrip
+      text="关注公众号，收到活动和订单、物流通知"
+      action-label="关注"
+      @action="onWechatNoticeClick"
+    />
 
     <!-- 搜索占位 -->
-    <div class="orders-search marketplace-search" @click="onSearchClick">
+    <AppCard class="orders-search" :clickable="true" @click="onSearchClick">
       <van-icon name="search" size="16" />
       <span>搜索商品名 / 订单号 / 团长</span>
-    </div>
+    </AppCard>
 
     <!-- 状态 Tab（保持 Vant tabs，E2E 兼容） -->
     <van-tabs v-model:active="activeTab" @change="onTabChange">
@@ -37,9 +38,8 @@
 
     <!-- 订单列表 -->
     <div v-else class="orders-content">
-      <div class="page-note">
-        订单列表主态：顶部搜索 + 状态 Tab；订单卡片露出团长、商品快照、金额、状态和可操作按钮。
-      </div>
+      <AppPageNote text="订单列表主态：顶部搜索 + 状态 Tab；订单卡片露出团长、商品快照、金额、状态和可操作按钮。" />
+
       <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
         <van-list
           :loading="loading"
@@ -51,69 +51,15 @@
           @load="onLoadMore"
         >
           <!-- 订单卡片 -->
-          <div
+          <OrderListCard
             v-for="order in items"
             :key="order.id"
-            :class="['order-card', `order-card--${order.orderStatus}`]"
+            :order="order"
+            mode="buyer"
+            :clickable="true"
+            :action-buttons="getActionButtons(order)"
             @click="goToDetail(order.id)"
-          >
-            <!-- 头部：店铺信息 + 状态标签 -->
-            <div class="order-head">
-              <b>
-                <span :class="['state-dot', getStateDotClass(order.orderStatus)]" />
-                {{ getStoreText(order) }}
-              </b>
-              <span :class="['tiny-pill', getTinyPillClass(order.orderStatus)]">
-                {{ getOrderStatusText(order.orderStatus) }}
-              </span>
-            </div>
-
-            <!-- 商品快照 -->
-            <div class="order-body">
-              <div class="order-card__snapshot">
-                <div class="order-card__item-cover">
-                  <span>{{ getCoverText(order) }}</span>
-                </div>
-                <div class="order-card__item-info">
-                  <span class="order-card__item-name van-multi-ellipsis--l2">
-                    {{ order.items[0]?.productName || '团购商品' }}
-                  </span>
-                  <span class="order-card__item-meta">
-                    <template v-if="order.items[0]?.skuName">规格：{{ order.items[0]?.skuName }}｜</template>
-                    数量 x{{ order.items[0]?.quantity || 0 }}
-                  </span>
-                  <span class="order-card__item-meta order-card__state-meta">
-                    {{ getOrderHint(order.orderStatus) }}
-                  </span>
-                  <div class="amount-line">
-                    <span class="order-card__order-no">订单号 {{ order.orderNo }}</span>
-                    <span class="order-card__pay">
-                      实付
-                      <PriceText :amount="order.payAmount" size="md" color="var(--color-price)" />
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div v-if="order.items.length > 1" class="order-card__more">
-                等{{ order.items.length }}件商品
-              </div>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div v-if="getActionButtons(order.orderStatus).length > 0" class="order-actions">
-              <van-button
-                v-for="btn in getActionButtons(order.orderStatus)"
-                :key="btn.text"
-                :type="btn.type"
-                size="small"
-                round
-                :loading="actionLoadingId === order.id"
-                @click.stop="handleOrderAction(order, btn.action)"
-              >
-                {{ btn.text }}
-              </van-button>
-            </div>
-          </div>
+          />
 
           <!-- 空态 -->
           <div v-if="isEmpty" class="orders-empty">
@@ -135,10 +81,12 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import PriceText from '@/components/PriceText.vue'
+import AppNoticeStrip from '@/components/AppNoticeStrip.vue'
+import AppPageNote from '@/components/AppPageNote.vue'
+import AppCard from '@/components/AppCard.vue'
+import OrderListCard from '@/components/OrderListCard.vue'
 import { usePagination } from '@/composables/usePagination'
 import { listMyOrders, cancelOrder } from '@/api/orders'
-import { getOrderStatusText } from '@/utils/status'
 import { isFeatureDisabled } from '@/utils/non-mvp'
 import type { OrderData } from '@/types'
 
@@ -214,121 +162,63 @@ function goHome() {
   router.push('/')
 }
 
-// ── 订单卡片辅助 ──
-function getStoreText(order: OrderData): string {
-  return `店铺 #${order.storeId}`
-}
-
-function getOrderHint(status: string): string {
-  switch (status) {
-    case 'pendingPay':
-      return '待完成模拟支付，超时后订单将关闭'
-    case 'paid':
-      return '已支付，等待团长发货'
-    case 'shipped':
-      return '团长已发货，收到后可确认收货'
-    case 'completed':
-      return '交易已完成'
-    case 'canceled':
-      return '订单已取消'
-    default:
-      return '订单处理中'
-  }
-}
-
-function getCoverText(order: OrderData): string {
-  const name = order.items[0]?.productName?.trim()
-  return name ? name.slice(0, 2) : '商品'
-}
-
-/** 获取 state-dot 颜色类 */
-function getStateDotClass(status: string): string {
-  switch (status) {
-    case 'pendingPay': return 'orange'
-    case 'completed': return 'gray'
-    case 'canceled': return 'gray'
-    default: return ''
-  }
-}
-
-/** 获取 tiny-pill 颜色类 */
-function getTinyPillClass(status: string): string {
-  switch (status) {
-    case 'pendingPay': return 'orange'
-    case 'paid':
-    case 'shipped': return 'green'
-    case 'canceled':
-    case 'completed': return ''
-    default: return ''
-  }
-}
-
 // ── 操作按钮定义 ──
-interface ActionBtn {
+function getActionButtons(order: OrderData): Array<{
   text: string
-  type: 'primary' | 'default' | 'success' | 'danger'
-  action: string
-}
-
-function getActionButtons(status: string): ActionBtn[] {
-  switch (status) {
+  variant: 'primary' | 'ghost' | 'danger' | 'success'
+  onClick: () => void
+}> {
+  switch (order.orderStatus) {
     case 'pendingPay':
       return [
-        { text: '取消订单', type: 'default', action: 'cancel' },
-        { text: '去支付', type: 'primary', action: 'pay' },
+        {
+          text: '取消订单',
+          variant: 'ghost',
+          onClick: async () => {
+            try {
+              await showConfirmDialog({ title: '提示', message: '确认取消该订单？' })
+            } catch {
+              return
+            }
+            try {
+              await cancelOrder(order.id)
+              showToast('已取消')
+              reset()
+              load()
+            } catch (err) {
+              const apiErr = err as { message?: string; code?: string }
+              if (apiErr.code === 'ORDER_NOT_CANCELABLE') {
+                showToast('订单不可取消')
+              } else if (apiErr.message) {
+                showToast(apiErr.message)
+              }
+            }
+          },
+        },
+        {
+          text: '去支付',
+          variant: 'primary',
+          onClick: () => router.push(`/orders/${order.id}`),
+        },
       ]
     case 'paid':
       return [
-        { text: '联系团长', type: 'default', action: 'contact' },
+        {
+          text: '联系团长',
+          variant: 'ghost',
+          onClick: () => showToast('联系团长将在后续开放'),
+        },
       ]
     case 'shipped':
       return [
-        { text: '确认收货', type: 'success', action: 'complete' },
+        {
+          text: '确认收货',
+          variant: 'success',
+          onClick: () => router.push(`/orders/${order.id}`),
+        },
       ]
     default:
       return []
-  }
-}
-
-const actionLoadingId = ref<string | null>(null)
-
-async function handleOrderAction(order: OrderData, action: string) {
-  actionLoadingId.value = order.id
-
-  try {
-    switch (action) {
-      case 'cancel': {
-        try {
-          await showConfirmDialog({
-            title: '提示',
-            message: '确认取消该订单？',
-          })
-        } catch {
-          return
-        }
-        await cancelOrder(order.id)
-        showToast('已取消')
-        reset()
-        load()
-        break
-      }
-      case 'pay':
-      case 'complete':
-        router.push(`/orders/${order.id}`)
-        break
-      case 'contact':
-        showToast('联系团长将在后续开放')
-        break
-    }
-  } catch (err) {
-    const apiErr = err as { message?: string; code?: string }
-    if (apiErr.code === 'ORDER_NOT_CANCELABLE') {
-      showToast('订单不可取消')
-    } else if (apiErr.message) {
-      showToast(apiErr.message)
-    }
-  } finally {
-    actionLoadingId.value = null
   }
 }
 
@@ -348,17 +238,6 @@ onMounted(() => {
   margin: 14px 14px 12px;
 }
 
-.orders-notice button {
-  border: 0;
-  background: var(--color-primary);
-  color: #fff;
-  border-radius: 999px;
-  padding: 5px 12px;
-  min-height: 34px;
-  font-weight: 900;
-  flex-shrink: 0;
-}
-
 :deep(.van-tabs__wrap) {
   background: #fff;
   height: 54px;
@@ -369,96 +248,6 @@ onMounted(() => {
   font-weight: 800;
 }
 
-.order-card__snapshot {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.order-card__item-cover {
-  width: 72px;
-  height: 72px;
-  background: linear-gradient(145deg, #cfddff, #ec715b);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: #fff;
-  font-weight: 900;
-  text-align: center;
-  line-height: 1.2;
-  text-shadow: 0 1px 8px rgb(0 0 0 / 18%);
-}
-
-.order-card--paid .order-card__item-cover {
-  background: linear-gradient(145deg, #ffd273, #55aa5d);
-}
-
-.order-card--shipped .order-card__item-cover {
-  background: linear-gradient(145deg, #ddd, #383d46);
-}
-
-.order-card--completed .order-card__item-cover {
-  background: linear-gradient(145deg, #dcefe0, #8fbf97);
-}
-
-.order-card--canceled .order-card__item-cover {
-  background: linear-gradient(145deg, #e9edf2, #aeb6c2);
-}
-
-.order-card__item-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.order-card__item-name {
-  font-size: var(--font-size-md);
-  color: var(--color-text-primary);
-  font-weight: 800;
-  display: block;
-  line-height: 1.35;
-}
-
-.order-card__item-meta {
-  display: block;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-hint);
-  margin-top: 4px;
-}
-
-.order-card__state-meta {
-  color: #7a808a;
-  background: #f5f6f7;
-  border-radius: 999px;
-  display: inline-flex;
-  width: fit-content;
-  max-width: 100%;
-  padding: 4px 8px;
-}
-
-.order-card__more {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-hint);
-  padding-top: 8px;
-}
-
-.order-card__order-no {
-  color: var(--color-text-hint);
-  font-size: 12px;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.order-card__pay {
-  color: var(--color-text-primary);
-  font-size: 13px;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
 .orders-empty {
   min-height: 280px;
   display: flex;
@@ -466,12 +255,5 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 10px;
-}
-
-.order-actions :deep(.van-button--small) {
-  min-width: 84px;
-  height: 36px;
-  border-radius: 999px !important;
-  font-weight: 800;
 }
 </style>

@@ -1,175 +1,112 @@
 <template>
   <PageLayout title="我的店铺资料" show-back @back="goBack">
     <LoadingView v-if="loading" />
-
-    <ErrorView
-      v-else-if="error"
-      :message="error"
-      show-retry
-      @retry="fetchStore"
-    />
+    <ErrorView v-else-if="error" :message="error" show-retry @retry="fetchStore" />
 
     <template v-else-if="store">
-      <!-- 展示模式 — demo form-card + field 布局 -->
-      <template v-if="!editing">
-        <div class="store-display">
-          <div class="form-card">
-            <div class="form-title">店铺信息</div>
-            <div class="field">
-              <label>店铺名称</label>
-              <span class="value">{{ store.name }}</span>
-              <b class="muted"></b>
-            </div>
-            <div class="field">
-              <label>Logo URL</label>
-              <span class="value">{{ store.logoUrl || '-' }}</span>
-              <b class="muted"></b>
-            </div>
-            <div class="field">
-              <label>店铺简介</label>
-              <span class="value">{{ store.description || '暂无简介' }}</span>
-              <b class="muted"></b>
-            </div>
-            <div class="field">
-              <label>默认物流</label>
-              <span class="value">{{ getDeliveryTypeText(store.defaultDeliveryType) }}</span>
-              <b class="muted">›</b>
-            </div>
-          </div>
+      <!-- 展示模式 -->
+      <div v-if="!editing" class="store-display">
+        <AppFormCard title="店铺信息">
+          <AppFormRow label="店铺名称">{{ store.name }}</AppFormRow>
+          <AppFormRow label="Logo URL">{{ store.logoUrl || '-' }}</AppFormRow>
+          <AppFormRow label="店铺简介">{{ store.description || '暂无简介' }}</AppFormRow>
+          <AppFormRow label="默认物流" arrow>{{ getDeliveryTypeText(store.defaultDeliveryType) }}</AppFormRow>
+        </AppFormCard>
 
-          <div class="page-note">控件：店铺名称、logo、简介、默认物流方式、保存按钮。</div>
-        </div>
+        <AppPageNote variant="info" text="修改店铺资料会同步影响团长主页展示" />
+      </div>
 
-        <div class="fixed-actions single">
-          <button class="btn primary" @click="startEdit">编辑资料</button>
-        </div>
-      </template>
+      <!-- 编辑模式 — AppFormCard + AppButton + AppFixedActions -->
+      <div v-else class="store-edit">
+        <AppFormCard title="编辑店铺信息">
+          <AppFormRow label="店铺名称">
+            <van-field v-model="editForm.name" placeholder="请输入店铺名称" :rules="nameRules" />
+          </AppFormRow>
+          <AppFormRow label="Logo 链接">
+            <van-field v-model="editForm.logoUrl" placeholder="Logo URL（选填）" />
+          </AppFormRow>
+          <AppFormRow label="店铺简介">
+            <van-field v-model="editForm.description" placeholder="可选，介绍你的店铺" type="textarea" :maxlength="200" show-word-limit />
+          </AppFormRow>
+          <AppFormRow label="默认物流方式">
+            <template #control>
+              <div class="delivery-chips">
+                <span
+                  v-for="d in deliveryOptions"
+                  :key="d.value"
+                  :class="['chip', { active: editForm.defaultDeliveryType === d.value }]"
+                  @click="editForm.defaultDeliveryType = d.value"
+                >{{ d.label }}</span>
+              </div>
+            </template>
+          </AppFormRow>
+        </AppFormCard>
+      </div>
+    </template>
 
-      <!-- 编辑模式 — van-form -->
-      <template v-else>
-        <div class="edit-section">
-          <van-form @submit="handleSave">
-            <van-cell-group inset>
-              <van-field
-                v-model="editForm.name"
-                name="name"
-                label="店铺名称"
-                placeholder="请输入店铺名称"
-                :rules="[{ required: true, message: '请输入店铺名称' }]"
-                clearable
-              />
-              <van-field
-                v-model="editForm.logoUrl"
-                name="logoUrl"
-                label="Logo URL"
-                placeholder="Logo URL（选填）"
-                clearable
-              />
-              <van-field
-                v-model="editForm.description"
-                name="description"
-                label="店铺简介"
-                placeholder="请输入店铺简介（选填）"
-                type="textarea"
-                rows="3"
-                autosize
-                clearable
-              />
-            </van-cell-group>
-
-            <div class="edit-delivery-section">
-              <div class="edit-delivery-label">默认物流方式</div>
-              <van-radio-group v-model="editForm.defaultDeliveryType" direction="horizontal">
-                <van-radio name="express">快递配送</van-radio>
-                <van-radio name="pickup">到店自提</van-radio>
-                <van-radio name="local_delivery">同城配送</van-radio>
-              </van-radio-group>
-            </div>
-
-            <div class="edit-actions">
-              <van-button
-                type="primary"
-                block
-                round
-                native-type="submit"
-                :loading="submitting"
-                loading-text="保存中..."
-              >
-                保存
-              </van-button>
-              <van-button
-                block
-                round
-                plain
-                style="margin-top: 12px"
-                :disabled="submitting"
-                @click="cancelEdit"
-              >
-                取消
-              </van-button>
-            </div>
-          </van-form>
-        </div>
-      </template>
+    <!-- 固定底部操作栏 -->
+    <template v-if="store" #action>
+      <AppFixedActions v-if="!editing" single>
+        <AppButton variant="primary" @click="startEdit">编辑资料</AppButton>
+      </AppFixedActions>
+      <AppFixedActions v-else>
+        <AppButton variant="ghost" :disabled="submitting" @click="cancelEdit">取消</AppButton>
+        <AppButton variant="primary" :loading="submitting" @click="handleSave">保存</AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { getMyStore, updateMyStore } from '@/api/stores'
-import { getDeliveryTypeText, getStoreStatusText } from '@/utils/status'
+import { getDeliveryTypeText } from '@/utils/status'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
-import type { StoreInfo } from '@/types'
+import AppFormCard from '@/components/AppFormCard.vue'
+import AppFormRow from '@/components/AppFormRow.vue'
+import AppPageNote from '@/components/AppPageNote.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppButton from '@/components/AppButton.vue'
+import type { StoreResponseData } from '@/types'
 
 const router = useRouter()
-
-function goBack() { router.back() }
+const authStore = useAuthStore()
 
 const loading = ref(true)
 const error = ref<string | null>(null)
+const storeData = ref<StoreResponseData | null>(null)
+const store = computed(() => storeData.value?.store ?? null)
 const editing = ref(false)
 const submitting = ref(false)
-const store = ref<StoreInfo | null>(null)
 
-const editForm = ref({
+const deliveryOptions = [
+  { value: 'express', label: '快递配送' },
+  { value: 'pickup', label: '到店自提' },
+  { value: 'local_delivery', label: '同城配送' },
+]
+
+const nameRules = [
+  { required: true, message: '请输入店铺名称' },
+]
+
+const editForm = reactive({
   name: '',
   logoUrl: '',
   description: '',
   defaultDeliveryType: 'express',
 })
 
-async function fetchStore() {
-  loading.value = true
-  error.value = null
-  try {
-    const data = await getMyStore()
-    if (data && data.store) {
-      store.value = data.store
-    } else {
-      error.value = '暂无店铺信息'
-    }
-  } catch (err) {
-    const apiErr = err as { message?: string }
-    error.value = apiErr.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
-}
-
 function startEdit() {
   if (!store.value) return
-  editForm.value = {
-    name: store.value.name,
-    logoUrl: store.value.logoUrl || '',
-    description: store.value.description || '',
-    defaultDeliveryType: store.value.defaultDeliveryType,
-  }
+  editForm.name = store.value.name
+  editForm.logoUrl = store.value.logoUrl || ''
+  editForm.description = store.value.description || ''
+  editForm.defaultDeliveryType = store.value.defaultDeliveryType
   editing.value = true
 }
 
@@ -178,20 +115,22 @@ function cancelEdit() {
 }
 
 async function handleSave() {
+  if (!editForm.name.trim()) {
+    showToast('请输入店铺名称')
+    return
+  }
   submitting.value = true
   try {
-    const data = {
-      name: editForm.value.name.trim() || undefined,
-      logoUrl: editForm.value.logoUrl.trim() || null,
-      description: editForm.value.description.trim() || null,
-      defaultDeliveryType: editForm.value.defaultDeliveryType,
-    }
-    await updateMyStore(data)
+    await updateMyStore({
+      name: editForm.name.trim(),
+      logoUrl: editForm.logoUrl.trim() || null,
+      description: editForm.description.trim() || null,
+      defaultDeliveryType: editForm.defaultDeliveryType,
+    })
     showToast('保存成功')
-    const authStore = useAuthStore()
-    await authStore.fetchMe()
     editing.value = false
     await fetchStore()
+    await authStore.fetchMe()
   } catch (err) {
     const apiErr = err as { message?: string }
     showToast(apiErr.message || '保存失败')
@@ -200,48 +139,70 @@ async function handleSave() {
   }
 }
 
-onMounted(() => { fetchStore() })
+async function fetchStore() {
+  loading.value = true
+  error.value = null
+  try {
+    storeData.value = await getMyStore()
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    error.value = apiErr.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+function goBack() {
+  router.back()
+}
+
+onMounted(() => {
+  fetchStore()
+})
 </script>
 
 <style scoped>
-/* 展示模式 — 使用全局 .form-card / .field / .page-note / .fixed-actions 类 */
-.store-display {
-  padding: 0 14px 84px;  /* 为底部固定操作栏留空间 */
+.store-display,
+.store-edit {
+  padding: 14px 14px calc(var(--actionbar-height) + var(--safe-area-bottom) + 14px);
 }
 
-/* 编辑模式 */
-.edit-section {
-  padding: 12px 0;
+/* ── 配送方式 chips（可换行，44px 触控） ── */
+.delivery-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.edit-section :deep(.van-cell-group--inset) {
-  margin: 0 14px;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
-
-.edit-delivery-section {
-  padding: var(--spacing-lg) var(--spacing-lg) 0;
-  margin-top: var(--spacing-sm);
-  background: var(--color-bg-card);
-  border-radius: var(--radius-card);
-  margin-left: 14px;
-  margin-right: 14px;
-  box-shadow: var(--shadow-card);
-}
-
-.edit-delivery-label {
-  font-size: var(--font-size-md);
+.delivery-chips .chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 9px;
+  background: #f2f3f5;
   color: var(--color-text-secondary);
-  margin-bottom: 12px;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
 }
 
-.edit-actions {
-  padding: var(--spacing-xl) 14px;
+.delivery-chips .chip.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
 }
 
-.edit-actions :deep(.van-button) {
-  height: var(--button-capsule-height);
-  font-weight: 900;
+/* ── van-field 在 AppFormRow 内的适配 ── */
+.store-edit :deep(.van-cell) {
+  padding: 0;
+  min-height: 44px;
+}
+
+.store-edit :deep(.van-field__body textarea) {
+  min-height: 60px;
 }
 </style>

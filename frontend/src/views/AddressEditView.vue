@@ -11,15 +11,15 @@
       />
       <!-- 删除地址 -->
       <div class="address-edit__danger">
-        <button class="btn danger" :disabled="submitting" @click="handleDelete">
+        <AppButton variant="danger" block :disabled="submitting" @click="handleDelete">
           删除地址
-        </button>
+        </AppButton>
       </div>
     </div>
     <template v-if="address && !loading && !submitting" #action>
-      <div class="fixed-actions single">
-        <button class="btn primary" @click="handleSave">保存修改</button>
-      </div>
+      <AppFixedActions single>
+        <AppButton variant="primary" @click="handleSave">保存修改</AppButton>
+      </AppFixedActions>
     </template>
   </PageLayout>
 </template>
@@ -32,6 +32,8 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import AddressForm from '@/components/AddressForm.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
+import AppButton from '@/components/AppButton.vue'
 import { deleteAddress, listAddresses, updateAddress } from '@/api/addresses'
 import type { AddressData } from '@/types'
 
@@ -129,10 +131,5 @@ onMounted(() => {
 .address-edit__danger {
   padding: 0 14px 12px;
   margin-top: -4px;
-}
-
-.address-edit__danger .btn {
-  width: 100%;
-  height: 46px;
 }
 </style>

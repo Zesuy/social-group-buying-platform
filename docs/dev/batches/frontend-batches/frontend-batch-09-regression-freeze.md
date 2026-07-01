@@ -6,7 +6,7 @@
 
 ## 2. 前置条件
 
-Frontend Batch 00 到 Frontend Batch 08 均已完成；后端 Batch 10 已冻结；所有 MVP 页面和链路已有初始联调说明。
+Frontend Batch 00 到 Frontend Batch 08.5 均已完成；后端 Batch 10 已冻结；所有 MVP 页面和链路已有初始联调说明。
 
 ## 3. 涉及接口
 

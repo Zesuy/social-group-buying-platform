@@ -102,3 +102,69 @@ export function getOrderStatusText(status: string): string {
 export function getDeliveryTypeText(type: string): string {
   return deliveryTypeMap[type] ?? type
 }
+
+// ── 状态颜色/样式辅助 ──
+
+/**
+ * 获取订单状态对应的颜色值
+ */
+export function getOrderStatusColor(status: string): string {
+  switch (status) {
+    case 'pendingPay': return 'var(--color-price)'
+    case 'paid': return 'var(--color-primary)'
+    case 'shipped': return 'var(--color-primary)'
+    case 'completed': return 'var(--color-text-hint)'
+    case 'canceled': return 'var(--color-text-hint)'
+    default: return 'var(--color-text-hint)'
+  }
+}
+
+/**
+ * 获取订单状态对应的点颜色类名
+ */
+export function getOrderDotClass(status: string): string {
+  switch (status) {
+    case 'pendingPay': return 'dot--orange'
+    case 'paid':
+    case 'shipped': return 'dot--green'
+    case 'completed':
+    case 'canceled': return 'dot--gray'
+    default: return ''
+  }
+}
+
+/**
+ * 获取订单状态提示文案
+ */
+export function getOrderHintText(status: string): string {
+  switch (status) {
+    case 'pendingPay': return '待完成模拟支付，超时后订单将关闭'
+    case 'paid': return '已支付，等待团长发货'
+    case 'shipped': return '团长已发货，收到后可确认收货'
+    case 'completed': return '交易已完成'
+    case 'canceled': return '订单已取消'
+    default: return '订单处理中'
+  }
+}
+
+/**
+ * 获取团购状态对应的颜色值
+ */
+export function getGroupBuyStatusColor(status: string): string {
+  switch (status) {
+    case 'published': return 'var(--color-primary)'
+    case 'ended': return 'var(--color-text-hint)'
+    default: return 'var(--color-text-hint)'
+  }
+}
+
+/**
+ * 获取支付状态对应的颜色值
+ */
+export function getPayStatusColor(status: string): string {
+  switch (status) {
+    case 'unpaid': return 'var(--color-price)'
+    case 'paid': return 'var(--color-primary)'
+    default: return 'var(--color-text-hint)'
+  }
+}

@@ -4,10 +4,12 @@
       请选择开团类型
     </div>
 
-    <div class="notice-strip">
-      <span>打开提醒，官方活动早知道</span>
-      <button type="button" @click="onNoticeClick">设置</button>
-    </div>
+    <AppNoticeStrip
+      text="打开提醒，官方活动早知道"
+      action-label="设置"
+      variant="info"
+      @action="onNoticeClick"
+    />
 
     <div class="open-group-hero">
       <div class="open-group-hero__mark">
@@ -27,25 +29,25 @@
     </div>
 
     <div class="group-types-list">
-      <div
+      <AppCard
         v-for="type in groupTypes"
         :key="type.key"
-        :class="[
-          'group-type-item',
-          { 'group-type-item--disabled': !type.available },
-        ]"
+        :clickable="type.available"
+        :class="{ 'group-type-item--disabled': !type.available }"
         @click="onCardClick(type)"
       >
-        <div class="group-type-icon-wrap" :class="`group-type-icon-wrap--${type.key}`">
-          <van-icon :name="type.icon" class="group-type-icon" />
+        <div class="group-type-item-content">
+          <div class="group-type-icon-wrap" :class="`group-type-icon-wrap--${type.key}`">
+            <van-icon :name="type.icon" class="group-type-icon" />
+          </div>
+          <div class="group-type-copy">
+            <h2>{{ type.label }}</h2>
+            <p>{{ type.subtitle }}</p>
+          </div>
+          <span v-if="!type.available" class="group-type-tag">即将开放</span>
+          <van-icon name="arrow" class="group-type-arrow" />
         </div>
-        <div class="group-type-copy">
-          <h2>{{ type.label }}</h2>
-          <p>{{ type.subtitle }}</p>
-        </div>
-        <span v-if="!type.available" class="group-type-tag">即将开放</span>
-        <van-icon name="arrow" class="group-type-arrow" />
-      </div>
+      </AppCard>
     </div>
 
     <p class="open-group-rule" @click="onGuideClick('rule')">
@@ -69,6 +71,8 @@ import { showToast } from 'vant'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores'
 import PageLayout from '@/components/PageLayout.vue'
+import AppNoticeStrip from '@/components/AppNoticeStrip.vue'
+import AppCard from '@/components/AppCard.vue'
 import { isFeatureDisabled } from '@/utils/non-mvp'
 
 interface GroupType {
@@ -174,7 +178,6 @@ function onActionSelect(action: (typeof actionSheetActions)[number]) {
 </script>
 
 <style scoped>
-.notice-strip button,
 .open-group-hero__actions button {
   border: 1px solid #aeeccd;
   background: #fff;
@@ -219,20 +222,11 @@ function onActionSelect(action: (typeof actionSheetActions)[number]) {
   padding: 0 14px;
 }
 
-.group-type-item {
-  min-height: 76px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 13px;
-  margin-bottom: 10px;
+.group-type-item-content {
   display: flex;
   gap: 12px;
   align-items: center;
-  box-shadow: var(--shadow-card);
-}
-
-.group-type-item--disabled {
-  opacity: 0.62;
+  padding: 13px;
 }
 
 .group-type-icon-wrap {

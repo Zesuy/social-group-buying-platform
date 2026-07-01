@@ -1,10 +1,22 @@
-export { formatAmount, amountToYuan } from './format'
+export {
+  formatAmount,
+  amountToYuan,
+  formatDate,
+  formatDateTime,
+  formatQuantity,
+  formatPhone,
+} from './format'
 export {
   getStoreStatusText,
   getGroupBuyStatusText,
   getPayStatusText,
   getOrderStatusText,
   getDeliveryTypeText,
+  getOrderStatusColor,
+  getOrderHintText,
+  getOrderDotClass,
+  getGroupBuyStatusColor,
+  getPayStatusColor,
 } from './status'
 export type {
   StoreStatus,

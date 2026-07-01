@@ -1,9 +1,9 @@
 <template>
   <PageLayout title="商品管理" show-back @back="goBack">
     <template #action>
-      <div class="page-actions">
-        <van-button type="primary" round @click="goToNew">新建商品</van-button>
-      </div>
+      <AppFixedActions single>
+        <AppButton variant="primary" @click="goToNew">新建商品</AppButton>
+      </AppFixedActions>
     </template>
 
     <LoadingView v-if="firstLoading" />
@@ -11,8 +11,8 @@
 
     <div v-else class="products-content">
       <!-- 分类 + 新建（行内） -->
-      <div class="row between" style="margin-bottom:12px">
-        <div class="row" style="gap:10px;overflow:hidden">
+      <div class="row between mb-12">
+        <div class="row gap-10 overflow-hidden">
           <span
             v-for="c in chips"
             :key="c.key"
@@ -24,7 +24,7 @@
       </div>
 
       <!-- 搜索栏（demo .search） -->
-      <div class="marketplace-search" style="margin-bottom:14px">
+      <div class="marketplace-search mb-14">
         <van-icon name="search" size="16" />
         <span>搜索商品名称</span>
       </div>
@@ -39,32 +39,17 @@
           :immediate-check="false"
           @load="loadMore"
         >
-          <div
+          <ProductListItem
             v-for="product in items"
             :key="product.id"
-            class="list-item"
+            :item="product"
+            @click="goToDetail(product.id)"
           >
-            <div class="product-cover">
-              <img
-                v-if="product.coverImageUrl"
-                :src="product.coverImageUrl"
-                :alt="product.name"
-                class="product-cover__img"
-              />
-              <van-icon v-else name="photo" :size="24" color="var(--color-text-hint)" />
-            </div>
-            <div class="product-info">
-              <div class="product-info__name">{{ product.name }}</div>
-              <div class="product-info__desc muted">
-                库存 {{ product.stock }}｜{{ product.status === 'active' ? '已上架' : '已下架' }}
-              </div>
-              <div class="product-info__price">{{ formatAmount(product.basePriceAmount) }}</div>
-            </div>
-            <div class="product-actions">
-              <button class="btn ghost" @click="goToEdit(product.id)">编辑</button>
-              <button class="btn danger" @click="handleDelete(product)">删除</button>
-            </div>
-          </div>
+            <template #actions>
+              <AppButton variant="ghost" @click.stop="handleEdit(product)">编辑</AppButton>
+              <AppButton variant="danger" @click.stop="handleDelete(product)">删除</AppButton>
+            </template>
+          </ProductListItem>
 
           <EmptyState
             v-if="isEmpty"
@@ -84,9 +69,11 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import ProductListItem from '@/components/ProductListItem.vue'
+import AppButton from '@/components/AppButton.vue'
+import AppFixedActions from '@/components/AppFixedActions.vue'
 import { usePagination } from '@/composables/usePagination'
 import { listProducts, deleteProduct } from '@/api/products'
-import { formatAmount } from '@/utils'
 import type { ProductData } from '@/types'
 
 const router = useRouter()
@@ -116,9 +103,11 @@ const showError = computed(() => !!error.value && items.value.length === 0)
 
 function goBack() { router.back() }
 
+function goToDetail(id: string) { router.push(`/leader/products/${id}`) }
+
 function goToNew() { router.push('/leader/products/new') }
 
-function goToEdit(id: string) { router.push(`/leader/products/${id}/edit`) }
+function handleEdit(product: ProductData) { router.push(`/leader/products/${product.id}/edit`) }
 
 async function handleDelete(product: ProductData) {
   try {
@@ -167,53 +156,8 @@ onMounted(() => { load() })
   font-weight: 800;
 }
 
-.product-cover {
-  width: 72px;
-  height: 72px;
-  border-radius: 8px;
-  background: var(--color-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.product-cover__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.product-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.product-info__name {
-  font-size: var(--font-size-md);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  line-height: 1.35;
-}
-
-.product-info__desc {
-  font-size: var(--font-size-sm);
-}
-
-.product-info__price {
-  font-size: var(--font-size-lg);
-  color: var(--color-price);
-  font-weight: 900;
-}
-
-.product-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex-shrink: 0;
-}
+.mb-12 { margin-bottom: 12px; }
+.gap-10 { gap: 10px; }
+.overflow-hidden { overflow: hidden; }
+.mb-14 { margin-bottom: 14px; }
 </style>

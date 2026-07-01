@@ -5,6 +5,11 @@ import {
   getPayStatusText,
   getOrderStatusText,
   getDeliveryTypeText,
+  getOrderStatusColor,
+  getOrderHintText,
+  getOrderDotClass,
+  getGroupBuyStatusColor,
+  getPayStatusColor,
 } from '@/utils/status'
 
 describe('getStoreStatusText', () => {
@@ -70,5 +75,45 @@ describe('getDeliveryTypeText', () => {
 
   it('should return the original value for unknown type', () => {
     expect(getDeliveryTypeText('unknown')).toBe('unknown')
+  })
+})
+
+describe('getOrderStatusColor', () => {
+  it('should return correct color for known statuses', () => {
+    expect(getOrderStatusColor('pendingPay')).toBe('var(--color-price)')
+    expect(getOrderStatusColor('paid')).toBe('var(--color-primary)')
+    expect(getOrderStatusColor('completed')).toBe('var(--color-text-hint)')
+  })
+})
+
+describe('getOrderHintText', () => {
+  it('should return correct hints for order statuses', () => {
+    expect(getOrderHintText('pendingPay')).toContain('模拟支付')
+    expect(getOrderHintText('paid')).toContain('等待团长发货')
+    expect(getOrderHintText('shipped')).toContain('确认收货')
+    expect(getOrderHintText('completed')).toContain('已完成')
+    expect(getOrderHintText('canceled')).toContain('已取消')
+  })
+})
+
+describe('getOrderDotClass', () => {
+  it('should return correct dot class', () => {
+    expect(getOrderDotClass('pendingPay')).toBe('dot--orange')
+    expect(getOrderDotClass('paid')).toBe('dot--green')
+    expect(getOrderDotClass('completed')).toBe('dot--gray')
+  })
+})
+
+describe('getGroupBuyStatusColor', () => {
+  it('should return correct color', () => {
+    expect(getGroupBuyStatusColor('published')).toBe('var(--color-primary)')
+    expect(getGroupBuyStatusColor('ended')).toBe('var(--color-text-hint)')
+  })
+})
+
+describe('getPayStatusColor', () => {
+  it('should return correct color', () => {
+    expect(getPayStatusColor('unpaid')).toBe('var(--color-price)')
+    expect(getPayStatusColor('paid')).toBe('var(--color-primary)')
   })
 })
