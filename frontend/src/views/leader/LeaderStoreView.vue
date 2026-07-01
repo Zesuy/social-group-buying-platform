@@ -1,5 +1,5 @@
 <template>
-  <PageLayout title="我的店铺" show-back @back="goBack">
+  <PageLayout title="我的店铺资料" show-back @back="goBack">
     <LoadingView v-if="loading" />
 
     <ErrorView
@@ -10,43 +10,42 @@
     />
 
     <template v-else-if="store">
-      <!-- 展示模式 -->
+      <!-- 展示模式 — demo form-card + field 布局 -->
       <template v-if="!editing">
-        <div class="store-header">
-          <van-image
-            v-if="store.logoUrl"
-            :src="store.logoUrl"
-            class="store-logo"
-            round
-            fit="cover"
-          />
-          <van-icon v-else name="shop" class="store-logo store-logo--placeholder" />
-          <h1 class="store-name">{{ store.name }}</h1>
+        <div class="store-display">
+          <div class="form-card">
+            <div class="form-title">店铺信息</div>
+            <div class="field">
+              <label>店铺名称</label>
+              <span class="value">{{ store.name }}</span>
+              <b class="muted"></b>
+            </div>
+            <div class="field">
+              <label>Logo URL</label>
+              <span class="value">{{ store.logoUrl || '-' }}</span>
+              <b class="muted"></b>
+            </div>
+            <div class="field">
+              <label>店铺简介</label>
+              <span class="value">{{ store.description || '暂无简介' }}</span>
+              <b class="muted"></b>
+            </div>
+            <div class="field">
+              <label>默认物流</label>
+              <span class="value">{{ getDeliveryTypeText(store.defaultDeliveryType) }}</span>
+              <b class="muted">›</b>
+            </div>
+          </div>
+
+          <div class="page-note">控件：店铺名称、logo、简介、默认物流方式、保存按钮。</div>
         </div>
 
-        <div class="store-info-section">
-          <div class="store-info-row">
-            <span class="store-info-label">店铺简介</span>
-            <span class="store-info-value">{{ store.description || '暂无简介' }}</span>
-          </div>
-          <div class="store-info-row">
-            <span class="store-info-label">默认物流方式</span>
-            <span class="store-info-value">{{ getDeliveryTypeText(store.defaultDeliveryType) }}</span>
-          </div>
-          <div class="store-info-row">
-            <span class="store-info-label">店铺状态</span>
-            <span class="store-info-value">{{ getStoreStatusText(store.status) }}</span>
-          </div>
-        </div>
-
-        <div class="store-actions">
-          <van-button type="primary" block round @click="startEdit">
-            编辑资料
-          </van-button>
+        <div class="fixed-actions single">
+          <button class="btn primary" @click="startEdit">编辑资料</button>
         </div>
       </template>
 
-      <!-- 编辑模式 -->
+      <!-- 编辑模式 — van-form -->
       <template v-else>
         <div class="edit-section">
           <van-form @submit="handleSave">
@@ -130,9 +129,7 @@ import type { StoreInfo } from '@/types'
 
 const router = useRouter()
 
-function goBack() {
-  router.back()
-}
+function goBack() { router.back() }
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -191,11 +188,9 @@ async function handleSave() {
     }
     await updateMyStore(data)
     showToast('保存成功')
-    // Refresh auth store
     const authStore = useAuthStore()
     await authStore.fetchMe()
     editing.value = false
-    // Re-fetch store data
     await fetchStore()
   } catch (err) {
     const apiErr = err as { message?: string }
@@ -205,88 +200,16 @@ async function handleSave() {
   }
 }
 
-onMounted(() => {
-  fetchStore()
-})
+onMounted(() => { fetchStore() })
 </script>
 
 <style scoped>
-.store-header {
-  text-align: center;
-  padding: var(--spacing-xl) var(--spacing-lg);
-  background: var(--color-primary-deep);
-  border-radius: var(--radius-card);
-  margin: 12px 14px;
-  color: #fff;
-  box-shadow: var(--shadow-card);
+/* 展示模式 — 使用全局 .form-card / .field / .page-note / .fixed-actions 类 */
+.store-display {
+  padding: 0 14px 84px;  /* 为底部固定操作栏留空间 */
 }
 
-.store-logo {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.store-logo--placeholder {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40px;
-  color: var(--color-text-hint);
-  background-color: var(--color-bg-surface);
-  border-radius: 50%;
-}
-
-.store-name {
-  font-size: var(--font-size-xxl);
-  font-weight: 900;
-  margin-top: 12px;
-  color: #fff;
-}
-
-.store-info-section {
-  background: var(--color-bg-card);
-  padding: 14px;
-  margin: 0 14px 12px;
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-  border: 1px solid rgba(237, 240, 242, 0.72);
-}
-
-.store-info-row {
-  display: flex;
-  padding: 8px 0;
-  align-items: flex-start;
-}
-
-.store-info-row + .store-info-row {
-  border-top: 1px solid var(--color-border);
-}
-
-.store-info-label {
-  width: 100px;
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-md);
-}
-
-.store-info-value {
-  flex: 1;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-md);
-  word-break: break-all;
-}
-
-.store-actions {
-  padding: var(--spacing-xl) 14px;
-}
-
-.store-actions :deep(.van-button) {
-  height: var(--button-capsule-height);
-  font-weight: 900;
-}
-
+/* 编辑模式 */
 .edit-section {
   padding: 12px 0;
 }

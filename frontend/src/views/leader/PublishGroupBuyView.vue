@@ -277,7 +277,7 @@ async function handleSubmit() {
 <style scoped>
 /* ===== demo 视觉复刻 ===== */
 .publish-content {
-  padding-bottom: 80px;
+  padding: 0 14px 80px;
 }
 
 /* 通告条 */

@@ -335,4 +335,10 @@ async function handleLogout() {
   height: var(--button-capsule-height);
   font-weight: 900;
 }
+
+.stat-row {
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  margin: 12px 14px;
+}
 </style>

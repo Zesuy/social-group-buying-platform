@@ -139,7 +139,7 @@ onMounted(() => { fetchDetail() })
 </script>
 
 <style scoped>
-.detail-content { padding: 0 0 80px; }
+.detail-content { padding: 14px 14px 80px; }
 .card { background:#fff; border-radius:14px; margin-bottom:12px; box-shadow:0 1px 0 rgba(0,0,0,.03); }
 .pad { padding:14px; }
 .between { display:flex; align-items:center; justify-content:space-between; gap:8px; }

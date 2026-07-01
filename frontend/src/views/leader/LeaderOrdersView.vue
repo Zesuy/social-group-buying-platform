@@ -71,15 +71,18 @@ watch(activeTab, () => { load() })
 </script>
 
 <style scoped>
-.orders-content { background: var(--color-bg); min-height: 200px; }
+.orders-content { background: var(--color-bg); min-height: 200px; padding: 14px; }
+
+/* ── Tab 样式覆写 — demo .tabs 视觉 ── */
+.orders-content :deep(.van-tabs__wrap) { background:#fff; height:54px; }
+.orders-content :deep(.van-tab) { font-size:18px; color:#60646c; padding-bottom:13px; }
+.orders-content :deep(.van-tab--active) { color:#111; font-weight:900; }
+.orders-content :deep(.van-tabs__line) { background:var(--color-primary); height:3px; border-radius:6px; bottom:9px; }
+
+/* ── 订单卡片 ── */
 .order-card { background:#fff; border-radius:14px; margin-bottom:12px; overflow:hidden; box-shadow:0 1px 0 rgba(0,0,0,.03); }
 .order-head { padding:12px 14px; border-bottom:1px solid #edf0f2; display:flex; align-items:center; justify-content:space-between; font-size:13px; }
 .order-body { padding:12px 14px; }
-.row { display:flex; align-items:center; }
-.grow { flex:1; }
-.muted { color:#969ca5; }
-.fake-img-sm { width:44px; height:44px; border-radius:8px; background:linear-gradient(145deg,#dcefe0,#a1c49f); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; flex:none; font-size:16px; }
+.fake-img-sm { width:72px; height:72px; border-radius:8px; background:linear-gradient(145deg,#dcefe0,#a1c49f); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; flex:none; font-size:20px; }
 .status-chip { background:#eafaf1; color:var(--color-primary); padding:4px 8px; border-radius:99px; font-size:12px; font-weight:900; white-space:nowrap; }
-.btn { border:0; background:#fff; border-radius:9px; padding:8px 14px; font-weight:800; color:var(--color-primary); border:1px solid #aeeccd; display:inline-flex; align-items:center; justify-content:center; font-size:13px; }
-.btn.primary { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
 </style>

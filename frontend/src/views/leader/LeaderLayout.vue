@@ -1,37 +1,18 @@
 <template>
   <div class="leader-layout">
-    <div class="leader-header">
-      <van-nav-bar :title="route.meta.title as string" left-arrow @click-left="goBack" />
-    </div>
-    <div class="leader-content">
-      <router-view />
-    </div>
+    <router-view />
   </div>
 </template>
 
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
-
-const route = useRoute()
-const router = useRouter()
-
-function goBack() {
-  router.back()
-}
+// 子视图通过各自的 PageLayout 管理布局和导航栏
 </script>
 
 <style scoped>
 .leader-layout {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--color-bg);
-}
-
-.leader-header :deep(.van-nav-bar) {
-  box-shadow: var(--shadow-nav);
-}
-
-.leader-content {
-  padding: 12px 14px;
 }
 </style>

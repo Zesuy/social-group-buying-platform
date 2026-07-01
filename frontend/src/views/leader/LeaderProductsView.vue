@@ -10,6 +10,25 @@
     <ErrorView v-else-if="showError" :message="error ?? undefined" @retry="load" />
 
     <div v-else class="products-content">
+      <!-- 分类 + 新建（行内） -->
+      <div class="row between" style="margin-bottom:12px">
+        <div class="row" style="gap:10px;overflow:hidden">
+          <span
+            v-for="c in chips"
+            :key="c.key"
+            class="chip"
+            :class="{ active: selectedChip === c.key }"
+            @click="selectedChip = c.key"
+          >{{ c.label }}</span>
+        </div>
+      </div>
+
+      <!-- 搜索栏（demo .search） -->
+      <div class="marketplace-search" style="margin-bottom:14px">
+        <van-icon name="search" size="16" />
+        <span>搜索商品名称</span>
+      </div>
+
       <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
         <van-list
           :loading="loading"
@@ -23,34 +42,34 @@
           <div
             v-for="product in items"
             :key="product.id"
-            class="product-card"
+            class="list-item"
           >
-            <div class="product-card__cover">
+            <div class="product-cover">
               <img
                 v-if="product.coverImageUrl"
                 :src="product.coverImageUrl"
                 :alt="product.name"
-                class="product-card__cover-img"
+                class="product-cover__img"
               />
-              <van-icon v-else name="photo" :size="40" color="var(--color-text-hint)" />
+              <van-icon v-else name="photo" :size="24" color="var(--color-text-hint)" />
             </div>
-            <div class="product-card__info">
-              <div class="product-card__name">{{ product.name }}</div>
-              <div class="product-card__price">{{ formatAmount(product.basePriceAmount) }}</div>
-              <div class="product-card__meta">
-                <span>库存：{{ product.stock }}</span>
-                <van-tag :type="product.status === 'active' ? 'success' : 'default'">
-                  {{ product.status === 'active' ? '上架' : '下架' }}
-                </van-tag>
+            <div class="product-info">
+              <div class="product-info__name">{{ product.name }}</div>
+              <div class="product-info__desc muted">
+                库存 {{ product.stock }}｜{{ product.status === 'active' ? '已上架' : '已下架' }}
               </div>
+              <div class="product-info__price">{{ formatAmount(product.basePriceAmount) }}</div>
             </div>
-            <div class="product-card__actions">
-              <van-button round @click="goToEdit(product.id)">编辑</van-button>
-              <van-button round type="danger" @click="handleDelete(product)">删除</van-button>
+            <div class="product-actions">
+              <button class="btn ghost" @click="goToEdit(product.id)">编辑</button>
+              <button class="btn danger" @click="handleDelete(product)">删除</button>
             </div>
           </div>
 
-          <EmptyState v-if="isEmpty" description="暂无商品" />
+          <EmptyState
+            v-if="isEmpty"
+            description="暂无商品"
+          />
         </van-list>
       </van-pull-refresh>
     </div>
@@ -58,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
@@ -71,6 +90,13 @@ import { formatAmount } from '@/utils'
 import type { ProductData } from '@/types'
 
 const router = useRouter()
+
+const chips = [
+  { key: 'all', label: '全部' },
+  { key: 'active', label: '上架' },
+  { key: 'inactive', label: '下架' },
+]
+const selectedChip = ref('all')
 
 const {
   items,
@@ -88,17 +114,11 @@ const {
 const firstLoading = computed(() => !initialized.value && loading.value)
 const showError = computed(() => !!error.value && items.value.length === 0)
 
-function goBack() {
-  router.back()
-}
+function goBack() { router.back() }
 
-function goToNew() {
-  router.push('/leader/products/new')
-}
+function goToNew() { router.push('/leader/products/new') }
 
-function goToEdit(id: string) {
-  router.push(`/leader/products/${id}/edit`)
-}
+function goToEdit(id: string) { router.push(`/leader/products/${id}/edit`) }
 
 async function handleDelete(product: ProductData) {
   try {
@@ -106,9 +126,7 @@ async function handleDelete(product: ProductData) {
       title: '确认删除',
       message: `确定要删除商品「${product.name}」吗？此操作不可恢复。`,
     })
-  } catch {
-    return
-  }
+  } catch { return }
   try {
     await deleteProduct(product.id)
     showToast('删除成功')
@@ -121,40 +139,37 @@ async function handleDelete(product: ProductData) {
 
 async function onRefresh() {
   await refresh()
-  if (error.value) {
-    showToast('刷新失败')
-  }
+  if (error.value) showToast('刷新失败')
 }
 
-onMounted(() => {
-  load()
-})
+onMounted(() => { load() })
 </script>
 
 <style scoped>
-.page-actions {
-  padding: 8px 14px;
+.page-actions { padding: 8px 14px; }
+
+.products-content { padding: 14px; background: var(--color-bg); min-height: 200px; }
+
+/* chips 筛选 */
+.chip {
+  background: #fff;
+  border-radius: 8px;
+  padding: 9px 18px;
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.chip.active {
+  background: #dff8eb;
+  color: var(--color-primary);
+  font-weight: 800;
 }
 
-.products-content {
-  padding: 0 14px;
-  background: var(--color-bg);
-  min-height: 200px;
-}
-
-.product-card {
-  background: var(--color-bg-white);
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 10px;
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.product-card__cover {
-  width: 80px;
-  height: 80px;
+.product-cover {
+  width: 72px;
+  height: 72px;
   border-radius: 8px;
   background: var(--color-bg);
   display: flex;
@@ -164,50 +179,41 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.product-card__cover-img {
+.product-cover__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.product-card__info {
+.product-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.product-card__name {
+.product-info__name {
   font-size: var(--font-size-md);
-  font-weight: 900;
+  font-weight: 700;
   color: var(--color-text-primary);
-  margin-bottom: 4px;
+  line-height: 1.35;
 }
 
-.product-card__price {
+.product-info__desc {
   font-size: var(--font-size-sm);
+}
+
+.product-info__price {
+  font-size: var(--font-size-lg);
   color: var(--color-price);
   font-weight: 900;
-  margin-bottom: 4px;
 }
 
-.product-card__meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-hint);
-}
-
-.product-card__actions {
+.product-actions {
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex-shrink: 0;
-}
-
-.product-card__actions :deep(.van-button--small) {
-  min-width: 56px;
-  height: 32px;
-  border-radius: 999px !important;
-  font-size: 12px;
 }
 </style>

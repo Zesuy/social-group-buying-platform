@@ -140,6 +140,7 @@ onMounted(() => {
 .group-buys-content {
   background: var(--color-bg);
   min-height: 200px;
+  padding-top: 14px;
 }
 
 .gb-card {
@@ -147,8 +148,9 @@ onMounted(() => {
   gap: 12px;
   padding: 14px;
   background: var(--color-bg-white);
-  border-radius: 10px;
+  border-radius: 12px;
   margin: 0 14px 10px;
+  box-shadow: var(--shadow-card);
   cursor: pointer;
 }
 
