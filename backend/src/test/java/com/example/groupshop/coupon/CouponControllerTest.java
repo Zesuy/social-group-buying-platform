@@ -22,6 +22,7 @@ class CouponControllerTest extends MockMvcTestBase {
     private static final String MY_COUPONS_URL = "/api/v1/my/coupons";
 
     private static int testCounter = 0;
+    private static int phoneCounter = 0;
 
     private String leaderToken;
     private String buyerToken;
@@ -66,7 +67,8 @@ class CouponControllerTest extends MockMvcTestBase {
     @BeforeEach
     void setUp() throws Exception {
         // Create leader with store
-        String leaderPhone = "13800030001";
+        int phoneSuffix = ++phoneCounter;
+        String leaderPhone = "1393001" + String.format("%04d", phoneSuffix);
         leaderToken = loginAndGetToken(leaderPhone);
 
         mockMvc.perform(post(STORES_URL)
@@ -80,7 +82,7 @@ class CouponControllerTest extends MockMvcTestBase {
                                 """));
 
         // Create buyer
-        String buyerPhone = "13800030002";
+        String buyerPhone = "1393002" + String.format("%04d", phoneSuffix);
         buyerToken = loginAndGetToken(buyerPhone);
     }
 
