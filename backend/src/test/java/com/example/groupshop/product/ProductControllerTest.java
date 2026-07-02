@@ -27,6 +27,7 @@ class ProductControllerTest extends MockMvcTestBase {
     private static final String MOCK_LOGIN_URL = "/api/v1/auth/mock-login";
     private static final String PRODUCTS_URL = "/api/v1/my/store/products";
     private static final String STORES_URL = "/api/v1/stores";
+    private static final String GROUP_BUYS_URL = "/api/v1/my/store/group-buys";
 
     @Autowired
     private UserMapper userMapper;
@@ -74,7 +75,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                     "description": "山东蒙阴产地直发",
                                     "coverImageUrl": "https://example.com/product.png",
                                     "basePriceAmount": 2990,
-                                    "stock": 100
+                                    "stock": 100,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -97,7 +99,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "商品",
                                     "basePriceAmount": 1000,
-                                    "stock": 10
+                                    "stock": 10,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andExpect(status().isUnauthorized())
@@ -113,7 +116,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "商品",
                                     "basePriceAmount": 1000,
-                                    "stock": 10
+                                    "stock": 10,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andExpect(status().isForbidden())
@@ -129,7 +133,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "",
                                     "basePriceAmount": 1000,
-                                    "stock": 10
+                                    "stock": 10,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
@@ -145,7 +150,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "商品",
                                     "basePriceAmount": -1,
-                                    "stock": 10
+                                    "stock": 10,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
@@ -196,7 +202,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "详情测试商品",
                                     "basePriceAmount": 2990,
-                                    "stock": 50
+                                    "stock": 50,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
@@ -233,7 +240,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                     "name": "原始名称",
                                     "description": "原始简介",
                                     "basePriceAmount": 1000,
-                                    "stock": 10
+                                    "stock": 10,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
@@ -282,7 +290,8 @@ class ProductControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "待删除商品",
                                     "basePriceAmount": 1000,
-                                    "stock": 10
+                                    "stock": 10,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
@@ -307,5 +316,123 @@ class ProductControllerTest extends MockMvcTestBase {
                         .header("Authorization", "Bearer " + leaderToken))
                 .andExpect(status().isNotFound())
                 .andExpectAll(errorResult("RESOURCE_NOT_FOUND"));
+    }
+
+    // ── POST with categoryId ───────────────────────────────────────────
+
+    @Test
+    void createProduct_shouldFailWhenCategoryIdInvalid() throws Exception {
+        mockMvc.perform(post(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "无效分类商品",
+                                    "basePriceAmount": 1000,
+                                    "stock": 10,
+                                    "categoryId": 99999
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    // ── GET /api/v1/my/store/products — filtering ──────────────────────
+
+    @Test
+    void listProducts_shouldSupportKeywordFilter() throws Exception {
+        // Use a very specific keyword to avoid matching other test data
+        mockMvc.perform(post(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "UniqueKeywordProduct-ABC123",
+                                    "basePriceAmount": 1000,
+                                    "stock": 10,
+                                    "categoryId": 1
+                                }
+                                """));
+
+        mockMvc.perform(get(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .param("keyword", "UniqueKeywordProduct"))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].name").value("UniqueKeywordProduct-ABC123"));
+    }
+
+    @Test
+    void listProducts_shouldSupportCategoryIdFilter() throws Exception {
+        Long categoryId = 1L;
+
+        mockMvc.perform(post(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "分类商品",
+                                    "basePriceAmount": 1000,
+                                    "stock": 10,
+                                    "categoryId": 1
+                                }
+                                """));
+
+        mockMvc.perform(get(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .param("categoryId", String.valueOf(categoryId)))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items").isArray());
+    }
+
+    // ── GET /api/v1/my/store/products/{productId}/usages ────────────────
+
+    @Test
+    void getProductUsages_shouldReturnUsages() throws Exception {
+        // Create a product
+        String createResponse = mockMvc.perform(post(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "团购商品",
+                                    "basePriceAmount": 1000,
+                                    "stock": 100,
+                                    "categoryId": 1
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long productId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Create a group buy that uses this product
+        mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "关联团购",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "productId": %d,
+                                            "displayName": "团购商品",
+                                            "groupPriceAmount": 1990,
+                                            "groupStock": 50
+                                        }
+                                    ]
+                                }
+                                """.formatted(productId)));
+
+        // Get usages
+        mockMvc.perform(get(PRODUCTS_URL + "/" + productId + "/usages")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("关联团购"));
     }
 }

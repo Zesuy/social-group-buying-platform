@@ -27,4 +27,8 @@ public class CreateProductRequest {
     @NotNull
     @Min(0)
     private Integer stock;
+
+    /** 商品分类ID，独立创建商品时必须指定 */
+    @NotNull
+    private Long categoryId;
 }

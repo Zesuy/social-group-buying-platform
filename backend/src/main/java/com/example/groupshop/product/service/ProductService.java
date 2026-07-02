@@ -2,15 +2,21 @@ package com.example.groupshop.product.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.groupshop.category.service.CategoryService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.common.util.CurrentStoreHelper;
+import com.example.groupshop.model.entity.GroupBuy;
+import com.example.groupshop.model.entity.GroupBuyItem;
 import com.example.groupshop.model.entity.Product;
 import com.example.groupshop.model.entity.Store;
+import com.example.groupshop.model.mapper.GroupBuyItemMapper;
+import com.example.groupshop.model.mapper.GroupBuyMapper;
 import com.example.groupshop.model.mapper.ProductMapper;
 import com.example.groupshop.product.dto.CreateProductRequest;
 import com.example.groupshop.product.dto.ProductResponse;
+import com.example.groupshop.product.dto.ProductUsageResponse;
 import com.example.groupshop.product.dto.UpdateProductRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,7 +33,10 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final ProductMapper productMapper;
+    private final GroupBuyItemMapper groupBuyItemMapper;
+    private final GroupBuyMapper groupBuyMapper;
     private final CurrentStoreHelper currentStoreHelper;
+    private final CategoryService categoryService;
 
     /**
      * Create a product for the current user's store.
@@ -37,6 +46,11 @@ public class ProductService {
         var leaderAndStore = currentStoreHelper.getLeaderAndStore(userId);
         Store store = leaderAndStore.getStore();
 
+        // Validate categoryId is active
+        if (!categoryService.isActiveCategory(request.getCategoryId())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "商品分类不存在或已失效");
+        }
+
         Product product = new Product();
         product.setStoreId(store.getId());
         product.setName(request.getName());
@@ -44,6 +58,7 @@ public class ProductService {
         product.setCoverImageUrl(request.getCoverImageUrl());
         product.setBasePriceAmount(request.getBasePriceAmount());
         product.setStock(request.getStock());
+        product.setCategoryId(request.getCategoryId());
         product.setStatus("active");
         productMapper.insert(product);
 
@@ -51,17 +66,32 @@ public class ProductService {
     }
 
     /**
-     * List products for the current user's store (excluding soft-deleted).
+     * List products for the current user's store with optional filtering.
      */
-    public PageResponse<ProductResponse> getMyStoreProducts(Long userId, int page, int pageSize) {
+    public PageResponse<ProductResponse> getMyStoreProducts(Long userId, String keyword, Long categoryId,
+                                                              String status, int page, int pageSize) {
         var leaderAndStore = currentStoreHelper.getLeaderAndStore(userId);
         Store store = leaderAndStore.getStore();
 
         Page<Product> pageObj = new Page<>(page, pageSize);
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
                 .eq(Product::getStoreId, store.getId())
-                .ne(Product::getStatus, "deleted")
                 .orderByDesc(Product::getCreatedAt);
+
+        // When no explicit status filter, exclude soft-deleted by default
+        if (status == null || status.isEmpty()) {
+            wrapper.ne(Product::getStatus, "deleted");
+        } else {
+            wrapper.eq(Product::getStatus, status);
+        }
+
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(Product::getName, keyword)
+                    .or().like(Product::getDescription, keyword));
+        }
+        if (categoryId != null) {
+            wrapper.eq(Product::getCategoryId, categoryId);
+        }
 
         Page<Product> result = productMapper.selectPage(pageObj, wrapper);
         List<ProductResponse> items = result.getRecords().stream()
@@ -101,6 +131,12 @@ public class ProductService {
         if (request.getStock() != null) {
             product.setStock(request.getStock());
         }
+        if (request.getCategoryId() != null) {
+            if (!categoryService.isActiveCategory(request.getCategoryId())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "商品分类不存在或已失效");
+            }
+            product.setCategoryId(request.getCategoryId());
+        }
 
         productMapper.updateById(product);
         return toProductResponse(product);
@@ -114,6 +150,54 @@ public class ProductService {
         Product product = findProductForStore(userId, productId);
         product.setStatus("deleted");
         productMapper.updateById(product);
+    }
+
+    /**
+     * List group buy usages for a product in the current store.
+     */
+    public PageResponse<ProductUsageResponse> getProductUsages(Long userId, Long productId, int page, int pageSize) {
+        var leaderAndStore = currentStoreHelper.getLeaderAndStore(userId);
+        Store store = leaderAndStore.getStore();
+
+        // Verify product exists and belongs to current store
+        Product product = productMapper.selectById(productId);
+        if (product == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (!product.getStoreId().equals(store.getId())) {
+            throw new BusinessException(ErrorCode.STORE_FORBIDDEN);
+        }
+
+        // Find group buy items referencing this product
+        Page<GroupBuyItem> itemPage = new Page<>(page, pageSize);
+        LambdaQueryWrapper<GroupBuyItem> itemWrapper = new LambdaQueryWrapper<GroupBuyItem>()
+                .eq(GroupBuyItem::getProductId, productId)
+                .orderByDesc(GroupBuyItem::getCreatedAt);
+
+        Page<GroupBuyItem> itemResult = groupBuyItemMapper.selectPage(itemPage, itemWrapper);
+
+        List<ProductUsageResponse> usages = itemResult.getRecords().stream()
+                .map(item -> {
+                    GroupBuy gb = groupBuyMapper.selectById(item.getGroupBuyId());
+                    if (gb == null) return null;
+                    return ProductUsageResponse.builder()
+                            .groupBuyId(gb.getId())
+                            .title(gb.getTitle())
+                            .status(gb.getStatus())
+                            .itemId(item.getId())
+                            .displayName(item.getDisplayName())
+                            .groupPriceAmount(item.getGroupPriceAmount())
+                            .groupStock(item.getGroupStock())
+                            .soldCount(item.getSoldCount())
+                            .startAt(gb.getStartTime() != null ? gb.getStartTime().toString() : null)
+                            .endAt(gb.getEndTime() != null ? gb.getEndTime().toString() : null)
+                            .createdAt(item.getCreatedAt() != null ? item.getCreatedAt().toString() : null)
+                            .build();
+                })
+                .filter(u -> u != null)
+                .collect(Collectors.toList());
+
+        return PageResponse.of(usages, page, pageSize, itemResult.getTotal());
     }
 
     /**
@@ -145,6 +229,7 @@ public class ProductService {
                 .coverImageUrl(product.getCoverImageUrl())
                 .basePriceAmount(product.getBasePriceAmount())
                 .stock(product.getStock())
+                .categoryId(product.getCategoryId())
                 .status(product.getStatus())
                 .build();
     }

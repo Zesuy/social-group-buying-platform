@@ -107,7 +107,8 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "蜜桃",
                                     "basePriceAmount": 2990,
-                                    "stock": 100
+                                    "stock": 100,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();
@@ -188,7 +189,8 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "别人商品",
                                     "basePriceAmount": 1000,
-                                    "stock": 10
+                                    "stock": 10,
+                                    "categoryId": 1
                                 }
                                 """))
                 .andReturn().getResponse().getContentAsString();

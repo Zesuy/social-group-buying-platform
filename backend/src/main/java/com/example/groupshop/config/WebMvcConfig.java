@@ -22,6 +22,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/v1/_test/**",
                         "/api/v1/group-buys",
                         "/api/v1/group-buys/**",
+                        "/api/v1/categories",
                         "/api/v1/leaders/*/homepage"
                 );
     }

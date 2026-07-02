@@ -1,6 +1,8 @@
 package com.example.groupshop.publicbrowsing;
 
 import com.example.groupshop.auth.TokenStore;
+import com.example.groupshop.common.enums.ErrorCode;
+import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.ApiResponse;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.groupbuy.service.GroupBuyService;
@@ -18,9 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Public browsing endpoints — authentication optional.
- *
- * <p>Batch 09 backfill: authenticated requests get real subscription status
- * in viewer.subscribed. Unauthenticated requests get {@code false}.
  */
 @RestController
 @RequestMapping("/api/v1")
@@ -36,19 +35,26 @@ public class PublicBrowsingController {
 
     /**
      * List public published group buys (首页团购列表).
-     * Note: this endpoint does NOT return per-item subscription status,
-     * so optional auth is not needed here.
+     * Supports keyword and categoryId filtering.
+     * Does NOT accept status parameter — returns VALIDATION_ERROR if passed.
      */
     @GetMapping("/group-buys")
     public ApiResponse<PageResponse<PublicGroupBuyItem>> listGroupBuys(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize) {
-        return ApiResponse.success(groupBuyService.getPublicGroupBuys(page, pageSize));
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String status) {
+        // Reject status parameter — public list does not support filtering by status
+        if (status != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "公共列表不支持 status 参数");
+        }
+        return ApiResponse.success(groupBuyService.getPublicGroupBuys(page, pageSize, keyword, categoryId));
     }
 
     /**
      * Get public group buy detail (团购详情).
-     * Supports optional Authorization header for real viewer.subscribed.
+     * Supports optional Authorization header for real viewer.subscribed and viewer.favorited.
      */
     @GetMapping("/group-buys/{groupBuyId}")
     public ApiResponse<GroupBuyDetailResponse> getGroupBuyDetail(
@@ -60,7 +66,6 @@ public class PublicBrowsingController {
 
     /**
      * Get leader homepage (团长主页).
-     * Supports optional Authorization header for real viewer.subscribed.
      */
     @GetMapping("/leaders/{leaderId}/homepage")
     public ApiResponse<LeaderHomepageResponse> getLeaderHomepage(
@@ -74,7 +79,6 @@ public class PublicBrowsingController {
 
     /**
      * Try to resolve a user ID from the request's Bearer token.
-     * Returns {@code null} if no valid token is present (not an error).
      */
     private Long resolveOptionalUserId(HttpServletRequest request) {
         String authHeader = request.getHeader(AUTHORIZATION_HEADER);

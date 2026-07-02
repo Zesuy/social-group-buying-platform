@@ -19,6 +19,9 @@ tags:
   - name: StoreOrder
   - name: Subscription
   - name: MemberCard
+  - name: Category
+  - name: Favorite
+  - name: BrowsingHistory
 paths:
   /api/v1/health:
     get:
@@ -151,6 +154,24 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by product name keyword
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter by category
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+          description: active / inactive / deleted
         - name: page
           in: query
           schema:
@@ -282,6 +303,44 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/store/products/{productId}/usages:
+    get:
+      tags:
+        - Product
+      summary: List group buys that reference this product.
+      operationId: getProductUsages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of group buys referencing this product.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductUsagePageSuccessResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '403':
@@ -451,6 +510,18 @@ paths:
       summary: List public published group buys.
       operationId: listPublicGroupBuys
       parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword search matching title, introduction, display name and product name
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter by product category
         - name: page
           in: query
           schema:
@@ -490,6 +561,70 @@ paths:
                 $ref: '#/components/schemas/GroupBuyDetailSuccessResponse'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/group-buys/{groupBuyId}/favorite:
+    post:
+      tags:
+        - Favorite
+      summary: Favorite a group buy.
+      operationId: favorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+      responses:
+        '200':
+          description: Favorited successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags:
+        - Favorite
+      summary: Cancel a group buy favorite.
+      operationId: cancelFavorite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+      responses:
+        '200':
+          description: Favorite canceled (empty data).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/categories:
+    get:
+      tags:
+        - Category
+      summary: List all active product categories.
+      operationId: listCategories
+      responses:
+        '200':
+          description: List of active categories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListSuccessResponse'
   /api/v1/leaders/{leaderId}/homepage:
     get:
       tags:
@@ -1028,6 +1163,88 @@ paths:
                 $ref: '#/components/schemas/MemberCardListSuccessResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/favorites:
+    get:
+      tags:
+        - Favorite
+      summary: List current user's active favorites.
+      operationId: listMyFavorites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of favorites.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoritePageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/browsing-histories:
+    get:
+      tags:
+        - BrowsingHistory
+      summary: List current user's browsing histories.
+      operationId: listMyBrowsingHistories
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated list of browsing histories.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrowsingHistoryPageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/browsing-histories/{historyId}:
+    delete:
+      tags:
+        - BrowsingHistory
+      summary: Delete a browsing history entry.
+      operationId: deleteBrowsingHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: historyId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+      responses:
+        '200':
+          description: Browsing history deleted (empty data).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 components:
   securitySchemes:
     bearerAuth:
@@ -1615,6 +1832,7 @@ components:
         - name
         - basePriceAmount
         - stock
+        - categoryId
       properties:
         name:
           type: string
@@ -1631,6 +1849,9 @@ components:
         stock:
           type: integer
           minimum: 0
+        categoryId:
+          type: integer
+          description: 商品分类ID，独立创建商品时必须指定
       additionalProperties: false
     UpdateProductRequest:
       type: object
@@ -1650,6 +1871,10 @@ components:
         stock:
           type: integer
           minimum: 0
+        categoryId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+          nullable: true
       additionalProperties: false
     ProductData:
       type: object
@@ -1682,6 +1907,10 @@ components:
         stock:
           type: integer
           minimum: 0
+        categoryId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+          nullable: true
         status:
           type: string
           minLength: 1
@@ -2134,8 +2363,11 @@ components:
       type: object
       required:
         - subscribed
+        - favorited
       properties:
         subscribed:
+          type: boolean
+        favorited:
           type: boolean
       additionalProperties: false
     # ── Leader Homepage ──────────────────────────────────────────────
@@ -2945,4 +3177,266 @@ components:
         logoUrl:
           type: string
           nullable: true
+      additionalProperties: false
+    # ── Category ─────────────────────────────────────────────────────
+    CategoryListSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryData'
+        traceId:
+          type: string
+      additionalProperties: false
+    CategoryData:
+      type: object
+      required:
+        - id
+        - name
+        - code
+        - level
+        - sortOrder
+        - status
+      properties:
+        id:
+          type: integer
+          description: 分类ID（自增，非雪花ID）
+        name:
+          type: string
+        code:
+          type: string
+        parentId:
+          type: integer
+          nullable: true
+        level:
+          type: integer
+        sortOrder:
+          type: integer
+        status:
+          type: string
+      additionalProperties: false
+    # ── Favorite ─────────────────────────────────────────────────────
+    FavoriteSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/FavoriteData'
+        traceId:
+          type: string
+      additionalProperties: false
+    FavoritePageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/FavoritePageData'
+        traceId:
+          type: string
+      additionalProperties: false
+    FavoritePageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FavoriteData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    FavoriteData:
+      type: object
+      required:
+        - id
+        - groupBuyId
+        - title
+      properties:
+        id:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        groupBuyId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        title:
+          type: string
+        coverImageUrl:
+          type: string
+          nullable: true
+        minPriceAmount:
+          type: integer
+          minimum: 0
+        soldCount:
+          type: integer
+          minimum: 0
+        endTime:
+          type: string
+          nullable: true
+        favoritedAt:
+          type: string
+      additionalProperties: false
+    # ── BrowsingHistory ─────────────────────────────────────────────
+    BrowsingHistoryPageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/BrowsingHistoryPageData'
+        traceId:
+          type: string
+      additionalProperties: false
+    BrowsingHistoryPageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrowsingHistoryData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    BrowsingHistoryData:
+      type: object
+      required:
+        - id
+        - groupBuyId
+        - title
+      properties:
+        id:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        groupBuyId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        title:
+          type: string
+        coverImageUrl:
+          type: string
+          nullable: true
+        viewedAt:
+          type: string
+      additionalProperties: false
+    # ── ProductUsage ────────────────────────────────────────────────
+    ProductUsagePageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/ProductUsagePageData'
+        traceId:
+          type: string
+      additionalProperties: false
+    ProductUsagePageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductUsageData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    ProductUsageData:
+      type: object
+      required:
+        - groupBuyId
+        - title
+        - status
+      properties:
+        groupBuyId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        title:
+          type: string
+        status:
+          type: string
+        itemId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        displayName:
+          type: string
+        groupPriceAmount:
+          type: integer
+          minimum: 0
+        groupStock:
+          type: integer
+          minimum: 0
+        soldCount:
+          type: integer
+          minimum: 0
+        startAt:
+          type: string
+          nullable: true
+        endAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
       additionalProperties: false
