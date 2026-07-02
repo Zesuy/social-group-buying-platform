@@ -24,4 +24,7 @@ public class UpdateProductRequest {
 
     @Min(0)
     private Integer stock;
+
+    /** 商品分类ID，传入时校验必须为active分类 */
+    private Long categoryId;
 }

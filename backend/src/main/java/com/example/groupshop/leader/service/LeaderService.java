@@ -94,7 +94,7 @@ public class LeaderService {
         return LeaderHomepageResponse.builder()
                 .leader(leaderInfo)
                 .store(storeInfo)
-                .viewer(new ViewerInfo(subscribed))
+                .viewer(new ViewerInfo(subscribed, false))
                 .groupBuys(groupBuysPage)
                 .build();
     }

@@ -49,6 +49,7 @@ MVP 统一约定：
 | 认证与当前用户 | 登录、获取当前用户信息 | 部分需要 |
 | 公共浏览 | 首页团购流、团购详情、团长主页 | 不需要 |
 | 店铺与团长 | 创建店铺、查看自己的团长身份和店铺 | 需要 |
+| 分类 | 获取商品分类列表 | 不需要 |
 | 商品 | 团长管理自己店铺商品 | 需要团长身份 |
 | 团购 | 团长发布普通团购，用户查看团购 | 部分需要 |
 | 地址 | 用户管理收货地址 | 需要 |
@@ -56,6 +57,8 @@ MVP 统一约定：
 | 团长订单 | 团长查看自己店铺订单、发货 | 需要团长身份 |
 | 订阅 | 关注 / 取消关注团长 | 需要 |
 | 会员卡 | 查看基础会员关系 | 需要 |
+| 收藏 | 收藏 / 取消收藏团购活动 | 需要 |
+| 浏览历史 | 查看和删除浏览记录 | 需要 |
 
 ---
 
@@ -271,10 +274,12 @@ GET /api/v1/group-buys
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| status | string | 默认 `published` |
-| keyword | string | P1 搜索使用，MVP 可不支持 |
+| keyword | string | 关键词搜索，匹配团购标题、介绍、团购商品展示名和商品名称 |
+| categoryId | number | 按商品分类筛选，匹配团购商品所属分类 |
 | page | number | 页码 |
 | pageSize | number | 每页数量 |
+
+> 注意：公共列表固定只返回 `status=published` 且 `visibility=public` 的团购。不支持 `status` 参数，传入 `status` 将返回 `VALIDATION_ERROR`。
 
 响应：
 
@@ -360,12 +365,15 @@ GET /api/v1/group-buys/{groupBuyId}
       }
     ],
     "viewer": {
-      "subscribed": false
+      "subscribed": false,
+      "favorited": false
     }
   },
   "traceId": "req_001"
 }
 ```
+
+说明：`viewer.favorited` 仅在登录用户时返回，标识当前用户是否已收藏该团购。未登录用户此字段为 `false`。
 
 ### 5.3 团长主页
 
@@ -538,6 +546,9 @@ GET /api/v1/my/store/products
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
+| keyword | string | 按商品名称关键词搜索 |
+| categoryId | number | 按分类筛选 |
+| status | string | `active` / `inactive` / `deleted` |
 | page | number | 页码 |
 | pageSize | number | 每页数量 |
 
@@ -559,9 +570,12 @@ POST /api/v1/my/store/products
   "description": "山东蒙阴产地直发",
   "coverImageUrl": "https://example.com/product.png",
   "basePriceAmount": 2990,
-  "stock": 100
+  "stock": 100,
+  "categoryId": 1
 }
 ```
+
+说明：`categoryId` 为必填（standalone 创建），用于将商品关联到分类。发布团购时内联创建商品则 `categoryId` 为可选。
 
 响应：
 
@@ -576,6 +590,7 @@ POST /api/v1/my/store/products
     "coverImageUrl": "https://example.com/product.png",
     "basePriceAmount": 2990,
     "stock": 100,
+    "categoryId": 1,
     "status": "active"
   },
   "traceId": "req_001"
@@ -617,6 +632,59 @@ DELETE /api/v1/my/store/products/{productId}
 登录：需要团长身份，且商品必须属于自己的店铺。
 
 说明：MVP 可做软删除。若商品已被团购引用，不应影响历史订单快照。
+
+### 7.6 商品使用情况
+
+```http
+GET /api/v1/my/store/products/{productId}/usages
+```
+
+登录：需要团长身份，且商品必须属于自己的店铺。
+
+查询参数：
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| page | number | 页码 |
+| pageSize | number | 每页数量 |
+
+响应：返回引用该商品的团购列表（包含团购活动及其团购商品信息）。
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "groupBuyId": 100,
+        "title": "山东蜜桃团购",
+        "status": "published",
+        "itemId": 1001,
+        "displayName": "白玉蜜桃 5 斤装",
+        "groupPriceAmount": 2990,
+        "groupStock": 100,
+        "soldCount": 12,
+        "startAt": "2026-06-24T12:00:00+08:00",
+        "endAt": "2026-07-01T12:00:00+08:00",
+        "createdAt": "2026-06-24T12:00:00+08:00"
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "hasMore": false
+  },
+  "traceId": "req_001"
+}
+```
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `LEADER_REQUIRED` | 当前用户不是团长 |
+| `STORE_FORBIDDEN` | 商品不属于当前团长自己的店铺 |
+| `RESOURCE_NOT_FOUND` | 商品不存在 |
 
 ---
 
@@ -1278,7 +1346,233 @@ MVP 展示范围：
 
 ---
 
-## 14. 状态流转接口归属
+## 14. 分类 API
+
+### 14.1 获取分类列表
+
+```http
+GET /api/v1/categories
+```
+
+登录：不需要。
+
+响应：返回所有活跃的商品分类列表。
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "生鲜水果",
+      "code": "fresh_fruit",
+      "parentId": null,
+      "level": 1,
+      "sortOrder": 1,
+      "status": "active"
+    },
+    {
+      "id": 2,
+      "name": "蔬菜食品",
+      "code": "vegetable_food",
+      "parentId": null,
+      "level": 1,
+      "sortOrder": 2,
+      "status": "active"
+    }
+  ],
+  "traceId": "req_001"
+}
+```
+
+说明：本批分类为平台固定一级分类（`level=1`, `parentId=null`），共 6 个种子分类。分类字段使用 `id`（自增 Long），非雪花 ID。
+
+---
+
+## 15. 收藏 API
+
+### 15.1 收藏团购
+
+```http
+POST /api/v1/group-buys/{groupBuyId}/favorite
+```
+
+登录：需要。
+
+业务规则：
+
+- 本批收藏仅支持团购活动（`target_type = "group_buy"`），不支持商品收藏。
+- 如果该用户已收藏（`active`），返回已有的收藏记录（幂等）。
+- 如果该用户之前取消过（`canceled`），重新激活为 `active`。
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 10001,
+    "groupBuyId": 100,
+    "title": "山东蜜桃团购",
+    "coverImageUrl": "https://example.com/cover.png",
+    "minPriceAmount": 2990,
+    "soldCount": 12,
+    "endTime": "2026-07-01T12:00:00+08:00",
+    "favoritedAt": "2026-07-01T12:00:00+08:00"
+  },
+  "traceId": "req_001"
+}
+```
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `UNAUTHORIZED` | 未登录 |
+| `RESOURCE_NOT_FOUND` | 团购不存在 |
+
+### 15.2 取消收藏
+
+```http
+DELETE /api/v1/group-buys/{groupBuyId}/favorite
+```
+
+登录：需要。
+
+业务规则：
+
+- 将收藏记录状态更新为 `canceled`，保留历史。
+
+响应：`data: null`。
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `UNAUTHORIZED` | 未登录 |
+| `RESOURCE_NOT_FOUND` | 团购不存在 |
+
+### 15.3 我的收藏列表
+
+```http
+GET /api/v1/my/favorites
+```
+
+登录：需要。
+
+查询参数：
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| page | number | 页码 |
+| pageSize | number | 每页数量 |
+
+响应：返回当前用户活跃的收藏列表（仅 `status=active`），按收藏时间降序排列。
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": 10001,
+        "groupBuyId": 100,
+        "title": "山东蜜桃团购",
+        "coverImageUrl": "https://example.com/cover.png",
+        "minPriceAmount": 2990,
+        "soldCount": 12,
+        "endTime": "2026-07-01T12:00:00+08:00",
+        "favoritedAt": "2026-07-01T12:00:00+08:00"
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "hasMore": false
+  },
+  "traceId": "req_001"
+}
+```
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `UNAUTHORIZED` | 未登录 |
+
+---
+
+## 16. 浏览历史 API
+
+### 16.1 我的浏览历史
+
+```http
+GET /api/v1/my/browsing-histories
+```
+
+登录：需要。
+
+查询参数：
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| page | number | 页码 |
+| pageSize | number | 每页数量 |
+
+业务规则：
+
+- 已登录用户访问 `GET /api/v1/group-buys/{groupBuyId}` 时自动记录浏览历史。
+- 重复访问同一团购时，`viewedAt` 更新为最新时间（upsert 策略）。
+- 本批只记录 `target_type = "group_buy"`。
+
+响应：按浏览时间降序排列，返回分页结果。
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": 20001,
+        "groupBuyId": 100,
+        "title": "山东蜜桃团购",
+        "coverImageUrl": "https://example.com/cover.png",
+        "viewedAt": "2026-07-01T12:00:00+08:00"
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "hasMore": false
+  },
+  "traceId": "req_001"
+}
+```
+
+### 16.2 删除浏览历史
+
+```http
+DELETE /api/v1/my/browsing-histories/{historyId}
+```
+
+登录：需要。
+
+业务规则：
+
+- 只能删除自己的浏览历史记录。
+
+响应：`data: null`。
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `UNAUTHORIZED` | 未登录 |
+| `RESOURCE_NOT_FOUND` | 记录不存在或不属当前用户 |
+
+---
+
+## 17. 状态流转接口归属
 
 | 状态变化 | 触发接口 |
 |---|---|
@@ -1292,17 +1586,19 @@ MVP 展示范围：
 | 订单已发货 -> 已完成 | `POST /api/v1/orders/{orderId}/complete` |
 | 未订阅 -> active | `POST /api/v1/leaders/{leaderId}/subscription` |
 | active -> canceled | `DELETE /api/v1/leaders/{leaderId}/subscription` |
+| 未收藏 -> active | `POST /api/v1/group-buys/{groupBuyId}/favorite` |
+| active -> canceled | `DELETE /api/v1/group-buys/{groupBuyId}/favorite` |
 
 ---
 
-## 15. MVP 暂不展开的 API
+## 18. MVP 暂不展开的 API
 
 | 能力 | 后续优先级 | 说明 |
 |---|---:|---|
 | 微信登录 | P1/P2 | MVP 使用模拟登录 |
 | 真实微信支付 | P1/P2 | MVP 使用模拟支付 |
-| 购物车 | P1 | MVP 直接下单 |
-| 商品库独立管理 | P1 | MVP 商品直接挂店铺 |
+| 购物车 | P1（进行中） | MVP 直接下单；P1 Batch 01 已完成商品库独立管理 |
+| 商品库独立管理 | P1（已完成） | P1 Batch 01 实现分类、关键词搜索 |
 | 优惠券 / 红包 | P1 | 不参与订单金额 |
 | 售后退款 | P1 | MVP 只预留状态 |
 | 隐私权限细分 | P1 | MVP 默认公开团购 |
@@ -1314,11 +1610,11 @@ MVP 展示范围：
 
 ---
 
-## 16. 核心时序图
+## 19. 核心时序图
 
 本章节只描述 MVP 范围内的 API 调用、服务端处理、数据表写入和状态变化。
 
-### 16.1 模拟登录与获取当前用户信息
+### 19.1 模拟登录与获取当前用户信息
 
 ```mermaid
 sequenceDiagram
@@ -1341,7 +1637,7 @@ sequenceDiagram
     A-->>C: user + leader + store
 ```
 
-### 16.2 创建店铺并激活团长身份
+### 19.2 创建店铺并激活团长身份
 
 ```mermaid
 sequenceDiagram
@@ -1369,7 +1665,7 @@ sequenceDiagram
     end
 ```
 
-### 16.3 发布普通团购
+### 19.3 发布普通团购
 
 ```mermaid
 sequenceDiagram
@@ -1408,7 +1704,7 @@ sequenceDiagram
     end
 ```
 
-### 16.4 下单预览与创建订单
+### 19.4 下单预览与创建订单
 
 ```mermaid
 sequenceDiagram
@@ -1442,7 +1738,7 @@ sequenceDiagram
     API-->>C: order
 ```
 
-### 16.5 模拟支付
+### 19.5 模拟支付
 
 ```mermaid
 sequenceDiagram
@@ -1484,7 +1780,7 @@ sequenceDiagram
     end
 ```
 
-### 16.6 团长发货
+### 19.6 团长发货
 
 ```mermaid
 sequenceDiagram
@@ -1516,7 +1812,7 @@ sequenceDiagram
     end
 ```
 
-### 16.7 确认收货
+### 19.7 确认收货
 
 ```mermaid
 sequenceDiagram
@@ -1541,7 +1837,7 @@ sequenceDiagram
     end
 ```
 
-### 16.8 订阅与取消订阅团长
+### 19.8 订阅与取消订阅团长
 
 ```mermaid
 sequenceDiagram

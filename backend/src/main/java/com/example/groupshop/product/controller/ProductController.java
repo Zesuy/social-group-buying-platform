@@ -5,6 +5,7 @@ import com.example.groupshop.common.response.ApiResponse;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.product.dto.CreateProductRequest;
 import com.example.groupshop.product.dto.ProductResponse;
+import com.example.groupshop.product.dto.ProductUsageResponse;
 import com.example.groupshop.product.dto.UpdateProductRequest;
 import com.example.groupshop.product.service.ProductService;
 import jakarta.validation.Valid;
@@ -35,9 +36,13 @@ public class ProductController {
     @GetMapping("/my/store/products")
     public ApiResponse<PageResponse<ProductResponse>> getProducts(
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        PageResponse<ProductResponse> response = productService.getMyStoreProducts(userId, page, pageSize);
+        PageResponse<ProductResponse> response = productService.getMyStoreProducts(
+                userId, keyword, categoryId, status, page, pageSize);
         return ApiResponse.success(response);
     }
 
@@ -72,5 +77,19 @@ public class ProductController {
             @PathVariable Long productId) {
         productService.deleteProduct(userId, productId);
         return ApiResponse.success();
+    }
+
+    /**
+     * Get product usage in group buys for the current store.
+     */
+    @GetMapping("/my/store/products/{productId}/usages")
+    public ApiResponse<PageResponse<ProductUsageResponse>> getProductUsages(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long productId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        PageResponse<ProductUsageResponse> response = productService.getProductUsages(
+                userId, productId, page, pageSize);
+        return ApiResponse.success(response);
     }
 }

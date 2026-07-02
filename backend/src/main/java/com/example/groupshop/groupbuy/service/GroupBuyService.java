@@ -2,12 +2,12 @@ package com.example.groupshop.groupbuy.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.groupshop.browsing.service.BrowsingHistoryService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.common.util.CurrentStoreHelper;
+import com.example.groupshop.favorite.service.FavoriteService;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest.InlineProduct;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest.ItemEntry;
@@ -45,14 +45,13 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * Service for creating and managing group buys under the current user's store.
- *
- * <p>MVP only supports normal group buys ({@code groupType=normal}) and
- * creates them directly as {@code status=published}.
  */
 @Service
 @RequiredArgsConstructor
@@ -66,32 +65,25 @@ public class GroupBuyService {
     private final StoreMapper storeMapper;
     private final CurrentStoreHelper currentStoreHelper;
     private final SubscriptionService subscriptionService;
+    private final FavoriteService favoriteService;
+    private final BrowsingHistoryService browsingHistoryService;
 
     // ── Create ────────────────────────────────────────────────────────
 
-    /**
-     * Create and publish a group buy with items.
-     *
-     * <p>In a single transaction: validates inputs, creates/reuses products,
-     * creates the group buy and its items.
-     */
     @Transactional
     public GroupBuyResponse createGroupBuy(Long userId, CreateGroupBuyRequest request) {
         var ls = currentStoreHelper.getLeaderAndStore(userId);
         Store store = ls.getStore();
         Leader leader = ls.getLeader();
 
-        // Validate at least one item
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购至少包含一个商品");
         }
 
-        // Validate end time > start time
         LocalDateTime startTime = parseIsoDateTime(request.getStartTime());
         LocalDateTime endTime = parseIsoDateTime(request.getEndTime());
         validateEndTimeAfterStart(startTime, endTime);
 
-        // Build the group buy
         GroupBuy groupBuy = new GroupBuy();
         groupBuy.setStoreId(store.getId());
         groupBuy.setLeaderId(leader.getId());
@@ -107,7 +99,6 @@ public class GroupBuyService {
         groupBuy.setStatus("published");
         groupBuyMapper.insert(groupBuy);
 
-        // Process each item — create or reuse products, then create group_buy_items
         List<GroupBuyItemData> itemResponses = new ArrayList<>();
         for (int i = 0; i < request.getItems().size(); i++) {
             ItemEntry entry = request.getItems().get(i);
@@ -134,11 +125,8 @@ public class GroupBuyService {
                 .build();
     }
 
-    // ── List ──────────────────────────────────────────────────────────
+    // ── List (my store) ───────────────────────────────────────────────
 
-    /**
-     * List group buys for the current user's store.
-     */
     public PageResponse<GroupBuyData> getMyStoreGroupBuys(Long userId, String status, int page, int pageSize) {
         var ls = currentStoreHelper.getLeaderAndStore(userId);
         Store store = ls.getStore();
@@ -160,11 +148,8 @@ public class GroupBuyService {
         return PageResponse.of(items, page, pageSize, result.getTotal());
     }
 
-    // ── Detail ────────────────────────────────────────────────────────
+    // ── Detail (my store) ─────────────────────────────────────────────
 
-    /**
-     * Get a group buy with items, verifying it belongs to the current user's store.
-     */
     public GroupBuyResponse getGroupBuy(Long userId, Long groupBuyId) {
         var ls = currentStoreHelper.getLeaderAndStore(userId);
         Store store = ls.getStore();
@@ -183,14 +168,6 @@ public class GroupBuyService {
 
     // ── Update ────────────────────────────────────────────────────────
 
-    /**
-     * Partial-update a group buy.
-     *
-     * <p>Updates top-level fields (title, introduction, coverImageUrl, times)
-     * and optionally item-level fields (displayName, groupPriceAmount, groupStock).
-     *
-     * <p>If an item has been ordered, its price cannot be changed.
-     */
     @Transactional
     public GroupBuyResponse updateGroupBuy(Long userId, Long groupBuyId, UpdateGroupBuyRequest request) {
         var ls = currentStoreHelper.getLeaderAndStore(userId);
@@ -198,7 +175,6 @@ public class GroupBuyService {
 
         GroupBuy groupBuy = findGroupBuyForStore(groupBuyId, store.getId());
 
-        // Update top-level fields
         if (request.getTitle() != null) {
             groupBuy.setTitle(request.getTitle());
         }
@@ -217,11 +193,9 @@ public class GroupBuyService {
         if (request.getEndTime() != null) {
             groupBuy.setEndTime(parseIsoDateTime(request.getEndTime()));
         }
-        // Re-validate endTime after potential changes
         validateEndTimeAfterStart(groupBuy.getStartTime(), groupBuy.getEndTime());
         groupBuyMapper.updateById(groupBuy);
 
-        // Update items if provided
         if (request.getItems() != null && !request.getItems().isEmpty()) {
             for (UpdateItemEntry itemEntry : request.getItems()) {
                 GroupBuyItem existingItem = groupBuyItemMapper.selectById(itemEntry.getId());
@@ -229,7 +203,6 @@ public class GroupBuyService {
                     throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "团购商品不存在");
                 }
 
-                // Price protection: if item has been ordered, reject price changes
                 boolean hasOrders = orderItemMapper.selectCount(
                         new LambdaQueryWrapper<OrderItem>()
                                 .eq(OrderItem::getGroupBuyItemId, existingItem.getId())) > 0;
@@ -260,7 +233,6 @@ public class GroupBuyService {
             }
         }
 
-        // Return updated group buy with items
         List<GroupBuyItem> items = groupBuyItemMapper.selectList(
                 new LambdaQueryWrapper<GroupBuyItem>()
                         .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId())
@@ -274,9 +246,6 @@ public class GroupBuyService {
 
     // ── End ───────────────────────────────────────────────────────────
 
-    /**
-     * End a published group buy. Only {@code published} group buys can be ended.
-     */
     @Transactional
     public GroupBuyResponse endGroupBuy(Long userId, Long groupBuyId) {
         var ls = currentStoreHelper.getLeaderAndStore(userId);
@@ -305,15 +274,73 @@ public class GroupBuyService {
     // ── Public browsing ───────────────────────────────────────────────
 
     /**
-     * List public published group buys for unauthenticated browsing.
-     * Only returns group buys with {@code status=published} and {@code visibility=public}.
+     * List public published group buys with optional keyword and categoryId filtering.
+     * Public lists do NOT return visibility.
      */
-    public PageResponse<PublicGroupBuyItem> getPublicGroupBuys(int page, int pageSize) {
+    public PageResponse<PublicGroupBuyItem> getPublicGroupBuys(int page, int pageSize,
+                                                                String keyword, Long categoryId) {
         Page<GroupBuy> pageObj = new Page<>(page, pageSize);
         LambdaQueryWrapper<GroupBuy> wrapper = new LambdaQueryWrapper<GroupBuy>()
                 .eq(GroupBuy::getStatus, "published")
                 .eq(GroupBuy::getVisibility, "public")
                 .orderByDesc(GroupBuy::getCreatedAt);
+
+        // Validate status parameter is not passed (should be rejected at controller level)
+        // Keyword filtering
+        if (keyword != null && !keyword.isBlank()) {
+            Set<Long> keywordMatchIds = new HashSet<>();
+
+            // Match by title or introduction
+            List<GroupBuy> titleMatches = groupBuyMapper.selectList(
+                    new LambdaQueryWrapper<GroupBuy>()
+                            .like(GroupBuy::getTitle, keyword)
+                            .or().like(GroupBuy::getIntroduction, keyword)
+                            .eq(GroupBuy::getStatus, "published")
+                            .eq(GroupBuy::getVisibility, "public"));
+            titleMatches.forEach(gb -> keywordMatchIds.add(gb.getId()));
+
+            // Match by item displayName
+            List<GroupBuyItem> itemMatches = groupBuyItemMapper.selectList(
+                    new LambdaQueryWrapper<GroupBuyItem>()
+                            .like(GroupBuyItem::getDisplayName, keyword));
+            itemMatches.forEach(item -> keywordMatchIds.add(item.getGroupBuyId()));
+
+            // Match by product name
+            List<Product> productMatches = productMapper.selectList(
+                    new LambdaQueryWrapper<Product>()
+                            .like(Product::getName, keyword));
+            if (!productMatches.isEmpty()) {
+                Set<Long> productIds = productMatches.stream().map(Product::getId).collect(Collectors.toSet());
+                List<GroupBuyItem> productItemMatches = groupBuyItemMapper.selectList(
+                        new LambdaQueryWrapper<GroupBuyItem>()
+                                .in(GroupBuyItem::getProductId, productIds));
+                productItemMatches.forEach(item -> keywordMatchIds.add(item.getGroupBuyId()));
+            }
+
+            if (keywordMatchIds.isEmpty()) {
+                return PageResponse.of(List.of(), page, pageSize, 0);
+            }
+            wrapper.in(GroupBuy::getId, keywordMatchIds);
+        }
+
+        // CategoryId filtering
+        if (categoryId != null) {
+            List<Product> catProducts = productMapper.selectList(
+                    new LambdaQueryWrapper<Product>()
+                            .eq(Product::getCategoryId, categoryId));
+            if (catProducts.isEmpty()) {
+                return PageResponse.of(List.of(), page, pageSize, 0);
+            }
+            Set<Long> catProductIds = catProducts.stream().map(Product::getId).collect(Collectors.toSet());
+            List<GroupBuyItem> catItems = groupBuyItemMapper.selectList(
+                    new LambdaQueryWrapper<GroupBuyItem>()
+                            .in(GroupBuyItem::getProductId, catProductIds));
+            if (catItems.isEmpty()) {
+                return PageResponse.of(List.of(), page, pageSize, 0);
+            }
+            Set<Long> catGbIds = catItems.stream().map(GroupBuyItem::getGroupBuyId).collect(Collectors.toSet());
+            wrapper.in(GroupBuy::getId, catGbIds);
+        }
 
         Page<GroupBuy> result = groupBuyMapper.selectPage(pageObj, wrapper);
 
@@ -325,11 +352,10 @@ public class GroupBuyService {
     }
 
     /**
-     * Get public group buy detail (backfilled: supports optional auth).
-     * Only returns if {@code status=published} and {@code visibility=public}.
-     * Otherwise returns RESOURCE_NOT_FOUND.
-     *
-     * @param viewerUserId optional — if provided, checks real subscription status
+     * Get public group buy detail.
+     * Returns visibility in groupBuy.visibility (per MVP contract).
+     * Shows viewer.favorited for authenticated users.
+     * Records browsing history for authenticated users (auxiliary, failure logged only).
      */
     public GroupBuyDetailResponse getPublicGroupBuyDetail(Long groupBuyId, Long viewerUserId) {
         GroupBuy groupBuy = groupBuyMapper.selectById(groupBuyId);
@@ -337,12 +363,16 @@ public class GroupBuyService {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
+        // Record browsing history (auxiliary, failure swallowed)
+        if (viewerUserId != null) {
+            browsingHistoryService.recordView(viewerUserId, groupBuyId);
+        }
+
         List<GroupBuyItem> items = groupBuyItemMapper.selectList(
                 new LambdaQueryWrapper<GroupBuyItem>()
                         .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId())
                         .orderByAsc(GroupBuyItem::getSortOrder));
 
-        // Fetch leader and store info
         Leader leader = leaderMapper.selectById(groupBuy.getLeaderId());
         Store store = storeMapper.selectById(groupBuy.getStoreId());
 
@@ -362,24 +392,24 @@ public class GroupBuyService {
         boolean subscribed = viewerUserId != null
                 && subscriptionService.isSubscribed(viewerUserId, groupBuy.getLeaderId());
 
+        boolean favorited = favoriteService.isFavorited(viewerUserId, groupBuyId);
+
         return GroupBuyDetailResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
                 .leader(leaderDetail)
                 .store(storeDetail)
                 .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
-                .viewer(new ViewerInfo(subscribed))
+                .viewer(new ViewerInfo(subscribed, favorited))
                 .build();
     }
 
     // ── Internal helpers ──────────────────────────────────────────────
 
     private Long resolveProductId(ItemEntry entry, Store store) {
-        // Validate mutual exclusion: productId and product are mutually exclusive
         if (entry.getProductId() != null && entry.getProduct() != null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "每个团购商品只能指定 productId 或 product 之一，不能同时指定");
         }
         if (entry.getProductId() != null) {
-            // Reuse existing product
             Product product = productMapper.selectById(entry.getProductId());
             if (product == null) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "商品不存在");
@@ -392,7 +422,7 @@ public class GroupBuyService {
             }
             return product.getId();
         } else if (entry.getProduct() != null) {
-            // Inline-create a new product
+            // Inline-create a new product (categoryId is allowed to be null)
             InlineProduct inlineProduct = entry.getProduct();
             Product product = new Product();
             product.setStoreId(store.getId());
@@ -444,10 +474,6 @@ public class GroupBuyService {
         }
     }
 
-    /**
-     * Map a GroupBuyItem to a public detail item with coverImageUrl
-     * directly from the product (per API design spec).
-     */
     private GroupBuyDetailItemData toGroupBuyDetailItemData(GroupBuyItem item) {
         Product product = productMapper.selectById(item.getProductId());
         return GroupBuyDetailItemData.builder()
@@ -462,12 +488,9 @@ public class GroupBuyService {
                 .build();
     }
 
-    /**
-     * Map a GroupBuy to a public list item with aggregated data.
-     * Public so that other services (e.g. LeaderService) can reuse it.
-     */
+    // ── Converters ────────────────────────────────────────────────────
+
     public PublicGroupBuyItem toPublicGroupBuyItem(GroupBuy gb) {
-        // Aggregate minPriceAmount and soldCount from items
         List<GroupBuyItem> gbItems = groupBuyItemMapper.selectList(
                 new LambdaQueryWrapper<GroupBuyItem>()
                         .eq(GroupBuyItem::getGroupBuyId, gb.getId()));
@@ -480,7 +503,6 @@ public class GroupBuyService {
                 .mapToInt(GroupBuyItem::getSoldCount)
                 .sum();
 
-        // Fetch leader and store
         Leader leader = leaderMapper.selectById(gb.getLeaderId());
         Store store = storeMapper.selectById(gb.getStoreId());
 
@@ -537,7 +559,6 @@ public class GroupBuyService {
                 .soldCount(item.getSoldCount())
                 .sortOrder(item.getSortOrder());
 
-        // Attach product summary info
         Product product = productMapper.selectById(item.getProductId());
         if (product != null) {
             builder.productName(product.getName())

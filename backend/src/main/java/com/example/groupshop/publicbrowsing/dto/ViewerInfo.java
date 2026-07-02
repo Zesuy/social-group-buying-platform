@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 
 /**
  * Viewer info for public browsing responses.
- * Batch 9+ will return real subscription status for authenticated users.
  */
 @Data
 @Builder
@@ -15,4 +14,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ViewerInfo {
     private boolean subscribed;
+    private boolean favorited;
 }

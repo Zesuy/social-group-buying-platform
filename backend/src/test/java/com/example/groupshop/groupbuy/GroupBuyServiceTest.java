@@ -24,8 +24,11 @@ import com.example.groupshop.model.mapper.ProductMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import com.example.groupshop.favorite.service.FavoriteService;
 import com.example.groupshop.product.dto.CreateProductRequest;
 import com.example.groupshop.product.service.ProductService;
+import com.example.groupshop.publicbrowsing.dto.GroupBuyDetailResponse;
+import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,6 +74,9 @@ class GroupBuyServiceTest extends ServiceTestBase {
 
     @Autowired
     private OrderItemMapper orderItemMapper;
+
+    @Autowired
+    private FavoriteService favoriteService;
 
     private Long userId;
     private Long storeId;
@@ -164,6 +170,7 @@ class GroupBuyServiceTest extends ServiceTestBase {
         productReq.setName("蜜桃");
         productReq.setBasePriceAmount(2990L);
         productReq.setStock(100);
+        productReq.setCategoryId(1L);
         var productResponse = productService.createProduct(userId, productReq);
 
         // Create group buy reusing that product
@@ -510,5 +517,139 @@ class GroupBuyServiceTest extends ServiceTestBase {
         assertThatThrownBy(() -> groupBuyService.endGroupBuy(userId, created.getGroupBuy().getId()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("只有发布状态的团购可以结束");
+    }
+
+    // ── Public browsing ─────────────────────────────────────────────────
+
+    @Test
+    void getPublicGroupBuys_shouldFilterByKeyword() {
+        // Create a group buy with distinctive title
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("山东蜜桃团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct inlineProduct = new CreateGroupBuyRequest.InlineProduct();
+        inlineProduct.setName("蜜桃");
+        inlineProduct.setBasePriceAmount(1000L);
+        inlineProduct.setStock(10);
+        item.setProduct(inlineProduct);
+        item.setDisplayName("蜜桃 5 斤装");
+        item.setGroupPriceAmount(2990L);
+        item.setGroupStock(10);
+        request.setItems(List.of(item));
+
+        groupBuyService.createGroupBuy(userId, request);
+
+        // Keyword search should find by title
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(1, 20, "蜜桃", null);
+        assertThat(result.getItems()).isNotEmpty();
+        assertThat(result.getItems().get(0).getTitle()).contains("蜜桃");
+    }
+
+    @Test
+    void getPublicGroupBuys_shouldFilterByCategoryId() {
+        Long categoryId = 1L;
+
+        // Create a product with category
+        Product catProduct = new Product();
+        catProduct.setStoreId(storeId);
+        catProduct.setName("分类商品");
+        catProduct.setBasePriceAmount(1000L);
+        catProduct.setStock(10);
+        catProduct.setCategoryId(categoryId);
+        catProduct.setStatus("active");
+        productMapper.insert(catProduct);
+
+        // Create group buy using this categorized product
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("分类团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        item.setProductId(catProduct.getId());
+        item.setDisplayName("分类商品");
+        item.setGroupPriceAmount(1990L);
+        item.setGroupStock(10);
+        request.setItems(List.of(item));
+
+        groupBuyService.createGroupBuy(userId, request);
+
+        // Filter by categoryId
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(1, 20, null, categoryId);
+        assertThat(result.getItems()).isNotEmpty();
+        assertThat(result.getItems()).extracting(PublicGroupBuyItem::getTitle)
+                .contains("分类团购");
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnFavoritedTrueWhenFavorited() {
+        // Create a group buy
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("收藏详情测试");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct inlineProduct = new CreateGroupBuyRequest.InlineProduct();
+        inlineProduct.setName("商品");
+        inlineProduct.setBasePriceAmount(1000L);
+        inlineProduct.setStock(10);
+        item.setProduct(inlineProduct);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1000L);
+        item.setGroupStock(10);
+        request.setItems(List.of(item));
+
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+        Long gbId = created.getGroupBuy().getId();
+
+        // Create a viewer user
+        User viewer = new User();
+        viewer.setNickname("浏览者");
+        viewer.setPhone("13800009999");
+        viewer.setStatus("normal");
+        userMapper.insert(viewer);
+
+        // Favorite the group buy
+        favoriteService.favorite(viewer.getId(), gbId);
+
+        // Get detail as the viewer — should see favorited=true
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(gbId, viewer.getId());
+        assertThat(detail).isNotNull();
+        assertThat(detail.getViewer().isFavorited()).isTrue();
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnFavoritedFalseWhenNotFavorited() {
+        // Create a group buy
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("未收藏详情测试");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct inlineProduct = new CreateGroupBuyRequest.InlineProduct();
+        inlineProduct.setName("商品");
+        inlineProduct.setBasePriceAmount(1000L);
+        inlineProduct.setStock(10);
+        item.setProduct(inlineProduct);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1000L);
+        item.setGroupStock(10);
+        request.setItems(List.of(item));
+
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+        Long gbId = created.getGroupBuy().getId();
+
+        // Create a viewer user (no favorite)
+        User viewer = new User();
+        viewer.setNickname("浏览者2");
+        viewer.setPhone("13800009998");
+        viewer.setStatus("normal");
+        userMapper.insert(viewer);
+
+        // Get detail — should see favorited=false
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(gbId, viewer.getId());
+        assertThat(detail).isNotNull();
+        assertThat(detail.getViewer().isFavorited()).isFalse();
     }
 }

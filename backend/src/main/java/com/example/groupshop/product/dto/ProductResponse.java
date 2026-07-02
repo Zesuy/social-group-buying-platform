@@ -21,5 +21,6 @@ public class ProductResponse {
     private String coverImageUrl;
     private Long basePriceAmount;
     private Integer stock;
+    private Long categoryId;
     private String status;
 }

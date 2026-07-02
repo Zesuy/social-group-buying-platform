@@ -253,4 +253,68 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.viewer.subscribed").value(false));
     }
+
+    // ── Batch P1: keyword, category, favorited backfill ───────
+
+    @Test
+    void listPublicGroupBuys_shouldRejectStatusParameter() throws Exception {
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("status", "published"))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void listPublicGroupBuys_shouldSupportKeywordFiltering() throws Exception {
+        createPublishedGroupBuy("山东蜜桃团购");
+
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("keyword", "蜜桃"))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].title").value("山东蜜桃团购"));
+    }
+
+    @Test
+    void listPublicGroupBuys_keywordFilter_shouldReturnEmptyWhenNoMatch() throws Exception {
+        createPublishedGroupBuy("一些团购");
+
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("keyword", "不存在的关键词"))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items.length()").value(0));
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnFavoritedWhenAuthenticated() throws Exception {
+        Long gbId = createPublishedGroupBuy("收藏详情测试团购");
+
+        // Login as a buyer and favorite
+        // Note: The favorite endpoint requires requestAttr since AuthInterceptor
+        // excludes /api/v1/group-buys/** paths
+        String buyerLoginBody = mockMvc.perform(post(MOCK_LOGIN_URL)
+                        .contentType("application/json")
+                        .content("{\"phone\":\"13800013001\"}"))
+                .andReturn().getResponse().getContentAsString();
+        String buyerToken = extractToken(buyerLoginBody);
+        Long buyerUserId = Long.parseLong(buyerLoginBody.split("\"user\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(post("/api/v1/group-buys/{groupBuyId}/favorite", gbId)
+                .header("Authorization", "Bearer " + buyerToken)
+                .requestAttr("currentUserId", buyerUserId));
+
+        // Get detail as the favorited viewer
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL + "/" + gbId)
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.viewer.favorited").value(true));
+    }
 }

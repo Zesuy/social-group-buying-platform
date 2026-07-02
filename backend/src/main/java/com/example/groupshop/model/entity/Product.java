@@ -32,6 +32,9 @@ public class Product {
     /** 参考库存，不参与支付扣减 */
     private Integer stock;
 
+    /** P1 类目，关联 product_categories.id */
+    private Long categoryId;
+
     /** active / inactive / deleted */
     private String status;
 
