@@ -8,6 +8,7 @@
         width="56px"
         height="56px"
         radius="50%"
+        demo-kind="avatar"
       />
       <div class="leader-store-header__info">
         <div class="leader-store-header__name-row">

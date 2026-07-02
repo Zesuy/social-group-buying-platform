@@ -5,8 +5,8 @@
       <!-- 用户信息区 -->
       <div class="profile-header" @click="handleHeaderClick">
         <img
-          v-if="isLoggedIn && user?.avatarUrl"
-          :src="user.avatarUrl"
+          v-if="isLoggedIn && profileAvatarUrl"
+          :src="profileAvatarUrl"
           class="profile-avatar"
           alt=""
         />
@@ -16,8 +16,17 @@
             <span v-if="isLoggedIn && user" class="profile-name">{{ user.nickname }}</span>
             <span v-else class="profile-name profile-name--guest">点击登录</span>
             <AppStatusPill v-if="isLoggedIn" variant="green" size="sm">
-              {{ isLeader ? '创建者' : '买家' }}
+              {{ isLeader ? '创建者' : '团员' }}
             </AppStatusPill>
+            <button
+              v-if="isLoggedIn && isLeader"
+              type="button"
+              class="profile-role-swap"
+              aria-label="切换团员团长功能"
+              @click.stop="onSwitchRoleClick"
+            >
+              <van-icon name="exchange" />
+            </button>
           </div>
           <button type="button" class="profile-home-btn" @click.stop="handleHeaderClick">
             主页
@@ -53,20 +62,43 @@
 
       <!-- 功能卡片 -->
       <ProfileFeatureGrid
-        :title="isLeader ? '团长功能' : '团员功能'"
+        :title="featureTitle"
         :entries="featureEntries"
-        :columns="4"
+        :columns="5"
         @item-click="handleFeatureClick"
       >
         <template #header-right>
           <AppButton v-if="isLoggedIn" variant="plain" class="profile-switch-btn" @click="onSwitchRoleClick">
-            切换功能
+            {{ isLeaderFeatureView ? '切换团员功能' : '切换团长功能' }}
           </AppButton>
         </template>
       </ProfileFeatureGrid>
 
+      <AppCard v-if="isLeaderFeatureView" class="profile-welfare-card">
+        <h2 class="recommend-title">福利中心</h2>
+        <div class="welfare-entry">
+          <van-icon name="bookmark" />
+          <span>新人攻略</span>
+        </div>
+      </AppCard>
+
+      <div class="index-follow-banner profile-follow-banner">
+        <span>关注公众号，收到活动和订单、物流通知</span>
+        <button type="button" class="index-follow-banner__btn" @click="onWechatNoticeClick">
+          关注
+        </button>
+        <button
+          type="button"
+          class="index-follow-banner__close"
+          aria-label="关闭关注提示"
+          @click="showToast('公众号提醒仅作占位展示')"
+        >
+          <van-icon name="cross" />
+        </button>
+      </div>
+
       <!-- 推荐卡片 -->
-      <AppCard>
+      <AppCard v-if="!isLeaderFeatureView">
         <h2 class="recommend-title">猜你喜欢</h2>
         <p class="recommend-desc">更多个性化推荐将在后续版本开放。</p>
       </AppCard>
@@ -80,29 +112,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { STORAGE_KEYS } from '@/constants'
 import PageLayout from '@/components/PageLayout.vue'
 import AppCard from '@/components/AppCard.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppStatusPill from '@/components/AppStatusPill.vue'
 import ProfileFeatureGrid from '@/components/ProfileFeatureGrid.vue'
 import type { ProfileGridEntry } from '@/components/ProfileFeatureGrid.vue'
+import { resolveDisplayImageUrl } from '@/utils'
 import { isFeatureDisabled, type NonMvpFeature } from '@/utils/non-mvp'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const { isLoggedIn, isLeader, user, leader } = storeToRefs(authStore)
+const profileAvatarUrl = computed(() => resolveDisplayImageUrl(
+  user.value?.avatarUrl,
+  user.value?.nickname || '',
+  'avatar',
+))
 
 interface ProfileFeatureEntry extends ProfileGridEntry {
   disabledFeature?: NonMvpFeature
 }
 
 const buyerEntries: ProfileFeatureEntry[] = [
-  { label: '地址管理', icon: 'location-o', to: '/addresses' },
+  { label: '收货地址', icon: 'location-o', to: '/addresses' },
   { label: '会员卡', icon: 'card', to: '/member-cards' },
   { label: '优惠券', icon: 'coupon-o', disabledFeature: 'coupon' },
   { label: '我的订单', icon: 'orders-o', to: '/orders' },
@@ -113,14 +152,27 @@ const buyerEntries: ProfileFeatureEntry[] = [
 ]
 
 const leaderEntries: ProfileFeatureEntry[] = [
-  { label: '我的店铺', icon: 'shop-o', to: '/leader/store' },
-  { label: '发布团购', icon: 'add-o', to: '/leader/group-buys/new' },
-  { label: '我的团购', icon: 'label-o', to: '/leader/group-buys' },
-  { label: '团长订单', icon: 'orders-o', to: '/leader/orders' },
-  { label: '商品管理', icon: 'bag-o', to: '/leader/products' },
-  { label: '订阅团员', icon: 'friends-o', to: '/subscriptions' },
-  { label: '数据概览', icon: 'bar-chart-o', disabledFeature: 'adminPanel' },
-  { label: '店铺设置', icon: 'setting-o', to: '/leader/store' },
+  { label: '商品库', icon: 'cube-o', to: '/leader/products' },
+  { label: '订单管理', icon: 'orders-o', to: '/leader/orders' },
+  { label: '团员改地址', icon: 'aim', disabledFeature: 'adminPanel' },
+  { label: '商品核销', icon: 'completed-o', disabledFeature: 'adminPanel' },
+  { label: '二维码海报', icon: 'photo-o', disabledFeature: 'wechatPush' },
+  { label: '自提点管理', icon: 'location-o', disabledFeature: 'adminPanel' },
+  { label: '会员管理', icon: 'vip-card-o', disabledFeature: 'memberCards' },
+  { label: '积分商城', icon: 'star-o', disabledFeature: 'pointsMall' },
+  { label: '团长管理', icon: 'manager-o', to: '/leader/store' },
+  { label: '团团学堂', icon: 'description-o', disabledFeature: 'adminPanel' },
+  { label: '流量神器', icon: 'friends-o', disabledFeature: 'wechatPush' },
+  { label: '直播工具', icon: 'video-o', disabledFeature: 'wechatPush' },
+  { label: '输入法', icon: 'like-o', disabledFeature: 'adminPanel' },
+  { label: '官方客服', icon: 'service-o', disabledFeature: 'wechatPush' },
+  { label: '反馈与建议', icon: 'edit', disabledFeature: 'wechatPush' },
+  { label: '收藏与浏览', icon: 'star-o', to: '/subscriptions' },
+  { label: '推广链接', icon: 'link-o', disabledFeature: 'distribution' },
+  { label: '渠道订阅码', icon: 'bookmark-o', disabledFeature: 'wechatPush' },
+  { label: '卡券核销', icon: 'scan', disabledFeature: 'coupon' },
+  { label: '设置', icon: 'setting-o', to: '/leader/store' },
+  { label: '违规信息', icon: 'warning-o', disabledFeature: 'adminPanel' },
 ]
 
 const guestEntries: ProfileFeatureEntry[] = [
@@ -130,12 +182,20 @@ const guestEntries: ProfileFeatureEntry[] = [
   { label: '会员卡', icon: 'card', disabledFeature: 'memberCards' },
 ]
 
+type ProfileFeatureRole = 'buyer' | 'leader'
+
+function readSavedFeatureRole(): ProfileFeatureRole {
+  if (typeof window === 'undefined') return 'buyer'
+  return localStorage.getItem(STORAGE_KEYS.PROFILE_FEATURE_ROLE) === 'leader' ? 'leader' : 'buyer'
+}
+
+const activeFeatureRole = ref<ProfileFeatureRole>(readSavedFeatureRole())
+const isLeaderFeatureView = computed(() => isLoggedIn.value && activeFeatureRole.value === 'leader')
+const featureTitle = computed(() => (isLeaderFeatureView.value ? '团长功能' : '团员功能'))
 const featureEntries = computed(() => {
   if (!isLoggedIn.value) return guestEntries
-  return isLeader.value ? leaderEntries : [
-    ...buyerEntries,
-    { label: '创建店铺', icon: 'shop-o', to: '/store/create' },
-  ]
+  if (isLeaderFeatureView.value) return leaderEntries
+  return buyerEntries
 })
 
 function handleHeaderClick() {
@@ -167,7 +227,31 @@ function handleFeatureClick(entry: ProfileGridEntry) {
 }
 
 function onSwitchRoleClick() {
-  showToast('功能视图切换将在后续开放')
+  if (!isLoggedIn.value) {
+    router.push('/login?redirect=/profile')
+    return
+  }
+  if (!isLeader.value && activeFeatureRole.value === 'buyer') {
+    showToast('创建店铺后可切换团长功能')
+    return
+  }
+  activeFeatureRole.value = activeFeatureRole.value === 'buyer' ? 'leader' : 'buyer'
+  localStorage.setItem(STORAGE_KEYS.PROFILE_FEATURE_ROLE, activeFeatureRole.value)
+}
+
+watch([isLoggedIn, isLeader], ([loggedIn, leaderReady]) => {
+  if (!loggedIn || !leaderReady) {
+    activeFeatureRole.value = 'buyer'
+    return
+  }
+
+  activeFeatureRole.value = readSavedFeatureRole()
+}, { immediate: true })
+
+function onWechatNoticeClick() {
+  if (isFeatureDisabled('wechatPush')) {
+    showToast('公众号推送将在后续开放')
+  }
 }
 
 async function handleLogout() {
@@ -222,6 +306,7 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .profile-name {
@@ -277,6 +362,77 @@ async function handleLogout() {
   border-color: var(--color-border);
   color: var(--color-text-secondary);
   background: var(--color-bg-card);
+}
+
+.profile-role-swap {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-placeholder);
+  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-welfare-card {
+  margin-top: 12px;
+}
+
+.welfare-entry {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.welfare-entry .van-icon {
+  font-size: 42px;
+  color: var(--color-primary);
+}
+
+.profile-follow-banner {
+  margin: 14px 0 12px;
+  border-radius: 12px;
+}
+
+.index-follow-banner {
+  min-height: 54px;
+  background: #fff7e6;
+  color: #e96c2b;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  font-weight: 800;
+}
+
+.index-follow-banner span {
+  flex: 1;
+  min-width: 0;
+}
+
+.index-follow-banner__btn {
+  border: 0;
+  border-radius: 9px;
+  background: var(--color-primary);
+  color: #fff;
+  min-height: 36px;
+  padding: 0 18px;
+  font-weight: 900;
+}
+
+.index-follow-banner__close {
+  border: 0;
+  background: transparent;
+  color: #b8a995;
+  font-size: 18px;
+  width: 28px;
+  height: 28px;
 }
 
 .recommend-title {

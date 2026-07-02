@@ -4,8 +4,8 @@
       <!-- 团长头像 -->
       <div class="subscription-card__avatar-wrap">
         <van-image
-          v-if="leader?.avatarUrl"
-          :src="leader.avatarUrl"
+          v-if="leaderAvatarUrl"
+          :src="leaderAvatarUrl"
           class="subscription-card__avatar"
           round
           fit="cover"
@@ -62,6 +62,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { SubscriptionListItem } from '@/types'
+import { resolveDisplayImageUrl } from '@/utils'
 
 const props = defineProps<{
   subscription: SubscriptionListItem
@@ -74,6 +75,11 @@ defineEmits<{
 }>()
 
 const leader = computed(() => props.subscription.leader)
+const leaderAvatarUrl = computed(() => resolveDisplayImageUrl(
+  leader.value?.avatarUrl,
+  leader.value?.displayName || props.subscription.leaderId,
+  'avatar',
+))
 const displayName = computed(() => {
   return leader.value?.displayName || `团长 ${props.subscription.leaderId.slice(-6)}`
 })

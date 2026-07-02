@@ -7,6 +7,7 @@
       width="100%"
       height="200px"
       fit="cover"
+      :alt="groupBuy.title"
     />
 
     <!-- 信息区 -->

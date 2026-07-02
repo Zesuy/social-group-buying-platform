@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { reactive, computed, watch } from 'vue'
-import { amountToYuan } from '@/utils'
+import { amountToYuan, getDemoProductImage } from '@/utils'
 import type { ProductData } from '@/types'
 
 const props = withDefaults(defineProps<{
@@ -97,7 +97,7 @@ function getFormData(): {
     stock: stockNum,
   }
   if (form.description) data.description = form.description.trim() || null
-  if (form.coverImageUrl) data.coverImageUrl = form.coverImageUrl.trim() || null
+  data.coverImageUrl = form.coverImageUrl.trim() || getDemoProductImage(form.name)
   if (isEdit.value) data.status = form.status
   return data
 }

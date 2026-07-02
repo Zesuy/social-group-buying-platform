@@ -4,8 +4,8 @@
     <div class="member-card-item__header">
       <div class="member-card-item__store-logo-wrap">
         <van-image
-          v-if="card.store.logoUrl"
-          :src="card.store.logoUrl"
+          v-if="storeLogoUrl"
+          :src="storeLogoUrl"
           class="member-card-item__store-logo"
           round
           fit="cover"
@@ -18,8 +18,8 @@
         <div class="member-card-item__store-name">{{ card.store.name }}</div>
         <div class="member-card-item__leader">
           <van-image
-            v-if="card.leader.avatarUrl"
-            :src="card.leader.avatarUrl"
+            v-if="leaderAvatarUrl"
+            :src="leaderAvatarUrl"
             class="member-card-item__leader-avatar"
             round
             fit="cover"
@@ -68,12 +68,24 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { MemberCardData } from '@/types'
-import { formatAmount } from '@/utils'
+import { formatAmount, resolveDisplayImageUrl } from '@/utils'
 
-defineProps<{
+const props = defineProps<{
   card: MemberCardData
 }>()
+
+const storeLogoUrl = computed(() => resolveDisplayImageUrl(
+  props.card.store.logoUrl,
+  props.card.store.name,
+  'store',
+))
+const leaderAvatarUrl = computed(() => resolveDisplayImageUrl(
+  props.card.leader.avatarUrl,
+  props.card.leader.displayName,
+  'avatar',
+))
 
 /**
  * 将 ISO 日期字符串格式化为 "YYYY-MM-DD HH:mm"

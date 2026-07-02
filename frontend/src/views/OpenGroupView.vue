@@ -94,7 +94,9 @@ const actionSheetActions = [
     callback: () => {
       if (isFeatureDisabled('groupBuyPublish')) {
         showToast('发布功能将在后续 batch 开放')
+        return
       }
+      router.push('/leader/group-buys/new')
     },
   },
   {

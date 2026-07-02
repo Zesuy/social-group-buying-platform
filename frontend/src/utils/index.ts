@@ -30,3 +30,9 @@ export type {
 } from './status'
 export { isFeatureDisabled } from './non-mvp'
 export type { NonMvpFeature } from './non-mvp'
+export {
+  getDemoImage,
+  getDemoProductImage,
+  isExampleImageUrl,
+  resolveDisplayImageUrl,
+} from './demo-images'

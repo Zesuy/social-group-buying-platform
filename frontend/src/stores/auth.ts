@@ -41,6 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
     leader.value = null
     store.value = null
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
+    localStorage.removeItem(STORAGE_KEYS.PROFILE_FEATURE_ROLE)
   }
 
   /**

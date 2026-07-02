@@ -18,12 +18,12 @@
 
     <div class="group-buy-manage-card__body">
       <ImageWithFallback
-        v-if="groupBuy.coverImageUrl"
         :src="groupBuy.coverImageUrl"
         class="group-buy-manage-card__cover"
         width="100%"
         height="120px"
         radius="8px"
+        :alt="groupBuy.title"
       />
       <div class="group-buy-manage-card__info">
         <span class="group-buy-manage-card__label">配送方式：{{ deliveryText }}</span>

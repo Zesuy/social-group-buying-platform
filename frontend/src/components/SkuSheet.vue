@@ -12,6 +12,7 @@
         width="64px"
         height="64px"
         radius="8px"
+        :alt="item?.displayName ?? ''"
       />
       <div class="sku-top__info">
         <div class="sku-price">¥{{ item?.groupPriceAmount ?? 0 }}</div>
