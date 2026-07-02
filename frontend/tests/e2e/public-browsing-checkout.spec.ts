@@ -317,20 +317,20 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
 
     // Should see group buy cards
-    await expect(page.locator('text=测试团购')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: '测试团购' })).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=¥29.90')).toBeVisible()
 
     // Click on group buy card -> detail page
-    await page.locator('text=测试团购').click()
+    await page.getByRole('heading', { name: '测试团购' }).click()
     await page.waitForTimeout(1000)
     await expect(page.locator('text=好吃不贵')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=蜜桃 5 斤装')).toBeVisible()
+    await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible()
 
     // Click leader trust block -> leader homepage
     await page.locator('text=某某团长').first().click()
     await page.waitForTimeout(1000)
     await expect(page.locator('text=优质水果团长')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=测试团购')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '测试团购' })).toBeVisible()
   })
 
   test('unauthenticated click buy redirects to login, logged in user completes flow', async ({ page }) => {
@@ -339,7 +339,7 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
 
     // Should see detail
-    await expect(page.locator('text=蜜桃 5 斤装')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible({ timeout: 5000 })
 
     // Select item first
     await page.locator('button:has-text("选择")').click()
@@ -397,7 +397,7 @@ test.describe('Public browsing and checkout E2E', () => {
 
     // Should be on checkout page
     await expect(page).toHaveURL(/#\/checkout/, { timeout: 5000 })
-    await expect(page.locator('text=蜜桃 5 斤装')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('蜜桃 5 斤装').first()).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=¥29.90').first()).toBeVisible()
 
     // Check agreement checkbox
@@ -421,7 +421,7 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(2000)
 
     // Should see detail
-    await expect(page.locator('text=蜜桃 5 斤装')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible({ timeout: 5000 })
 
     // Click subscribe button
     await page.locator('button:has-text("订阅")').click()
@@ -435,7 +435,7 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(2000)
 
     // Should see detail with out-of-stock item
-    await expect(page.locator('text=已售罄商品')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('.detail-item__name', { hasText: '已售罄商品' })).toBeVisible({ timeout: 5000 })
 
     // Should show "已售罄" tag instead of "选择" button
     await expect(page.getByText('已售罄', { exact: true })).toBeVisible()

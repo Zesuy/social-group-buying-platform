@@ -79,10 +79,10 @@ test.describe('Real E2E: Profile + Store', () => {
 
     // 买家菜单必须包含以下条目
     await expect(page.locator('text=我的订单')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=地址管理')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=收货地址')).toBeVisible({ timeout: 5000 })
 
-    // "创建店铺" 入口在未开店时应可见
-    await expect(page.locator('text=创建店铺')).toBeVisible({ timeout: 5000 })
+    // 会员卡入口应可见
+    await expect(page.locator('text=会员卡')).toBeVisible({ timeout: 5000 })
 
     // 退出登录按钮必须可见
     await expect(page.locator('button:has-text("退出登录")')).toBeVisible({ timeout: 5000 })

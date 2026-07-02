@@ -142,7 +142,7 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     await expect(page.locator('.van-tabs')).toBeVisible({ timeout: 5000 })
 
     // 因为我们已创建了 3 个订单，至少应看到订单卡片
-    const orderCards = page.locator('.order-card')
+    const orderCards = page.locator('.order-list-card__body')
     await expect(orderCards.first()).toBeVisible({ timeout: 10000 })
 
     // 点击第一个订单卡片 → 跳转到订单详情
@@ -174,7 +174,7 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     await page.waitForTimeout(3000)
 
     // 断言状态流转：页面应显示"订单已取消"横幅
-    const canceledBanner = page.locator('.order-canceled-banner')
+    const canceledBanner = page.locator('.order-cancel-banner')
     await expect(canceledBanner).toBeVisible({ timeout: 5000 })
     await expect(canceledBanner.getByText('订单已取消')).toBeVisible({ timeout: 5000 })
 
@@ -206,8 +206,7 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     await page.waitForTimeout(3000)
 
     // 断言状态流转：支付后应显示"等待卖家发货"文案
-    await expect(page.locator('.action-bar__text')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('.action-bar__text')).toContainText('等待卖家发货')
+    await expect(page.locator('button:has-text("等待卖家发货")')).toBeVisible({ timeout: 5000 })
 
     // "模拟支付"按钮应消失
     await expect(page.locator('button:has-text("模拟支付")')).not.toBeVisible({ timeout: 3000 })
@@ -236,8 +235,7 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     await page.waitForTimeout(3000)
 
     // 断言状态流转：确认后应显示"已完成"
-    await expect(page.locator('.action-bar__text')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('.action-bar__text')).toContainText('已完成')
+    await expect(page.locator('button:has-text("已完成")')).toBeVisible({ timeout: 5000 })
 
     // "确认收货"按钮应消失
     await expect(page.locator('button:has-text("确认收货")')).not.toBeVisible({ timeout: 3000 })
