@@ -250,4 +250,100 @@ class StoreServiceTest extends ServiceTestBase {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.LEADER_REQUIRED.getDefaultMessage());
     }
+
+    // ── Store location (latitude / longitude) ────────────────────────
+
+    @Test
+    void createStore_shouldSetLatitudeAndLongitude() {
+        CreateStoreRequest request = new CreateStoreRequest();
+        request.setName("坐标店铺");
+        request.setDefaultDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        request.setLatitude(new java.math.BigDecimal("31.2304"));
+        request.setLongitude(new java.math.BigDecimal("121.4737"));
+
+        StoreResponse response = storeService.createStore(userId, request);
+
+        assertThat(response.getStore().getLatitude()).isEqualByComparingTo("31.2304");
+        assertThat(response.getStore().getLongitude()).isEqualByComparingTo("121.4737");
+    }
+
+    @Test
+    void createStore_shouldThrowWhenOnlyLatitudeProvided() {
+        CreateStoreRequest request = new CreateStoreRequest();
+        request.setName("缺经度店铺");
+        request.setDefaultDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        request.setLatitude(new java.math.BigDecimal("31.2304"));
+        // longitude is null
+
+        assertThatThrownBy(() -> storeService.createStore(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("经纬度必须同时设置");
+    }
+
+    @Test
+    void createStore_shouldThrowWhenOnlyLongitudeProvided() {
+        CreateStoreRequest request = new CreateStoreRequest();
+        request.setName("缺纬度店铺");
+        request.setDefaultDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        request.setLongitude(new java.math.BigDecimal("121.4737"));
+        // latitude is null
+
+        assertThatThrownBy(() -> storeService.createStore(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("经纬度必须同时设置");
+    }
+
+    @Test
+    void updateMyStore_shouldSetLatitudeAndLongitude() {
+        // Create store first
+        CreateStoreRequest createRequest = new CreateStoreRequest();
+        createRequest.setName("原始店铺");
+        createRequest.setDefaultDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        storeService.createStore(userId, createRequest);
+
+        // Update location
+        UpdateStoreRequest updateRequest = new UpdateStoreRequest();
+        updateRequest.setLatitude(new java.math.BigDecimal("30.2741"));
+        updateRequest.setLongitude(new java.math.BigDecimal("120.1551"));
+
+        StoreResponse response = storeService.updateMyStore(userId, updateRequest);
+
+        assertThat(response.getStore().getLatitude()).isEqualByComparingTo("30.2741");
+        assertThat(response.getStore().getLongitude()).isEqualByComparingTo("120.1551");
+    }
+
+    @Test
+    void updateMyStore_shouldThrowWhenOnlyLatitudeProvided() {
+        // Create store first
+        CreateStoreRequest createRequest = new CreateStoreRequest();
+        createRequest.setName("店铺");
+        createRequest.setDefaultDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        storeService.createStore(userId, createRequest);
+
+        // Update with only latitude — should fail
+        UpdateStoreRequest updateRequest = new UpdateStoreRequest();
+        updateRequest.setLatitude(new java.math.BigDecimal("31.2304"));
+        // longitude is null
+
+        assertThatThrownBy(() -> storeService.updateMyStore(userId, updateRequest))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("经纬度必须同时设置");
+    }
+
+    @Test
+    void updateMyStore_shouldThrowWhenOnlyLongitudeProvided() {
+        // Create store first
+        CreateStoreRequest createRequest = new CreateStoreRequest();
+        createRequest.setName("店铺2");
+        createRequest.setDefaultDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        storeService.createStore(userId, createRequest);
+
+        UpdateStoreRequest updateRequest = new UpdateStoreRequest();
+        updateRequest.setLongitude(new java.math.BigDecimal("121.4737"));
+        // latitude is null
+
+        assertThatThrownBy(() -> storeService.updateMyStore(userId, updateRequest))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("经纬度必须同时设置");
+    }
 }

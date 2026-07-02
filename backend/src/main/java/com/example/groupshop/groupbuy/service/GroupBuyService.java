@@ -7,6 +7,7 @@ import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.common.util.CurrentStoreHelper;
+import com.example.groupshop.common.util.DistanceCalculator;
 import com.example.groupshop.favorite.service.FavoriteService;
 import com.example.groupshop.groupbuy.dto.CreateDraftGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest;
@@ -46,6 +47,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -803,11 +805,45 @@ public class GroupBuyService {
                         .avatarUrl(leader.getAvatarUrl())
                         .followerCount(leader.getFollowerCount())
                         .build())
-                .store(StoreDetail.builder()
-                        .id(storeDetail.getId())
-                        .name(storeDetail.getName())
-                        .logoUrl(storeDetail.getLogoUrl())
+                .store(buildStoreDetailWithDistance(storeDetail, null, null))
+                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .viewer(new ViewerInfo(subscribed, favorited))
+                .build();
+    }
+
+    /**
+     * Get public group buy detail via share token, with optional user location.
+     */
+    public GroupBuyDetailResponse getPublicGroupBuyDetailByShareToken(String shareToken, Long viewerUserId,
+                                                                       BigDecimal latitude, BigDecimal longitude) {
+        GroupBuy groupBuy = validateShareToken(shareToken);
+
+        // Record browsing history
+        if (viewerUserId != null) {
+            browsingHistoryService.recordView(viewerUserId, groupBuy.getId());
+        }
+
+        List<GroupBuyItem> items = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId())
+                        .orderByAsc(GroupBuyItem::getSortOrder));
+
+        Leader leader = leaderMapper.selectById(groupBuy.getLeaderId());
+        Store storeDetail = storeMapper.selectById(groupBuy.getStoreId());
+
+        boolean subscribed = viewerUserId != null
+                && subscriptionService.isSubscribed(viewerUserId, groupBuy.getLeaderId());
+        boolean favorited = favoriteService.isFavorited(viewerUserId, groupBuy.getId());
+
+        return GroupBuyDetailResponse.builder()
+                .groupBuy(toGroupBuyData(groupBuy))
+                .leader(LeaderDetail.builder()
+                        .id(leader.getId())
+                        .displayName(leader.getDisplayName())
+                        .avatarUrl(leader.getAvatarUrl())
+                        .followerCount(leader.getFollowerCount())
                         .build())
+                .store(buildStoreDetailWithDistance(storeDetail, latitude, longitude))
                 .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
                 .viewer(new ViewerInfo(subscribed, favorited))
                 .build();
@@ -821,18 +857,34 @@ public class GroupBuyService {
      */
     public PageResponse<PublicGroupBuyItem> getPublicGroupBuys(int page, int pageSize,
                                                                 String keyword, Long categoryId) {
-        Page<GroupBuy> pageObj = new Page<>(page, pageSize);
+        return getPublicGroupBuys(page, pageSize, keyword, categoryId,
+                null, null, null, null);
+    }
+
+    /**
+     * List public published group buys with optional location-based filtering and sorting.
+     *
+     * <p>When user coordinates are provided, distance is computed for each store.
+     * {@code maxDistanceMeters} filters out stores beyond the given distance.
+     * {@code sort=distance} sorts results by distance ascending.
+     * Distance filtering/sorting happens after keyword/category filtering but before pagination.
+     */
+    public PageResponse<PublicGroupBuyItem> getPublicGroupBuys(int page, int pageSize,
+                                                                String keyword, Long categoryId,
+                                                                BigDecimal latitude, BigDecimal longitude,
+                                                                Long maxDistanceMeters, String sort) {
+        // Step 1: Apply base filters (status, visibility, keyword, categoryId)
         LambdaQueryWrapper<GroupBuy> wrapper = new LambdaQueryWrapper<GroupBuy>()
                 .eq(GroupBuy::getStatus, "published")
                 .eq(GroupBuy::getVisibility, "public")
                 .orderByDesc(GroupBuy::getCreatedAt);
 
-        // Validate status parameter is not passed (should be rejected at controller level)
+        boolean hasLocation = latitude != null && longitude != null;
+
         // Keyword filtering
         if (keyword != null && !keyword.isBlank()) {
             Set<Long> keywordMatchIds = new HashSet<>();
 
-            // Match by title or introduction
             List<GroupBuy> titleMatches = groupBuyMapper.selectList(
                     new LambdaQueryWrapper<GroupBuy>()
                             .like(GroupBuy::getTitle, keyword)
@@ -841,13 +893,11 @@ public class GroupBuyService {
                             .eq(GroupBuy::getVisibility, "public"));
             titleMatches.forEach(gb -> keywordMatchIds.add(gb.getId()));
 
-            // Match by item displayName
             List<GroupBuyItem> itemMatches = groupBuyItemMapper.selectList(
                     new LambdaQueryWrapper<GroupBuyItem>()
                             .like(GroupBuyItem::getDisplayName, keyword));
             itemMatches.forEach(item -> keywordMatchIds.add(item.getGroupBuyId()));
 
-            // Match by product name
             List<Product> productMatches = productMapper.selectList(
                     new LambdaQueryWrapper<Product>()
                             .like(Product::getName, keyword));
@@ -884,13 +934,52 @@ public class GroupBuyService {
             wrapper.in(GroupBuy::getId, catGbIds);
         }
 
-        Page<GroupBuy> result = groupBuyMapper.selectPage(pageObj, wrapper);
+        // Fetch all matching group buys (unpaginated) for distance computation
+        List<GroupBuy> allMatching = groupBuyMapper.selectList(wrapper);
 
-        List<PublicGroupBuyItem> items = result.getRecords().stream()
-                .map(this::toPublicGroupBuyItem)
+        if (allMatching.isEmpty()) {
+            return PageResponse.of(List.of(), page, pageSize, 0);
+        }
+
+        // Step 2: Convert to items, optionally with distance
+        List<PublicGroupBuyItem> allItems = allMatching.stream()
+                .map(gb -> toPublicGroupBuyItem(gb, latitude, longitude))
                 .collect(Collectors.toList());
 
-        return PageResponse.of(items, page, pageSize, result.getTotal());
+        // Step 3: Apply distance filter
+        if (hasLocation && maxDistanceMeters != null && maxDistanceMeters > 0) {
+            allItems = allItems.stream()
+                    .filter(item -> item.getStore().getDistanceMeters() != null
+                            && item.getStore().getDistanceMeters() <= maxDistanceMeters)
+                    .collect(Collectors.toList());
+        }
+
+        // Step 4: Apply sorting
+        boolean sortByDistance = "distance".equals(sort) && hasLocation;
+        if (sortByDistance) {
+            allItems.sort((a, b) -> {
+                Long d1 = a.getStore().getDistanceMeters();
+                Long d2 = b.getStore().getDistanceMeters();
+                if (d1 == null && d2 == null) return 0;
+                if (d1 == null) return 1;
+                if (d2 == null) return -1;
+                return Long.compare(d1, d2);
+            });
+        }
+        // Default order (not distance): the SQL query already returns
+        // newest-first via orderByDesc(GroupBuy::getCreatedAt) on the wrapper,
+        // and allItems preserves that order from allMatching.
+
+        // Step 5: Manual pagination
+        int total = allItems.size();
+        int fromIndex = (page - 1) * pageSize;
+        if (fromIndex >= total) {
+            return PageResponse.of(List.of(), page, pageSize, total);
+        }
+        int toIndex = Math.min(fromIndex + pageSize, total);
+        List<PublicGroupBuyItem> pageItems = allItems.subList(fromIndex, toIndex);
+
+        return PageResponse.of(pageItems, page, pageSize, total);
     }
 
     /**
@@ -900,6 +989,14 @@ public class GroupBuyService {
      * Records browsing history for authenticated users (auxiliary, failure logged only).
      */
     public GroupBuyDetailResponse getPublicGroupBuyDetail(Long groupBuyId, Long viewerUserId) {
+        return getPublicGroupBuyDetail(groupBuyId, viewerUserId, null, null);
+    }
+
+    /**
+     * Get public group buy detail with optional user location for distance display.
+     */
+    public GroupBuyDetailResponse getPublicGroupBuyDetail(Long groupBuyId, Long viewerUserId,
+                                                           BigDecimal latitude, BigDecimal longitude) {
         GroupBuy groupBuy = groupBuyMapper.selectById(groupBuyId);
         if (groupBuy == null || !"published".equals(groupBuy.getStatus()) || !"public".equals(groupBuy.getVisibility())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -925,11 +1022,7 @@ public class GroupBuyService {
                 .followerCount(leader.getFollowerCount())
                 .build();
 
-        StoreDetail storeDetail = StoreDetail.builder()
-                .id(store.getId())
-                .name(store.getName())
-                .logoUrl(store.getLogoUrl())
-                .build();
+        StoreDetail storeDetail = buildStoreDetailWithDistance(store, latitude, longitude);
 
         boolean subscribed = viewerUserId != null
                 && subscriptionService.isSubscribed(viewerUserId, groupBuy.getLeaderId());
@@ -1033,6 +1126,15 @@ public class GroupBuyService {
     // ── Converters ────────────────────────────────────────────────────
 
     public PublicGroupBuyItem toPublicGroupBuyItem(GroupBuy gb) {
+        return toPublicGroupBuyItem(gb, null, null);
+    }
+
+    /**
+     * Convert a GroupBuy to a PublicGroupBuyItem, optionally computing distance
+     * from the user's location.
+     */
+    public PublicGroupBuyItem toPublicGroupBuyItem(GroupBuy gb,
+                                                    BigDecimal userLat, BigDecimal userLon) {
         List<GroupBuyItem> gbItems = groupBuyItemMapper.selectList(
                 new LambdaQueryWrapper<GroupBuyItem>()
                         .eq(GroupBuyItem::getGroupBuyId, gb.getId()));
@@ -1054,10 +1156,7 @@ public class GroupBuyService {
                 .avatarUrl(leader.getAvatarUrl())
                 .build();
 
-        StoreLite storeLite = StoreLite.builder()
-                .id(store.getId())
-                .name(store.getName())
-                .build();
+        StoreLite storeLite = buildStoreLiteWithDistance(store, userLat, userLon);
 
         return PublicGroupBuyItem.builder()
                 .id(gb.getId())
@@ -1072,6 +1171,39 @@ public class GroupBuyService {
                 .soldCount(soldCount)
                 .leader(leaderLite)
                 .store(storeLite)
+                .build();
+    }
+
+    /**
+     * Build a StoreLite with distance information from user location.
+     */
+    private StoreLite buildStoreLiteWithDistance(Store store, BigDecimal userLat, BigDecimal userLon) {
+        Long distanceMeters = DistanceCalculator.haversineMeters(
+                userLat, userLon, store.getLatitude(), store.getLongitude());
+        return StoreLite.builder()
+                .id(store.getId())
+                .name(store.getName())
+                .latitude(store.getLatitude())
+                .longitude(store.getLongitude())
+                .distanceMeters(distanceMeters)
+                .distanceText(DistanceCalculator.formatDistance(distanceMeters))
+                .build();
+    }
+
+    /**
+     * Build a StoreDetail with distance information from user location.
+     */
+    private StoreDetail buildStoreDetailWithDistance(Store store, BigDecimal userLat, BigDecimal userLon) {
+        Long distanceMeters = DistanceCalculator.haversineMeters(
+                userLat, userLon, store.getLatitude(), store.getLongitude());
+        return StoreDetail.builder()
+                .id(store.getId())
+                .name(store.getName())
+                .logoUrl(store.getLogoUrl())
+                .latitude(store.getLatitude())
+                .longitude(store.getLongitude())
+                .distanceMeters(distanceMeters)
+                .distanceText(DistanceCalculator.formatDistance(distanceMeters))
                 .build();
     }
 

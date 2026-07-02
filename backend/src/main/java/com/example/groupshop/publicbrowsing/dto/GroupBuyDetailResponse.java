@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -41,6 +42,14 @@ public class GroupBuyDetailResponse {
         private Long id;
         private String name;
         private String logoUrl;
+        /** GPS latitude (WGS84), nullable */
+        private BigDecimal latitude;
+        /** GPS longitude (WGS84), nullable */
+        private BigDecimal longitude;
+        /** Distance in meters from the user's location, nullable */
+        private Long distanceMeters;
+        /** Human-readable distance text (e.g. "800m", "1.2km"), nullable */
+        private String distanceText;
     }
 
     @Data

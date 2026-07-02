@@ -1077,4 +1077,193 @@ class GroupBuyServiceTest extends ServiceTestBase {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("资源不存在");
     }
+
+    // ── Distance / Location ──────────────────────────────────────────────
+
+    private Long createPublishedGroupBuyWithTitle(String title) {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle(title);
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(100);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1990L);
+        item.setGroupStock(100);
+        request.setItems(List.of(item));
+        return groupBuyService.createGroupBuy(userId, request).getGroupBuy().getId();
+    }
+
+    @Test
+    void getPublicGroupBuys_shouldReturnNullDistanceWithoutLocation() {
+        createPublishedGroupBuyWithTitle("无位置团购");
+
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(
+                1, 20, null, null);
+
+        assertThat(result.getItems()).isNotEmpty();
+        result.getItems().forEach(item -> {
+            // distanceMeters and distanceText are null when no user location is provided
+            assertThat(item.getStore().getDistanceMeters()).isNull();
+            assertThat(item.getStore().getDistanceText()).isNull();
+        });
+    }
+
+    @Test
+    void getPublicGroupBuys_shouldComputeDistanceWhenLocationProvided() {
+        // Set store coordinates (Shanghai)
+        Store store = storeMapper.selectById(storeId);
+        store.setLatitude(new java.math.BigDecimal("31.2304"));
+        store.setLongitude(new java.math.BigDecimal("121.4737"));
+        storeMapper.updateById(store);
+
+        Long gbId = createPublishedGroupBuyWithTitle("距你最近的团购");
+
+        // Query with user location (Hangzhou)
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(
+                1, 20, null, null,
+                new java.math.BigDecimal("30.2741"), new java.math.BigDecimal("120.1551"),
+                null, null);
+
+        assertThat(result.getItems()).isNotEmpty();
+        PublicGroupBuyItem item = result.getItems().get(0);
+        assertThat(item.getStore().getLatitude()).isEqualByComparingTo("31.2304");
+        assertThat(item.getStore().getLongitude()).isEqualByComparingTo("121.4737");
+        assertThat(item.getStore().getDistanceMeters()).isNotNull();
+        // Shanghai to Hangzhou ~165km
+        assertThat(item.getStore().getDistanceMeters()).isBetween(150_000L, 180_000L);
+        assertThat(item.getStore().getDistanceText()).isNotNull();
+    }
+
+    @Test
+    void getPublicGroupBuys_shouldFilterByMaxDistance() {
+        // Set store coordinates (Shanghai)
+        Store store = storeMapper.selectById(storeId);
+        store.setLatitude(new java.math.BigDecimal("31.2304"));
+        store.setLongitude(new java.math.BigDecimal("121.4737"));
+        storeMapper.updateById(store);
+
+        createPublishedGroupBuyWithTitle("上海团购");
+
+        // Query from Hangzhou with max distance 100km → should filter out
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(
+                1, 20, null, null,
+                new java.math.BigDecimal("30.2741"), new java.math.BigDecimal("120.1551"),
+                100_000L, null);
+
+        assertThat(result.getItems()).isEmpty();
+    }
+
+    @Test
+    void getPublicGroupBuys_shouldFilterByMaxDistanceAndKeepNearby() {
+        // Set store coordinates (near Hangzhou)
+        Store store = storeMapper.selectById(storeId);
+        store.setLatitude(new java.math.BigDecimal("30.2741"));
+        store.setLongitude(new java.math.BigDecimal("120.1551"));
+        storeMapper.updateById(store);
+
+        createPublishedGroupBuyWithTitle("杭州团购");
+
+        // Query from same city with max 10km → should keep
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(
+                1, 20, null, null,
+                new java.math.BigDecimal("30.2800"), new java.math.BigDecimal("120.1600"),
+                10_000L, null);
+
+        assertThat(result.getItems()).isNotEmpty();
+    }
+
+    @Test
+    void getPublicGroupBuys_shouldSortByDistance() {
+        // We need two stores at different distances. Create a second store.
+        // Use a keyword suffix to isolate from other tests' data.
+        String suffix = "_dist_" + System.nanoTime();
+
+        // Store 1: near Hangzhou
+        Store store1 = storeMapper.selectById(storeId);
+        store1.setLatitude(new java.math.BigDecimal("30.2741"));
+        store1.setLongitude(new java.math.BigDecimal("120.1551"));
+        storeMapper.updateById(store1);
+        createPublishedGroupBuyWithTitle("杭州" + suffix);
+
+        // Store 2: far (Beijing)
+        // Create a new leader and store
+        User user2 = new User();
+        user2.setNickname("北京团长");
+        user2.setPhone("13800009998");
+        user2.setStatus("normal");
+        userMapper.insert(user2);
+
+        Leader leader2 = new Leader();
+        leader2.setUserId(user2.getId());
+        leader2.setDisplayName("北京团长");
+        leader2.setServiceStatus("normal");
+        leader2.setMemberCount(0);
+        leader2.setFollowerCount(0);
+        leaderMapper.insert(leader2);
+
+        Store store2 = new Store();
+        store2.setLeaderId(leader2.getId());
+        store2.setName("北京店铺");
+        store2.setDefaultDeliveryType(DeliveryType.EXPRESS.getValue());
+        store2.setDistributionEnabled(false);
+        store2.setStatus("active");
+        store2.setLatitude(new java.math.BigDecimal("39.9042"));
+        store2.setLongitude(new java.math.BigDecimal("116.4074"));
+        storeMapper.insert(store2);
+
+        // Create the second group buy manually (need to use a different userId)
+        CreateGroupBuyRequest request2 = new CreateGroupBuyRequest();
+        request2.setTitle("北京" + suffix);
+        request2.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry item2 = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip2 = new CreateGroupBuyRequest.InlineProduct();
+        ip2.setName("商品2");
+        ip2.setBasePriceAmount(1000L);
+        ip2.setStock(100);
+        item2.setProduct(ip2);
+        item2.setDisplayName("商品2");
+        item2.setGroupPriceAmount(1990L);
+        item2.setGroupStock(100);
+        request2.setItems(List.of(item2));
+        groupBuyService.createGroupBuy(user2.getId(), request2);
+
+        // Query from Hangzhou with keyword, sort by distance
+        // Use the suffix as keyword to filter only this test's group buys
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(
+                1, 20, suffix, null,
+                new java.math.BigDecimal("30.2741"), new java.math.BigDecimal("120.1551"),
+                null, "distance");
+
+        assertThat(result.getItems()).hasSize(2);
+        // First item should be the closer one (Hangzhou)
+        assertThat(result.getItems().get(0).getTitle()).isEqualTo("杭州" + suffix);
+        assertThat(result.getItems().get(1).getTitle()).isEqualTo("北京" + suffix);
+        // Distances should be ordered ascending
+        assertThat(result.getItems().get(0).getStore().getDistanceMeters())
+                .isLessThan(result.getItems().get(1).getStore().getDistanceMeters());
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldIncludeDistanceWhenLocationProvided() {
+        Store store = storeMapper.selectById(storeId);
+        store.setLatitude(new java.math.BigDecimal("31.2304"));
+        store.setLongitude(new java.math.BigDecimal("121.4737"));
+        storeMapper.updateById(store);
+
+        Long gbId = createPublishedGroupBuyWithTitle("详情坐标团购");
+
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(
+                gbId, null,
+                new java.math.BigDecimal("30.2741"), new java.math.BigDecimal("120.1551"));
+
+        assertThat(detail.getStore().getLatitude()).isEqualByComparingTo("31.2304");
+        assertThat(detail.getStore().getLongitude()).isEqualByComparingTo("121.4737");
+        assertThat(detail.getStore().getDistanceMeters()).isNotNull();
+        assertThat(detail.getStore().getDistanceMeters()).isBetween(150_000L, 180_000L);
+        assertThat(detail.getStore().getDistanceText()).isNotNull();
+    }
 }

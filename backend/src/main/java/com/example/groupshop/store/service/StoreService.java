@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 /**
  * Service for store management.
  */
@@ -75,6 +77,13 @@ public class StoreService {
             leaderMapper.insert(leader);
         }
 
+        // Validate lat/lng pair
+        if (request.getLatitude() != null || request.getLongitude() != null) {
+            if (request.getLatitude() == null || request.getLongitude() == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "经纬度必须同时设置");
+            }
+        }
+
         // Create store
         Store store = new Store();
         store.setLeaderId(leader.getId());
@@ -84,6 +93,8 @@ public class StoreService {
         store.setDefaultDeliveryType(request.getDefaultDeliveryType().getValue());
         store.setDistributionEnabled(false);
         store.setStatus("active");
+        store.setLatitude(request.getLatitude());
+        store.setLongitude(request.getLongitude());
         storeMapper.insert(store);
 
         return buildStoreResponse(leader, store);
@@ -161,6 +172,15 @@ public class StoreService {
             storeChanged = true;
         }
 
+        if (request.getLatitude() != null || request.getLongitude() != null) {
+            if (request.getLatitude() == null || request.getLongitude() == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "经纬度必须同时设置");
+            }
+            store.setLatitude(request.getLatitude());
+            store.setLongitude(request.getLongitude());
+            storeChanged = true;
+        }
+
         if (storeChanged) {
             storeMapper.updateById(store);
         }
@@ -192,6 +212,8 @@ public class StoreService {
                 .defaultDeliveryType(store.getDefaultDeliveryType())
                 .distributionEnabled(store.getDistributionEnabled())
                 .status(store.getStatus())
+                .latitude(store.getLatitude())
+                .longitude(store.getLongitude())
                 .build();
     }
 }

@@ -112,6 +112,10 @@ export interface LeaderLite {
 export interface StoreLite {
   id: string
   name: string
+  latitude: number | null
+  longitude: number | null
+  distanceMeters: number | null
+  distanceText: string | null
 }
 
 // ── 公开浏览：团购详情 ──
@@ -152,6 +156,10 @@ export interface StoreDetail {
   id: string
   name: string
   logoUrl: string | null
+  latitude: number | null
+  longitude: number | null
+  distanceMeters: number | null
+  distanceText: string | null
 }
 
 export interface PublicGroupBuyDetailItem {
@@ -295,6 +303,8 @@ export interface CreateStoreRequest {
   logoUrl?: string | null
   description?: string | null
   defaultDeliveryType: string
+  latitude?: number | null
+  longitude?: number | null
 }
 
 /** 更新店铺请求 */
@@ -303,6 +313,8 @@ export interface UpdateStoreRequest {
   logoUrl?: string | null
   description?: string | null
   defaultDeliveryType?: string
+  latitude?: number | null
+  longitude?: number | null
 }
 
 /** 团长详情（店铺相关） */
@@ -322,6 +334,8 @@ export interface StoreInfo {
   defaultDeliveryType: string
   distributionEnabled: boolean
   status: string
+  latitude: number | null
+  longitude: number | null
 }
 
 /** 创建/更新店铺响应数据 */
