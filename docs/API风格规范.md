@@ -256,6 +256,7 @@ API 状态字段使用 `camelCase` 英文枚举，页面展示时再转换为中
 | completed | 已完成 |
 | canceled | 已取消 |
 | afterSale | 售后中，P1 |
+| refunded | 已退款，P1 |
 
 ### 7.4 支付状态
 
@@ -264,6 +265,15 @@ API 状态字段使用 `camelCase` 英文枚举，页面展示时再转换为中
 | unpaid | 未支付 |
 | paid | 已支付 |
 | refunded | 已退款，P1 |
+
+### 7.5 售后状态
+
+| 枚举 | 说明 |
+|---|---|
+| pending | 待审核 |
+| approved | 审核通过 |
+| rejected | 已拒绝 |
+| completed | 已退款 |
 
 ---
 

@@ -2080,7 +2080,210 @@ PUT /api/v1/my/store/member-level-rules
 
 ---
 
-## 18. 状态流转接口归属
+## 18. 售后 API
+
+P1 Batch 05 新增售后退款接口。售后退款采用"买家申请 → 团长审核 → 团长模拟退款"的流程。
+
+### 18.1 申请售后
+
+```http
+POST /api/v1/orders/{orderId}/after-sales
+```
+
+登录：需要，且订单必须属于当前用户。
+
+业务规则：
+- 订单必须是 `payStatus=paid` 且 `orderStatus in paid/shipped/completed`。
+- 同一订单不能存在多个 `pending` 或 `approved` 状态的售后单。
+- 创建售后后订单改为 DB 状态 `after_sale`，API 响应 `afterSale`。
+- `type` 当前仅支持 `refund`。
+- 退款金额为订单 `payAmount`（实付金额）。
+
+请求：
+```json
+{
+  "type": "refund",
+  "reason": "商品质量问题"
+}
+```
+
+响应：
+```json
+{
+  "success": true,
+  "data": {
+    "id": 10001,
+    "orderId": 9001,
+    "orderNo": "202606240001",
+    "userId": 1,
+    "leaderId": 10,
+    "storeId": 20,
+    "type": "refund",
+    "reason": "商品质量问题",
+    "status": "pending",
+    "amount": 2990,
+    "originalOrderStatus": "paid",
+    "orderStatus": "afterSale",
+    "payStatus": "paid",
+    "rejectReason": null,
+    "createdAt": "2026-07-02T12:00:00+08:00"
+  },
+  "traceId": "req_001"
+}
+```
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `UNAUTHORIZED` | 未登录 |
+| `RESOURCE_NOT_FOUND` | 订单不存在或不属于当前用户 |
+| `AFTER_SALE_NOT_APPLICABLE` | 订单未支付或当前状态不可申请售后 |
+| `AFTER_SALE_IN_PROGRESS` | 当前订单已有进行中的售后单 |
+
+### 18.2 我的售后列表
+
+```http
+GET /api/v1/my/after-sales
+```
+
+登录：需要。
+
+查询参数：
+
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| page | number | 1 | 页码 |
+| pageSize | number | 20 | 每页数量 |
+
+响应：返回当前用户自己的售后请求列表，按创建时间降序。
+
+### 18.3 我的售后详情
+
+```http
+GET /api/v1/my/after-sales/{afterSaleId}
+```
+
+登录：需要。
+
+权限：只能查看自己的售后单。
+
+### 18.4 店铺售后列表
+
+```http
+GET /api/v1/my/store/after-sales
+```
+
+登录：需要团长身份。
+
+查询参数：
+
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| page | number | 1 | 页码 |
+| pageSize | number | 20 | 每页数量 |
+
+权限：只返回当前团长自己店铺的售后单。
+
+### 18.5 店铺售后详情
+
+```http
+GET /api/v1/my/store/after-sales/{afterSaleId}
+```
+
+登录：需要团长身份。
+
+权限：只能查看自己店铺的售后单。
+
+### 18.6 审核通过
+
+```http
+POST /api/v1/my/store/after-sales/{afterSaleId}/approve
+```
+
+登录：需要团长身份。
+
+业务规则：
+- 仅 `pending` 状态的售后单可审核通过。
+- 审核后 `status=approved`，`approvedAt` 记录时间。
+- 订单保持 `after_sale` 状态。
+
+响应：返回更新后的售后单。
+
+### 18.7 拒绝售后
+
+```http
+POST /api/v1/my/store/after-sales/{afterSaleId}/reject
+```
+
+登录：需要团长身份。
+
+请求：
+```json
+{
+  "rejectReason": "商品完好，不予退款"
+}
+```
+
+业务规则：
+- 仅 `pending` 状态的售后单可拒绝。
+- 拒绝后 `status=rejected`，`rejectReason` 记录原因。
+- 订单恢复为 `originalOrderStatus`（申请时的状态）。
+
+### 18.8 完成退款（模拟退款）
+
+```http
+POST /api/v1/my/store/after-sales/{afterSaleId}/complete-refund
+```
+
+登录：需要团长身份。
+
+业务规则：
+- 仅 `approved` 状态的售后单可完成退款。
+- 同事务内：售后 `status=completed`，订单 `orderStatus=refunded`，`payStatus=refunded`。
+- 返还库存：`group_stock += quantity`，`sold_count -= quantity`，最低不小于 0。
+- 冲正会员：从 `member_relations` 中减去 `payAmount` 对应的累计消费、成长值，并减 1 笔订单数。
+- 重算会员等级。
+- 优惠券不退回，`user_coupons.status` 保持 `used`。
+- 重复调用幂等：已 `completed` 且订单已 `refunded`，返回当前结果不重复执行副作用。
+
+### 18.9 订单响应增强
+
+`OrderResponse` 增加 `afterSale` 字段，nullable：
+
+```json
+{
+  "id": 9001,
+  "afterSale": {
+    "id": 10001,
+    "type": "refund",
+    "status": "pending",
+    "amount": 2990,
+    "reason": "商品质量问题",
+    "rejectReason": null,
+    "createdAt": "2026-07-02T12:00:00+08:00",
+    "approvedAt": null,
+    "rejectedAt": null,
+    "completedAt": null
+  }
+}
+```
+
+无售后时 `afterSale` 为 `null`（响应中不出现该字段）。
+
+### 18.10 错误码
+
+| 错误码 | HTTP | 场景 |
+|---|---|---|
+| `AFTER_SALE_NOT_APPLICABLE` | 422 | 当前订单不可申请售后 |
+| `AFTER_SALE_IN_PROGRESS` | 409 | 当前订单已有进行中的售后单 |
+| `AFTER_SALE_NOT_APPROVABLE` | 422 | 当前售后单不可审核通过 |
+| `AFTER_SALE_NOT_REJECTABLE` | 422 | 当前售后单不可拒绝 |
+| `AFTER_SALE_NOT_REFUNDABLE` | 422 | 当前售后单不可退款 |
+
+---
+
+## 19. 状态流转接口归属
 
 | 状态变化 | 触发接口 |
 |---|---|

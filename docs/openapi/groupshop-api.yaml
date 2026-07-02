@@ -1630,6 +1630,247 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  # ── After-Sale ────────────────────────────────────────────────────────
+  /api/v1/orders/{orderId}/after-sales:
+    post:
+      tags:
+        - AfterSale
+      summary: Apply for an after-sale (refund).
+      operationId: createAfterSale
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAfterSaleRequest'
+      responses:
+        '200':
+          description: After-sale created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSaleSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/after-sales:
+    get:
+      tags:
+        - AfterSale
+      summary: List my after-sale requests.
+      operationId: listMyAfterSales
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated after-sale list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSalePageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/after-sales/{afterSaleId}:
+    get:
+      tags:
+        - AfterSale
+      summary: Get my after-sale detail.
+      operationId: getMyAfterSale
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: afterSaleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: After-sale detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSaleSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/store/after-sales:
+    get:
+      tags:
+        - AfterSale
+      summary: List store after-sale requests.
+      operationId: listStoreAfterSales
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated store after-sale list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSalePageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/after-sales/{afterSaleId}:
+    get:
+      tags:
+        - AfterSale
+      summary: Get store after-sale detail.
+      operationId: getStoreAfterSale
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: afterSaleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: After-sale detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSaleSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/store/after-sales/{afterSaleId}/approve:
+    post:
+      tags:
+        - AfterSale
+      summary: Approve an after-sale request.
+      operationId: approveAfterSale
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: afterSaleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: After-sale approved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSaleSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/store/after-sales/{afterSaleId}/reject:
+    post:
+      tags:
+        - AfterSale
+      summary: Reject an after-sale request.
+      operationId: rejectAfterSale
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: afterSaleId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectAfterSaleRequest'
+      responses:
+        '200':
+          description: After-sale rejected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSaleSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/store/after-sales/{afterSaleId}/complete-refund:
+    post:
+      tags:
+        - AfterSale
+      summary: Complete refund for an approved after-sale.
+      operationId: completeRefund
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: afterSaleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Refund completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AfterSaleSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
 components:
   securitySchemes:
     bearerAuth:
@@ -3421,6 +3662,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/OrderItemData'
+        afterSale:
+          $ref: '#/components/schemas/AfterSaleSummaryData'
+          nullable: true
       additionalProperties: false
     OrderItemData:
       type: object
@@ -4124,3 +4368,169 @@ components:
         data:
           $ref: '#/components/schemas/CartItemData'
       additionalProperties: false
+    # ── After-Sale ──────────────────────────────────────────────────────
+    AfterSaleSummaryData:
+      type: object
+      required:
+        - id
+        - type
+        - status
+        - amount
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        amount:
+          type: integer
+        reason:
+          type: string
+          nullable: true
+        rejectReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+        approvedAt:
+          type: string
+          nullable: true
+        rejectedAt:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          nullable: true
+      additionalProperties: false
+    CreateAfterSaleRequest:
+      type: object
+      required:
+        - type
+        - reason
+      properties:
+        type:
+          type: string
+        reason:
+          type: string
+      additionalProperties: false
+    RejectAfterSaleRequest:
+      type: object
+      required:
+        - rejectReason
+      properties:
+        rejectReason:
+          type: string
+      additionalProperties: false
+    AfterSaleData:
+      type: object
+      required:
+        - id
+        - orderId
+        - userId
+        - leaderId
+        - storeId
+        - type
+        - reason
+        - status
+        - amount
+        - originalOrderStatus
+        - orderStatus
+        - payStatus
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        orderNo:
+          type: string
+        userId:
+          type: string
+        leaderId:
+          type: string
+        storeId:
+          type: string
+        type:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+        amount:
+          type: integer
+        originalOrderStatus:
+          type: string
+        orderStatus:
+          type: string
+        payStatus:
+          type: string
+        rejectReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+          nullable: true
+        approvedAt:
+          type: string
+          nullable: true
+        rejectedAt:
+          type: string
+          nullable: true
+        completedAt:
+          type: string
+          nullable: true
+      additionalProperties: false
+    AfterSaleSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/AfterSaleData'
+        traceId:
+          type: string
+      additionalProperties: false
+    AfterSalePageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/AfterSalePageData'
+        traceId:
+          type: string
+      additionalProperties: false
+    AfterSalePageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AfterSaleData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
