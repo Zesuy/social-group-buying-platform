@@ -1,9 +1,12 @@
 package com.example.groupshop.order;
 
 import com.example.groupshop.base.MockMvcTestBase;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,6 +30,9 @@ class OrderControllerTest extends MockMvcTestBase {
     private Long groupBuyId;
     private Long groupBuyItemId;
     private Long addressId;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -895,5 +901,72 @@ class OrderControllerTest extends MockMvcTestBase {
                         .contentType("application/json"))
                 .andExpect(status().isNotFound())
                 .andExpectAll(errorResult("SHARE_TOKEN_INVALID"));
+    }
+
+    // ── Idempotency-Key ─────────────────────────────────────────────────
+
+    @Test
+    void createOrder_withIdempotencyKey_shouldNotDuplicate() throws Exception {
+        String orderBody = """
+                {
+                    "groupBuyId": "%s",
+                    "addressId": "%s",
+                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                }
+                """.formatted(groupBuyId, addressId, groupBuyItemId);
+
+        // First request with key — extract order ID
+        String firstResp = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .header("Idempotency-Key", "unique-order-key-001")
+                        .contentType("application/json")
+                        .content(orderBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").isString())
+                .andReturn().getResponse().getContentAsString();
+        String firstOrderId = objectMapper.readTree(firstResp).get("data").get("id").asText();
+
+        // Duplicate request with same key — should return the same order
+        String secondResp = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .header("Idempotency-Key", "unique-order-key-001")
+                        .contentType("application/json")
+                        .content(orderBody))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String secondOrderId = objectMapper.readTree(secondResp).get("data").get("id").asText();
+
+        // Same key → same order ID (not a new order — idempotency replay)
+        assertThat(secondOrderId).isEqualTo(firstOrderId);
+    }
+
+    @Test
+    void createOrder_withoutIdempotencyKey_shouldCreateSeparateOrders() throws Exception {
+        String orderBody = """
+                {
+                    "groupBuyId": "%s",
+                    "addressId": "%s",
+                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                }
+                """.formatted(groupBuyId, addressId, groupBuyItemId);
+
+        String resp1 = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content(orderBody))
+                .andExpect(successResult())
+                .andReturn().getResponse().getContentAsString();
+        String id1 = objectMapper.readTree(resp1).get("data").get("id").asText();
+
+        String resp2 = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content(orderBody))
+                .andExpect(successResult())
+                .andReturn().getResponse().getContentAsString();
+        String id2 = objectMapper.readTree(resp2).get("data").get("id").asText();
+
+        // Without idempotency key, they're separate orders
+        org.assertj.core.api.Assertions.assertThat(id1).isNotEqualTo(id2);
     }
 }

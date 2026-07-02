@@ -54,6 +54,7 @@ MVP 统一约定：
 | 团购 | 团长发布普通团购，用户查看团购 | 部分需要 |
 | 地址 | 用户管理收货地址 | 需要 |
 | 订单 | 用户下单、查看订单、模拟支付、取消、确认收货 | 需要 |
+| 购物车 | 购物车管理（加购、改数量、删除）、购物车结算预览 | 需要 |
 | 团长订单 | 团长查看自己店铺订单、发货 | 需要团长身份 |
 | 订阅 | 关注 / 取消关注团长 | 需要 |
 | 会员卡 | 查看基础会员关系 | 需要 |
@@ -901,7 +902,12 @@ POST /api/v1/orders/preview
 
 用途：用于下单确认页，预览收货地址、商品明细、价格和库存。预览接口不创建订单、不扣库存、不占库存。
 
-请求：
+支持两种模式（二选一）：
+- **直接购买模式**：传入 `groupBuyId + items`。
+- **购物车模式**（P1 Batch 03）：传入 `cartItemIds`，所有 cart item 必须属于同一团购。
+- 两种模式不能同时使用，也不能都不传，否则返回 `VALIDATION_ERROR`。
+
+请求（直接购买模式）：
 
 ```json
 {
@@ -913,6 +919,15 @@ POST /api/v1/orders/preview
       "quantity": 1
     }
   ]
+}
+```
+
+请求（购物车模式）：
+
+```json
+{
+  "addressId": 300,
+  "cartItemIds": [10001, 10002]
 }
 ```
 
@@ -964,6 +979,10 @@ POST /api/v1/orders/preview
 | `ADDRESS_FORBIDDEN` | 地址不属于当前用户 |
 | `INSUFFICIENT_STOCK` | 库存不足 |
 
+| `VALIDATION_ERROR` | 同时传 items 和 cartItemIds 或两者都不传 |
+| `CART_FORBIDDEN` | 购物车模式下的跨用户 cartItem 访问 |
+| `CART_CROSS_GROUP_BUY` | 购物车模式下的跨团购结算 |
+
 ### 10.2 创建订单
 
 ```http
@@ -972,7 +991,16 @@ POST /api/v1/orders
 
 登录：需要。
 
-重复提交：MVP 创建订单不做强幂等，不要求支持 `Idempotency-Key`；前端需要对提交按钮做 loading/禁用来防重复点击。P1 再通过 `Idempotency-Key` 防止客户端重复提交创建多个订单。
+Idempotency-Key（P1 Batch 03）：支持可选的 `Idempotency-Key` 请求头。传入时，相同用户、相同路径、相同 key 的重复请求：
+- 首次成功返回结果，重复请求返回首次响应数据。
+- 首次失败返回错误，重复请求返回相同错误。
+- 同 key 不同请求体返回 `IDEMPOTENCY_KEY_MISMATCH`。
+- 未传时保持旧行为，不做幂等保护。
+
+支持两种模式（二选一）：
+- **直接购买模式**：传入 `groupBuyId + items`。
+- **购物车模式**（P1 Batch 03）：传入 `cartItemIds`。所有 cart item 必须属于同一团购。hidden 团购购物车模式下优先使用请求 `shareToken`，其次使用 cart item 已保存的 share token。创建成功后自动删除已结算的 cart item。
+- 两种模式不能同时使用，也不能都不传，否则返回 `VALIDATION_ERROR`。
 
 业务规则：
 
@@ -981,11 +1009,11 @@ POST /api/v1/orders
 - 下单时写入商品名称、规格、单价、数量快照。
 - 下单时必须保存收货地址快照：`receiverName`、`receiverPhone`、`province`、`city`、`district`、`detail`、`fullAddress`。
 - 用户后续修改或删除地址，不得影响历史订单。
-- MVP 建议不在创建订单时扣减库存；库存扣减发生在模拟支付成功时。
+- 不在创建订单时扣减库存；库存扣减发生在模拟支付成功时。
 - 支付库存只以团购商品库存为准，`products.stock` 不参与支付扣减。
-- MVP 不计算优惠券、红包、会员折扣和积分。
+- 不计算优惠券、红包、会员折扣和积分。
 
-请求：
+请求（直接购买模式）：
 
 ```json
 {
@@ -998,6 +1026,16 @@ POST /api/v1/orders
       "quantity": 1
     }
   ]
+}
+```
+
+请求（购物车模式）：
+
+```json
+{
+  "addressId": 300,
+  "remark": "请尽快发货",
+  "cartItemIds": [10001, 10002]
 }
 ```
 
@@ -1052,6 +1090,10 @@ POST /api/v1/orders
 | `ADDRESS_FORBIDDEN` | 地址不属于当前用户 |
 | `INSUFFICIENT_STOCK` | 库存不足 |
 | `VALIDATION_ERROR` | 数量、地址、商品明细等参数不合法 |
+| `CART_FORBIDDEN` | 购物车模式下的跨用户 cartItem 访问 |
+| `CART_CROSS_GROUP_BUY` | 购物车模式下的跨团购结算 |
+| `IDEMPOTENCY_KEY_MISMATCH` | 同 Idempotency-Key 请求体不一致 |
+| `IDEMPOTENCY_IN_PROCESSING` | 请求正在处理中 |
 
 ### 10.3 我的订单列表
 
@@ -1092,7 +1134,7 @@ POST /api/v1/orders/{orderId}/simulate-pay
 
 登录：需要，且订单必须属于当前用户。
 
-重复提交：MVP 通过订单状态校验和数据库事务防止重复支付、重复扣库存或重复更新会员关系；`Idempotency-Key` 可作为 P1 增强。
+Idempotency-Key（P1 Batch 03）：支持可选的 `Idempotency-Key` 请求头，防止重复支付重复扣库存。
 
 业务规则：
 
@@ -1128,7 +1170,7 @@ POST /api/v1/orders/{orderId}/cancel
 
 登录：需要，且订单必须属于当前用户。
 
-重复提交：MVP 通过订单状态校验保证重复取消不会造成异常状态；`Idempotency-Key` 可作为 P1 增强。
+Idempotency-Key（P1 Batch 03）：支持可选的 `Idempotency-Key` 请求头，防止重复提交。
 
 业务规则：
 
@@ -1149,6 +1191,8 @@ POST /api/v1/orders/{orderId}/complete
 ```
 
 登录：需要，且订单必须属于当前用户。
+
+Idempotency-Key（P1 Batch 03）：支持可选的 `Idempotency-Key` 请求头，防止重复提交。
 
 业务规则：
 
@@ -1205,7 +1249,7 @@ POST /api/v1/my/store/orders/{orderId}/ship
 
 登录：需要团长身份。
 
-重复提交：MVP 通过订单状态校验和数据库事务防止重复发货；`Idempotency-Key` 可作为 P1 增强。
+Idempotency-Key（P1 Batch 03）：支持可选的 `Idempotency-Key` 请求头，防止重复发货。
 
 业务规则：
 
@@ -1578,7 +1622,185 @@ DELETE /api/v1/my/browsing-histories/{historyId}
 
 ---
 
-## 17. 状态流转接口归属
+## 17. 购物车 API
+
+P1 Batch 03 新增购物车管理接口。所有购物车接口需要登录。
+
+### 17.1 获取购物车列表
+
+```http
+GET /api/v1/cart/items
+```
+
+登录：需要。
+
+响应：返回当前用户购物车中的所有商品。
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "cartItemId": 10001,
+      "groupBuyId": 100,
+      "groupBuyItemId": 1001,
+      "productId": 501,
+      "title": "白玉蜜桃 5 斤装",
+      "coverImageUrl": "https://example.com/product.png",
+      "groupPriceAmount": 2990,
+      "quantity": 2,
+      "availableStock": 100,
+      "visibility": "public",
+      "status": "published",
+      "startTime": "2026-06-24T12:00:00+08:00",
+      "endTime": "2026-07-01T12:00:00+08:00"
+    }
+  ],
+  "traceId": "req_001"
+}
+```
+
+### 17.2 添加商品到购物车
+
+```http
+POST /api/v1/cart/items
+```
+
+登录：需要。
+
+请求：
+
+```json
+{
+  "groupBuyItemId": 1001,
+  "quantity": 2,
+  "shareToken": "optional-share-token"
+}
+```
+
+业务规则：
+
+- 校验团购必须 `published`、未结束、已开始。
+- 校验库存足够。
+- hidden 团购必须携带匹配且 active/未过期的 `shareToken`。
+- 如果当前用户已有该 `groupBuyItemId`，合并数量并重新校验合并后的库存。
+- 合并后的库存不足返回 `INSUFFICIENT_STOCK`。
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `ITEM_NOT_IN_GROUP_BUY` | 团购商品不存在 |
+| `GROUP_BUY_NOT_PURCHASABLE` | 团购不可购买 |
+| `GROUP_BUY_ENDED` | 团购已结束 |
+| `INSUFFICIENT_STOCK` | 库存不足 |
+| `HIDDEN_GROUP_BUY_REQUIRES_TOKEN` | 隐藏团购未提供 shareToken |
+| `SHARE_TOKEN_INVALID` | 分享 token 无效或已过期 |
+
+### 17.3 修改购物车商品数量
+
+```http
+PATCH /api/v1/cart/items/{cartItemId}
+```
+
+登录：需要。
+
+请求：
+
+```json
+{
+  "quantity": 5,
+  "shareToken": "optional-share-token"
+}
+```
+
+业务规则：
+
+- 只能修改当前用户自己的 cart item。
+- `quantity` 必须为正整数。
+- 重新校验团购状态、库存、hidden token。
+- hidden token 可来自请求中的有效 token，或已有 cart item 上的有效 `share_token_id`。
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `CART_NOT_FOUND` | 购物车项不存在 |
+| `CART_FORBIDDEN` | 不能操作他人购物车 |
+| `VALIDATION_ERROR` | 数量不合法 |
+| `INSUFFICIENT_STOCK` | 库存不足 |
+| `GROUP_BUY_ENDED` | 团购已结束 |
+
+### 17.4 删除购物车商品
+
+```http
+DELETE /api/v1/cart/items/{cartItemId}
+```
+
+登录：需要。
+
+业务规则：
+
+- 只能删除当前用户自己的 cart item。
+- 成功返回 `data: null`。
+
+### 17.5 清空购物车
+
+```http
+DELETE /api/v1/cart/items
+```
+
+登录：需要。
+
+业务规则：
+
+- 清空当前用户购物车所有商品。
+- 成功返回 `data: null`。
+
+### 17.6 购物车结算预览
+
+```http
+POST /api/v1/cart/checkout-preview
+```
+
+登录：需要。
+
+请求：
+
+```json
+{
+  "addressId": 2001,
+  "cartItemIds": [10001, 10002],
+  "shareToken": "optional-share-token"
+}
+```
+
+业务规则：
+
+- 所有 cart item 必须属于当前用户。
+- 所有 cart item 必须属于同一个 `groupBuyId`，否则 `CART_CROSS_GROUP_BUY`。
+- hidden 团购校验：优先使用请求 `shareToken`，其次使用 cart item 上已保存的 share token。
+- 只预览，不清理购物车。
+
+响应：与订单预览 `POST /api/v1/orders/preview` 响应结构相同。
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `CART_FORBIDDEN` | 不能操作他人购物车 |
+| `CART_CROSS_GROUP_BUY` | 购物车结算必须属于同一团购 |
+| `HIDDEN_GROUP_BUY_REQUIRES_TOKEN` | 隐藏团购需要有效 shareToken |
+| `GROUP_BUY_ENDED` | 团购已结束 |
+| `INSUFFICIENT_STOCK` | 库存不足 |
+
+### 17.7 购物车下单
+
+购物车下单使用增强后的 `POST /api/v1/orders`，传入 `cartItemIds` 字段（参见 10.2 创建订单）。
+
+---
+
+## 18. 状态流转接口归属
 
 | 状态变化 | 触发接口 |
 |---|---|
@@ -1597,13 +1819,13 @@ DELETE /api/v1/my/browsing-histories/{historyId}
 
 ---
 
-## 18. MVP 暂不展开的 API
+## 19. MVP 暂不展开的 API
 
 | 能力 | 后续优先级 | 说明 |
 |---|---:|---|
 | 微信登录 | P1/P2 | MVP 使用模拟登录 |
 | 真实微信支付 | P1/P2 | MVP 使用模拟支付 |
-| 购物车 | P1（进行中） | MVP 直接下单；P1 Batch 01 已完成商品库独立管理 |
+| 购物车 | P1（已完成） | P1 Batch 03 已实现购物车管理、购物车结算预览和购物车下单 |
 | 商品库独立管理 | P1（已完成） | P1 Batch 01 实现分类、关键词搜索 |
 | 优惠券 / 红包 | P1 | 不参与订单金额 |
 | 售后退款 | P1 | MVP 只预留状态 |
@@ -1616,7 +1838,7 @@ DELETE /api/v1/my/browsing-histories/{historyId}
 
 ---
 
-## 19. 核心时序图
+## 20. 核心时序图
 
 本章节只描述 MVP 范围内的 API 调用、服务端处理、数据表写入和状态变化。
 

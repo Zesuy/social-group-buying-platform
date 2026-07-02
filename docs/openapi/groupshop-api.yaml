@@ -22,6 +22,7 @@ tags:
   - name: Category
   - name: Favorite
   - name: BrowsingHistory
+  - name: Cart
 paths:
   /api/v1/health:
     get:
@@ -988,6 +989,162 @@ paths:
         '422':
           $ref: '#/components/responses/GroupBuyNotPurchasableError'
           # Also: GROUP_BUY_ENDED, ITEM_NOT_IN_GROUP_BUY, INSUFFICIENT_STOCK
+  /api/v1/cart/items:
+    get:
+      tags:
+        - Cart
+      summary: List cart items.
+      operationId: listCartItems
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cart items listed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemsSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags:
+        - Cart
+      summary: Add item to cart.
+      operationId: addCartItem
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemRequest'
+      responses:
+        '200':
+          description: Item added to cart.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          description: Business rule violation (e.g. GROUP_BUY_ENDED, INSUFFICIENT_STOCK).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/cart/items/{cartItemId}:
+    patch:
+      tags:
+        - Cart
+      summary: Update cart item quantity.
+      operationId: updateCartItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cartItemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartItemRequest'
+      responses:
+        '200':
+          description: Cart item updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CartForbiddenError'
+        '404':
+          $ref: '#/components/responses/CartNotFoundError'
+        '422':
+          description: Business rule violation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Cart
+      summary: Delete a cart item.
+      operationId: deleteCartItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: cartItemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Cart item deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/CartForbiddenError'
+        '404':
+          $ref: '#/components/responses/CartNotFoundError'
+  /api/v1/cart/items/delete-all:
+    delete:
+      tags:
+        - Cart
+      summary: Clear all cart items for the current user.
+      operationId: clearCart
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Cart cleared.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/cart/checkout-preview:
+    post:
+      tags:
+        - Cart
+      summary: Preview order from cart items.
+      operationId: cartCheckoutPreview
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartCheckoutPreviewRequest'
+      responses:
+        '200':
+          description: Checkout preview data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderPreviewSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolation'
   /api/v1/orders:
     post:
       tags:
@@ -996,6 +1153,13 @@ paths:
       operationId: createOrder
       security:
         - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional idempotency key for safe retry.
       requestBody:
         required: true
         content:
@@ -1091,6 +1255,12 @@ paths:
           schema:
             type: string
             description: ID（string）
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional idempotency key for safe retry.
       responses:
         '200':
           description: Order canceled.
@@ -1119,6 +1289,12 @@ paths:
           schema:
             type: string
             description: ID（string）
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional idempotency key for safe retry.
       responses:
         '200':
           description: Payment simulated successfully.
@@ -1150,6 +1326,12 @@ paths:
           schema:
             type: string
             description: ID（string）
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional idempotency key for safe retry.
       responses:
         '200':
           description: Order completed successfully (receipt confirmed).
@@ -1244,6 +1426,12 @@ paths:
           schema:
             type: string
             description: ID（string）
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Optional idempotency key for safe retry.
       requestBody:
         required: true
         content:
@@ -1480,6 +1668,24 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     BusinessRuleViolationError:
       description: The operation violates a business rule.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BusinessRuleViolation:
+      description: The operation violates a business rule.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    CartForbiddenError:
+      description: The cart item does not belong to the current user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    CartNotFoundError:
+      description: The cart item was not found.
       content:
         application/json:
           schema:
@@ -3057,14 +3263,10 @@ components:
       additionalProperties: false
     OrderPreviewRequest:
       type: object
-      required:
-        - groupBuyId
-        - addressId
-        - items
       properties:
         groupBuyId:
           type: string
-          description: ID（string）
+          description: ID（string）— required for direct purchase mode
         addressId:
           type: string
           description: ID（string）
@@ -3073,8 +3275,14 @@ components:
           description: Required for hidden group buys (optional for public)
         items:
           type: array
+          description: Direct purchase items (mutually exclusive with cartItemIds)
           items:
             $ref: '#/components/schemas/OrderItemEntry'
+        cartItemIds:
+          type: array
+          description: Cart item IDs for cart checkout (mutually exclusive with items)
+          items:
+            type: string
       additionalProperties: false
     OrderItemEntry:
       type: object
@@ -3250,14 +3458,10 @@ components:
       additionalProperties: false
     CreateOrderRequest:
       type: object
-      required:
-        - groupBuyId
-        - addressId
-        - items
       properties:
         groupBuyId:
           type: string
-          description: ID（string）
+          description: ID（string）— required for direct purchase mode
         addressId:
           type: string
           description: ID（string）
@@ -3270,8 +3474,14 @@ components:
           maxLength: 256
         items:
           type: array
+          description: Direct purchase items (mutually exclusive with cartItemIds)
           items:
             $ref: '#/components/schemas/OrderItemEntry'
+        cartItemIds:
+          type: array
+          description: Cart item IDs for cart checkout (mutually exclusive with items)
+          items:
+            type: string
       additionalProperties: false
     GroupBuyItemDetail:
       type: object
@@ -3821,4 +4031,96 @@ components:
           nullable: true
         createdAt:
           type: string
+      additionalProperties: false
+    # ── Cart schemas ──────────────────────────────────────────────────
+    CartItemData:
+      type: object
+      properties:
+        cartItemId:
+          type: string
+        groupBuyId:
+          type: string
+        groupBuyItemId:
+          type: string
+        productId:
+          type: string
+        title:
+          type: string
+        coverImageUrl:
+          type: string
+          nullable: true
+        groupPriceAmount:
+          type: integer
+        quantity:
+          type: integer
+        availableStock:
+          type: integer
+        visibility:
+          type: string
+        status:
+          type: string
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+      additionalProperties: false
+    AddCartItemRequest:
+      type: object
+      required:
+        - groupBuyItemId
+        - quantity
+      properties:
+        groupBuyItemId:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        shareToken:
+          type: string
+      additionalProperties: false
+    UpdateCartItemRequest:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+        shareToken:
+          type: string
+      additionalProperties: false
+    CartCheckoutPreviewRequest:
+      type: object
+      required:
+        - addressId
+        - cartItemIds
+      properties:
+        addressId:
+          type: string
+        cartItemIds:
+          type: array
+          items:
+            type: string
+        shareToken:
+          type: string
+      additionalProperties: false
+    CartItemsSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItemData'
+      additionalProperties: false
+    CartItemSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          $ref: '#/components/schemas/CartItemData'
       additionalProperties: false

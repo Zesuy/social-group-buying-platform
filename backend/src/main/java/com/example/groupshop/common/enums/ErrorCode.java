@@ -48,6 +48,15 @@ public enum ErrorCode {
     SHARE_TOKEN_INVALID(404, "SHARE_TOKEN_INVALID", "分享链接无效或已过期"),
     SHARE_TOKEN_MISMATCH(422, "SHARE_TOKEN_MISMATCH", "分享 token 与团购不匹配"),
     HIDDEN_GROUP_BUY_REQUIRES_TOKEN(422, "HIDDEN_GROUP_BUY_REQUIRES_TOKEN", "隐藏团购需要有效分享 token"),
+
+    // ── Cart errors ─────────────────────────────────────────────────────
+    CART_NOT_FOUND(404, "CART_NOT_FOUND", "购物车项不存在"),
+    CART_FORBIDDEN(403, "CART_FORBIDDEN", "不能操作他人购物车"),
+    CART_CROSS_GROUP_BUY(422, "CART_CROSS_GROUP_BUY", "购物车结算必须属于同一团购"),
+
+    // ── Idempotency errors ──────────────────────────────────────────────
+    IDEMPOTENCY_KEY_MISMATCH(409, "IDEMPOTENCY_KEY_MISMATCH", "同一 Idempotency-Key 请求体不一致"),
+    IDEMPOTENCY_IN_PROCESSING(409, "IDEMPOTENCY_IN_PROCESSING", "请求正在处理中，请稍后重试"),
     ;
 
     private final int httpStatus;

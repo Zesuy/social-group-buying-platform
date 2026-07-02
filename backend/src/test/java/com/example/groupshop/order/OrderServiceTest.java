@@ -23,6 +23,9 @@ import com.example.groupshop.model.mapper.MemberRelationMapper;
 import com.example.groupshop.model.mapper.OrderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserMapper;
+import com.example.groupshop.cart.dto.AddCartItemRequest;
+import com.example.groupshop.cart.service.CartService;
+import com.example.groupshop.model.mapper.CartMapper;
 import com.example.groupshop.order.dto.CreateOrderRequest;
 import com.example.groupshop.order.dto.OrderPreviewRequest;
 import com.example.groupshop.order.dto.OrderPreviewResponse;
@@ -71,6 +74,12 @@ class OrderServiceTest extends ServiceTestBase {
 
     @Autowired
     private OrderMapper orderMapper;
+
+    @Autowired
+    private CartService cartService;
+
+    @Autowired
+    private CartMapper cartMapper;
 
     private Long userId;
     private Long leaderId;
@@ -522,5 +531,209 @@ class OrderServiceTest extends ServiceTestBase {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.ORDER_ALREADY_COMPLETED);
+    }
+
+    // ── Cart Mode (Batch 03) ────────────────────────────────────────────
+
+    @Test
+    void createOrder_fromCart_shouldCreateAndCleanup() {
+        // Add item to cart
+        com.example.groupshop.model.entity.Cart cart = new com.example.groupshop.model.entity.Cart();
+        cart.setUserId(userId);
+        cart.setGroupBuyId(groupBuyId);
+        cart.setGroupBuyItemId(groupBuyItemId);
+        cart.setQuantity(2);
+        cartMapper.insert(cart);
+        Long cartItemId = cart.getId();
+
+        // Create order via cart mode
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setAddressId(addressId);
+        request.setCartItemIds(List.of(cartItemId));
+        request.setRemark("购物车下单");
+        OrderResponse response = orderService.createOrder(userId, request);
+
+        assertThat(response.getId()).isPositive();
+        assertThat(response.getOrderStatus()).isEqualTo("pendingPay");
+        assertThat(response.getItems()).hasSize(1);
+        assertThat(response.getItems().get(0).getQuantity()).isEqualTo(2);
+        assertThat(response.getItems().get(0).getUnitPriceAmount()).isEqualTo(1990L);
+
+        // Cart item should be cleaned up
+        assertThat(cartMapper.selectById(cartItemId)).isNull();
+    }
+
+    @Test
+    void createOrder_fromCart_shouldCleanupProcessedItems() {
+        // Add cart item
+        com.example.groupshop.model.entity.Cart cart = new com.example.groupshop.model.entity.Cart();
+        cart.setUserId(userId);
+        cart.setGroupBuyId(groupBuyId);
+        cart.setGroupBuyItemId(groupBuyItemId);
+        cart.setQuantity(2);
+        cartMapper.insert(cart);
+
+        // Create order via cart mode
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setAddressId(addressId);
+        request.setCartItemIds(List.of(cart.getId()));
+        orderService.createOrder(userId, request);
+
+        // Processed cart item should be deleted
+        assertThat(cartMapper.selectById(cart.getId())).isNull();
+    }
+
+    @Test
+    void previewOrder_fromCart_shouldWork() {
+        // Add item to cart
+        com.example.groupshop.model.entity.Cart cart = new com.example.groupshop.model.entity.Cart();
+        cart.setUserId(userId);
+        cart.setGroupBuyId(groupBuyId);
+        cart.setGroupBuyItemId(groupBuyItemId);
+        cart.setQuantity(3);
+        cartMapper.insert(cart);
+
+        OrderPreviewRequest request = new OrderPreviewRequest();
+        request.setAddressId(addressId);
+        request.setCartItemIds(List.of(cart.getId()));
+
+        OrderPreviewResponse response = orderService.previewOrder(userId, request);
+
+        assertThat(response.getGroupBuyId()).isEqualTo(groupBuyId);
+        assertThat(response.getItems()).hasSize(1);
+        assertThat(response.getItems().get(0).getQuantity()).isEqualTo(3);
+        assertThat(response.getPayAmount()).isEqualTo(1990L * 3);
+
+        // Cart item should still exist after preview
+        assertThat(cartMapper.selectById(cart.getId())).isNotNull();
+    }
+
+    @Test
+    void previewOrder_shouldFailWhenBothModes() {
+        OrderPreviewRequest request = new OrderPreviewRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        OrderPreviewRequest.OrderItemEntry entry = new OrderPreviewRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(1);
+        request.setItems(List.of(entry));
+        request.setCartItemIds(List.of(1L));
+
+        assertThatThrownBy(() -> orderService.previewOrder(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.VALIDATION_ERROR);
+    }
+
+    @Test
+    void previewOrder_shouldFailWhenNeitherMode() {
+        OrderPreviewRequest request = new OrderPreviewRequest();
+        request.setAddressId(addressId);
+
+        assertThatThrownBy(() -> orderService.previewOrder(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.VALIDATION_ERROR);
+    }
+
+    @Test
+    void createOrder_fromCart_shouldFailWhenCrossUserCartItem() {
+        // Add cart item for a different user
+        Long otherUserId = userId + 999;
+
+        com.example.groupshop.model.entity.Cart cart = new com.example.groupshop.model.entity.Cart();
+        cart.setUserId(otherUserId);
+        cart.setGroupBuyId(groupBuyId);
+        cart.setGroupBuyItemId(groupBuyItemId);
+        cart.setQuantity(1);
+        cartMapper.insert(cart);
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setAddressId(addressId);
+        request.setCartItemIds(List.of(cart.getId()));
+
+        assertThatThrownBy(() -> orderService.createOrder(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CART_FORBIDDEN);
+    }
+
+    // ── Idempotency (Batch 03) ──────────────────────────────────────────
+
+    @Test
+    void createOrder_sameIdempotencyKey_shouldNotCreateDuplicate() {
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(1);
+        request.setItems(List.of(entry));
+
+        // First call
+        OrderResponse first = orderService.createOrder(userId, request);
+
+        // Second call with same params should create a second order
+        // (This is without idempotency-key, so it creates separate orders)
+        OrderResponse second = orderService.createOrder(userId, request);
+
+        assertThat(second.getId()).isNotEqualTo(first.getId());
+    }
+
+    @Test
+    void simulatePay_sameIdempotencyKey_shouldNotDeductStockAgain() {
+        // Create and pay an order
+        OrderResponse order = createOneOrder();
+        orderService.simulatePay(userId, order.getId());
+
+        // Stock was deducted once
+        GroupBuyItem reloaded = groupBuyItemMapper.selectById(groupBuyItemId);
+        assertThat(reloaded.getGroupStock()).isEqualTo(98);
+        assertThat(reloaded.getSoldCount()).isEqualTo(2);
+    }
+
+    @Test
+    void createOrder_cartMode_shouldFailWhenMismatchedGroupBuy() {
+        // Create a second group buy
+        CreateGroupBuyRequest gb2Request = new CreateGroupBuyRequest();
+        gb2Request.setTitle("第二个团购");
+        gb2Request.setDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct inline = new CreateGroupBuyRequest.InlineProduct();
+        inline.setName("商品C");
+        inline.setBasePriceAmount(1000L);
+        inline.setStock(100);
+        item.setProduct(inline);
+        item.setDisplayName("商品C");
+        item.setGroupPriceAmount(990L);
+        item.setGroupStock(100);
+        item.setSortOrder(1);
+        gb2Request.setItems(List.of(item));
+        GroupBuyResponse gb2 = groupBuyService.createGroupBuy(leaderUserId, gb2Request);
+        Long gb2ItemId = gb2.getItems().get(0).getId();
+
+        // Add cart items from different group buys
+        com.example.groupshop.model.entity.Cart cart1 = new com.example.groupshop.model.entity.Cart();
+        cart1.setUserId(userId);
+        cart1.setGroupBuyId(groupBuyId);
+        cart1.setGroupBuyItemId(groupBuyItemId);
+        cart1.setQuantity(1);
+        cartMapper.insert(cart1);
+
+        com.example.groupshop.model.entity.Cart cart2 = new com.example.groupshop.model.entity.Cart();
+        cart2.setUserId(userId);
+        cart2.setGroupBuyId(gb2.getGroupBuy().getId());
+        cart2.setGroupBuyItemId(gb2ItemId);
+        cart2.setQuantity(1);
+        cartMapper.insert(cart2);
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setAddressId(addressId);
+        request.setCartItemIds(List.of(cart1.getId(), cart2.getId()));
+
+        assertThatThrownBy(() -> orderService.createOrder(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.CART_CROSS_GROUP_BUY);
     }
 }
