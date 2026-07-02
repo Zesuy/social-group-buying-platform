@@ -7,6 +7,7 @@ export const API_PREFIX = '/api/v1'
 /** 本地存储 key */
 export const STORAGE_KEYS = {
   ACCESS_TOKEN: 'accessToken',
+  PROFILE_FEATURE_ROLE: 'profileFeatureRole',
 } as const
 
 /** 分页默认值 */

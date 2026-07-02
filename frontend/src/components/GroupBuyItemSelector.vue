@@ -9,6 +9,7 @@
       width="64px"
       height="64px"
       radius="8px"
+      :alt="item.displayName"
     />
     <div class="group-buy-item-selector__info">
       <div class="group-buy-item-selector__name van-multi-ellipsis--l2">

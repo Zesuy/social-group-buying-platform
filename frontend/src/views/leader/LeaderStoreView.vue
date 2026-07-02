@@ -63,6 +63,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { getMyStore, updateMyStore } from '@/api/stores'
+import { resolveDisplayImageUrl } from '@/utils'
 import { getDeliveryTypeText } from '@/utils/status'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -123,7 +124,7 @@ async function handleSave() {
   try {
     await updateMyStore({
       name: editForm.name.trim(),
-      logoUrl: editForm.logoUrl.trim() || null,
+      logoUrl: resolveDisplayImageUrl(editForm.logoUrl.trim(), editForm.name, 'store'),
       description: editForm.description.trim() || null,
       defaultDeliveryType: editForm.defaultDeliveryType,
     })

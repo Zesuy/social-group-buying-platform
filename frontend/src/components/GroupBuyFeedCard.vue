@@ -4,8 +4,8 @@
       <div class="group-buy-feed-card__header">
         <div class="group-buy-feed-card__store-row">
           <img
-            v-if="item.leader.avatarUrl"
-            :src="item.leader.avatarUrl"
+            v-if="leaderAvatarUrl"
+            :src="leaderAvatarUrl"
             class="group-buy-feed-card__avatar"
             :alt="`${item.leader.displayName}头像`"
           />
@@ -57,12 +57,16 @@
           radius="7px"
           :alt="item.title"
         />
-        <div class="group-buy-feed-card__fake-img" :class="imageTone">
-          <span>商品图</span>
-        </div>
-        <div class="group-buy-feed-card__fake-img" :class="imageTone">
-          <span>商品图</span>
-        </div>
+        <ImageWithFallback
+          v-for="image in extraImages"
+          :key="image"
+          :src="image"
+          width="100%"
+          height="116px"
+          fit="cover"
+          radius="7px"
+          :alt="item.title"
+        />
       </div>
 
       <div class="group-buy-feed-card__footer">
@@ -95,6 +99,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { PublicGroupBuyItem } from '@/types'
+import { getDemoProductImage, resolveDisplayImageUrl } from '@/utils/demo-images'
 import PriceText from './PriceText.vue'
 import ImageWithFallback from './ImageWithFallback.vue'
 
@@ -111,13 +116,15 @@ defineEmits<{
 const isEnded = computed(() => props.item.status === 'ended')
 const avatarText = computed(() => props.item.store.name.slice(0, 1) || props.item.leader.displayName.slice(0, 1))
 const watchCount = computed(() => Math.max(props.item.soldCount + 76, 128))
-const imageTone = computed(() => {
-  const title = props.item.title
-  if (/鞋|脚|喷剂|清爽/.test(title)) return 'group-buy-feed-card__fake-img--foot'
-  if (/果|菜|鲜|橙|桃|肉/.test(title)) return 'group-buy-feed-card__fake-img--fresh'
-  if (/衣|服|裤|衫/.test(title)) return 'group-buy-feed-card__fake-img--cloth'
-  return 'group-buy-feed-card__fake-img--daily'
-})
+const leaderAvatarUrl = computed(() => resolveDisplayImageUrl(
+  props.item.leader.avatarUrl,
+  props.item.leader.displayName,
+  'avatar',
+))
+const extraImages = computed(() => [
+  getDemoProductImage(props.item.title, 1),
+  getDemoProductImage(props.item.title, 2),
+])
 </script>
 
 <style scoped>
@@ -259,39 +266,6 @@ const imageTone = computed(() => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin: 8px 0 12px;
-}
-
-.group-buy-feed-card__fake-img {
-  min-height: 116px;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 900;
-  overflow: hidden;
-}
-
-.group-buy-feed-card__fake-img span {
-  background: rgba(0, 0, 0, 0.22);
-  border-radius: 99px;
-  padding: 4px 8px;
-}
-
-.group-buy-feed-card__fake-img--foot {
-  background: linear-gradient(145deg, #cfddff, #ec715b);
-}
-
-.group-buy-feed-card__fake-img--fresh {
-  background: linear-gradient(145deg, #ffd273, #55aa5d);
-}
-
-.group-buy-feed-card__fake-img--cloth {
-  background: linear-gradient(145deg, #f8cadc, #9f89df);
-}
-
-.group-buy-feed-card__fake-img--daily {
-  background: linear-gradient(145deg, #dcefe0, #a1c49f);
 }
 
 .group-buy-feed-card__footer,

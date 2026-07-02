@@ -136,6 +136,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppPageNote from '@/components/AppPageNote.vue'
 import { createGroupBuy } from '@/api/leaderGroupBuys'
+import { getDemoProductImage } from '@/utils'
 
 const router = useRouter()
 
@@ -227,13 +228,14 @@ async function handleSubmit() {
     await createGroupBuy({
       title: form.title,
       introduction: form.introduction || null,
-      coverImageUrl: form.coverImageUrl || null,
+      coverImageUrl: form.coverImageUrl || getDemoProductImage(form.title),
       deliveryType: form.deliveryType,
       startTime: toISOWithTZ(form.startTime),
       endTime: toISOWithTZ(form.endTime),
       items: form.items.map((item) => ({
         product: {
           name: item.displayName,
+          coverImageUrl: getDemoProductImage(item.displayName),
           basePriceAmount: item.groupPriceAmount,
           stock: item.groupStock,
         },

@@ -6,6 +6,7 @@
       width="72px"
       height="72px"
       radius="8px"
+      :alt="item.name"
     />
     <div class="product-list-item__info">
       <div class="product-list-item__name van-multi-ellipsis--l2">

@@ -22,25 +22,25 @@ export const BUYER_PHONE = `139${PHONE_SUFFIX}`
 export const BUYER_NICKNAME = `测试买家_${RUN_ID}`
 export const LEADER_PHONE = `138${PHONE_SUFFIX}`
 export const LEADER_NICKNAME = `测试团长_${RUN_ID}`
-export const TEST_AVATAR_URL = 'https://example.com/avatar.png'
+export const TEST_AVATAR_URL = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=300&q=80'
 
 // ── 测试店铺 ──
 export const STORE_NAME = `测试小店_${RUN_ID}`
 export const STORE_DESCRIPTION = 'Live E2E 测试店铺'
-export const STORE_LOGO_URL = 'https://example.com/logo.png'
+export const STORE_LOGO_URL = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80'
 export const DEFAULT_DELIVERY_TYPE = 'express'
 
 // ── 测试商品 ──
 export const PRODUCT_NAME = `测试蜜桃_${RUN_ID}`
 export const PRODUCT_DESCRIPTION = 'Live E2E 测试商品'
-export const PRODUCT_COVER_URL = 'https://example.com/product.png'
+export const PRODUCT_COVER_URL = 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=800&q=80'
 export const PRODUCT_BASE_PRICE = 2990 // 分
 export const PRODUCT_STOCK = 100
 
 // ── 测试团购 ──
 export const GROUP_BUY_TITLE = `测试团购_${RUN_ID}`
 export const GROUP_BUY_INTRODUCTION = 'Live E2E 测试团购'
-export const GROUP_BUY_COVER_URL = 'https://example.com/cover.png'
+export const GROUP_BUY_COVER_URL = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80'
 export const GROUP_BUY_DELIVERY_TYPE = 'express'
 export const GROUP_BUY_ITEM_DISPLAY_NAME = `蜜桃 5 斤装_${RUN_ID}`
 export const GROUP_BUY_ITEM_PRICE = 2990 // 分

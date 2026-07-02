@@ -6,15 +6,15 @@
 import { describe, it, expect } from 'vitest'
 
 describe('Profile view logic', () => {
-  // 模拟身份判断逻辑（与 ProfileView.vue 中一致）
-  function getProfileMenuState(isLoggedIn: boolean, isLeader: boolean) {
+  // 模拟功能视图逻辑：登录后默认团员视图，团长可在前端切换团长功能
+  function getProfileMenuState(isLoggedIn: boolean, isLeader: boolean, requestedRole: 'buyer' | 'leader' = 'buyer') {
     if (!isLoggedIn) {
-      return { showLoginCTA: true, role: 'guest' as const }
+      return { showLoginCTA: true, role: 'guest' as const, canSwitchLeader: false }
     }
-    if (isLeader) {
-      return { showLoginCTA: false, role: 'leader' as const }
+    if (isLeader && requestedRole === 'leader') {
+      return { showLoginCTA: false, role: 'leader' as const, canSwitchLeader: true }
     }
-    return { showLoginCTA: false, role: 'buyer' as const }
+    return { showLoginCTA: false, role: 'buyer' as const, canSwitchLeader: isLeader }
   }
 
   it('should show login CTA when not logged in', () => {
@@ -29,8 +29,15 @@ describe('Profile view logic', () => {
     expect(state.role).toBe('buyer')
   })
 
-  it('should show leader menu when logged in as leader', () => {
+  it('should show buyer menu by default when logged in as leader', () => {
     const state = getProfileMenuState(true, true)
+    expect(state.showLoginCTA).toBe(false)
+    expect(state.role).toBe('buyer')
+    expect(state.canSwitchLeader).toBe(true)
+  })
+
+  it('should show leader menu after local switch when logged in as leader', () => {
+    const state = getProfileMenuState(true, true, 'leader')
     expect(state.showLoginCTA).toBe(false)
     expect(state.role).toBe('leader')
   })

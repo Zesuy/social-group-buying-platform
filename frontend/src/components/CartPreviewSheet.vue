@@ -27,6 +27,7 @@
           width="74px"
           height="74px"
           radius="8px"
+          :alt="row.productName"
         />
         <div class="cart-row__info">
           <p class="cart-row__name van-multi-ellipsis--l2">{{ row.productName }}</p>
@@ -165,7 +166,7 @@ function increment(index: number) {
 
 function handleCheckout() {
   if (checkedItems.value.length === 0) return
-  emit('checkout', checkedItems.value.map(({ _key, checked, ...rest }) => rest))
+  emit('checkout', checkedItems.value.map(({ _key, checked: _checked, ...rest }) => rest))
 }
 </script>
 

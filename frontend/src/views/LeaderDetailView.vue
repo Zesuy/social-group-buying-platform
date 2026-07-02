@@ -9,14 +9,24 @@
           <button type="button" class="leader-topbar__back" aria-label="返回" @click="goBack">
             <van-icon name="arrow-left" size="22" />
           </button>
-          <div class="leader-topbar__title">团长主页</div>
+          <button type="button" class="leader-topbar__search" @click="onSearchClick">
+            <van-icon name="search" size="19" />
+            <span>搜索团购...</span>
+          </button>
+          <button type="button" class="leader-topbar__icon" aria-label="分享" @click="onShareClick">
+            <van-icon name="share-o" size="22" />
+          </button>
+          <button type="button" class="leader-topbar__more" aria-label="更多">
+            <span></span><span></span><span></span>
+          </button>
         </div>
 
         <section class="leader-hero">
-          <span>店铺头图 / 客服信息</span>
+          <button type="button" class="leader-edit-home" @click="onEditHomepageClick">编辑主页</button>
         </section>
 
         <AppCard class="leader-store-card">
+          <div class="leader-subscribe-tip">邀请团员订阅，开团消息及时通知</div>
           <div class="leader-store-card__main">
             <div class="leader-store-card__identity">
               <img
@@ -30,51 +40,60 @@
                 <span>金牌</span>
               </div>
               <div class="leader-store-card__copy">
-                <h1>{{ storeData?.name || leaderData.displayName }}</h1>
-                <p>{{ leaderData.bio || '社区好物精选团长' }}</p>
+                <h1>{{ leaderData.displayName }}</h1>
+                <p>成员 {{ leaderData.memberCount }} ｜ 关注 {{ leaderData.followerCount }}</p>
                 <div class="leader-store-card__stats">
-                  <span>粉丝 {{ leaderData.followerCount }}</span>
-                  <span>会员 {{ leaderData.memberCount }}</span>
+                  <span>{{ storeData?.name || '团长小店' }}</span>
                 </div>
               </div>
             </div>
             <div class="leader-store-card__actions">
-              <AppButton variant="ghost" @click="onServiceClick">
-                <van-icon name="service-o" />
-                客服
-              </AppButton>
-              <AppButton
-                variant="primary"
-                :loading="subLoading"
+              <button type="button" class="leader-action-icon" @click="onServiceClick">
+                <van-icon name="chat-o" />
+                <span>客服</span>
+              </button>
+              <button
+                type="button"
+                class="leader-action-icon leader-action-icon--subscribe"
                 :disabled="subLoading"
                 @click="toggleSubscribe"
               >
-                {{ subscribed ? '已订阅' : '+订阅' }}
-              </AppButton>
+                <van-icon :name="subscribed ? 'bookmark' : 'bookmark-o'" />
+                <span>{{ subscribed ? '已订阅' : '订阅邀请' }}</span>
+              </button>
             </div>
           </div>
 
-          <div class="leader-coupon">
-            <span>新人立减5元</span>
-            <AppButton variant="primary" @click="onCouponClick">领取</AppButton>
-          </div>
-
-          <div class="leader-benefits">
-            <button type="button" class="leader-benefit" @click="onMemberClick">
-              <span>会员权益</span>
-              <b>最高9.0折</b>
-            </button>
-            <button type="button" class="leader-benefit" @click="onPointsClick">
-              <span>积分商城</span>
-              <b>跟团赢积分</b>
+          <div class="leader-profile-lines">
+            <div class="leader-profile-line">
+              <van-icon name="description-o" />
+              <span>{{ leaderData.bio || `我是团长${leaderData.displayName}，欢迎您来到我的团购` }}</span>
+            </div>
+            <button type="button" class="leader-profile-line" @click="onLocationClick">
+              <van-icon name="location-o" />
+              <span>添加位置，让更多的人购买</span>
+              <b>更多信息</b>
+              <van-icon name="arrow" />
             </button>
           </div>
         </AppCard>
 
-        <AppCard class="leader-showcase" clickable @click="onShowcaseClick">
-          <b>团员晒单</b>
-          <span>“收到啦，包装很好，价格也划算...”</span>
-          <div class="leader-showcase__photo">晒单图</div>
+        <div class="leader-follow-banner">
+          <span>关注公众号，收到活动和订单、物流通知</span>
+          <button type="button" @click="onWechatNoticeClick">关注</button>
+          <van-icon name="cross" />
+        </div>
+
+        <AppCard class="leader-helper-card">
+          <div class="leader-helper-row">
+            <span>帮卖介绍</span>
+            <button type="button" @click="onDistributionClick">去填写</button>
+          </div>
+          <button type="button" class="leader-album-row" @click="onShowcaseClick">
+            <van-icon name="photo-o" />
+            <span>相册素材号</span>
+            <van-icon name="arrow" />
+          </button>
         </AppCard>
 
         <nav class="leader-tabs" aria-label="团购排序">
@@ -105,7 +124,12 @@
                 @share="onShareClick"
                 @subscribe="toggleSubscribe"
               />
-              <EmptyState v-if="groupBuys.length === 0 && !listLoading" description="暂无团购活动" />
+              <div v-if="groupBuys.length === 0 && !listLoading" class="leader-empty">
+                <div class="leader-empty__illustration">
+                  <van-icon name="info-o" />
+                </div>
+                <p>暂时还没有发布的团购</p>
+              </div>
             </van-list>
           </van-pull-refresh>
         </section>
@@ -122,8 +146,6 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import AppButton from '@/components/AppButton.vue'
 import AppCard from '@/components/AppCard.vue'
 import { useAuthStore } from '@/stores'
 import { getLeaderHomepage, subscribeLeader, unsubscribeLeader } from '@/api/leaders'
@@ -158,6 +180,7 @@ const avatarText = computed(() => {
   const name = storeData.value?.name || leaderData.value?.displayName || '团'
   return name.slice(0, 1)
 })
+const isOwnLeader = computed(() => authStore.leader?.id === leaderData.value?.id)
 
 async function fetchData() {
   loading.value = true
@@ -245,24 +268,6 @@ function onSortChange(key: string) {
   }
 }
 
-function onCouponClick() {
-  if (isFeatureDisabled('coupon')) {
-    showToast('优惠券不在 MVP 范围内')
-  }
-}
-
-function onMemberClick() {
-  if (isFeatureDisabled('memberCards')) {
-    showToast('会员卡展示后续开放')
-  }
-}
-
-function onPointsClick() {
-  if (isFeatureDisabled('pointsMall')) {
-    showToast('积分商城不在 MVP 范围内')
-  }
-}
-
 function onServiceClick() {
   showToast('客服入口仅作占位展示')
 }
@@ -273,6 +278,34 @@ function onShowcaseClick() {
 
 function onShareClick() {
   showToast('分享能力仅作占位展示')
+}
+
+function onSearchClick() {
+  showToast('团长主页搜索暂未开放')
+}
+
+function onEditHomepageClick() {
+  if (isOwnLeader.value) {
+    router.push('/leader/store')
+    return
+  }
+  showToast('仅团长本人可编辑主页')
+}
+
+function onLocationClick() {
+  showToast('位置展示后续开放')
+}
+
+function onDistributionClick() {
+  if (isFeatureDisabled('distribution')) {
+    showToast('帮卖介绍不在 MVP 范围内')
+  }
+}
+
+function onWechatNoticeClick() {
+  if (isFeatureDisabled('wechatPush')) {
+    showToast('公众号推送将在后续开放')
+  }
 }
 
 function goToDetail(id: string) {
@@ -292,66 +325,142 @@ onMounted(() => {
 .leader-home {
   min-height: 100vh;
   background: var(--color-bg);
-  padding-bottom: 18px;
+  padding-bottom: 24px;
 }
 
 .leader-topbar {
-  height: 58px;
-  background: #fff;
+  height: 84px;
+  background: var(--color-primary);
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  padding: 18px 14px 8px;
 }
 
-.leader-topbar__back {
-  position: absolute;
-  left: 8px;
-  width: 44px;
-  min-height: 44px;
+.leader-topbar__back,
+.leader-topbar__icon,
+.leader-topbar__more {
+  height: 44px;
   border: 0;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--color-text-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-primary);
+  flex: none;
 }
 
-.leader-topbar__title {
-  font-size: 20px;
-  font-weight: 900;
+.leader-topbar__back,
+.leader-topbar__icon {
+  width: 44px;
+  border-radius: 50%;
+}
+
+.leader-topbar__search {
+  height: 44px;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #8a929d;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-size: 15px;
+}
+
+.leader-topbar__search span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leader-topbar__more {
+  width: 74px;
+  border-radius: 999px;
+  gap: 5px;
+}
+
+.leader-topbar__more span {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
 }
 
 .leader-hero {
-  height: 190px;
-  background: linear-gradient(135deg, #bdd4ff, #ffd0c0);
+  height: 230px;
+  margin-top: -1px;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.14) 0 30px, transparent 31px),
+    radial-gradient(circle at 74% 42%, rgba(255, 255, 255, 0.12) 0 36px, transparent 37px),
+    linear-gradient(180deg, #0bbf67, #08b960);
+  position: relative;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 18px 82px;
+  overflow: hidden;
+}
+
+.leader-hero::before {
+  content: '□  ▱  ○  ◇  ◎  ♡  ⌂  ✚  ◌  ▣';
+  position: absolute;
+  inset: 14px 16px auto;
+  color: rgba(255, 255, 255, 0.13);
+  font-size: 46px;
+  line-height: 1.8;
+  letter-spacing: 17px;
+  word-break: break-all;
+}
+
+.leader-edit-home {
+  position: relative;
+  z-index: 1;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.14);
   color: #fff;
+  border-radius: 8px;
+  min-height: 34px;
+  padding: 0 12px;
   font-weight: 900;
-  font-size: 24px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 
 .leader-store-card {
   background: #fff;
-  border-radius: var(--radius-card);
-  margin: -30px 14px 12px;
-  padding: 14px;
-  box-shadow: var(--shadow-card);
+  border-radius: 18px 18px 0 0;
+  margin: -34px 0 0;
+  padding: 0;
+  box-shadow: none;
   position: relative;
   z-index: 4;
+  overflow: visible;
+}
+
+.leader-subscribe-tip {
+  position: absolute;
+  right: 24px;
+  top: -38px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .leader-store-card__main {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  padding: 26px 18px 12px;
 }
 
 .leader-store-card__identity {
@@ -363,11 +472,14 @@ onMounted(() => {
 }
 
 .leader-store-card__avatar {
-  width: 54px;
-  height: 54px;
+  width: 78px;
+  height: 78px;
   border-radius: 10px;
   object-fit: cover;
   flex: none;
+  margin-top: -56px;
+  border: 4px solid #fff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
 }
 
 .leader-store-card__avatar--fallback {
@@ -391,7 +503,7 @@ onMounted(() => {
 }
 
 .leader-store-card__copy h1 {
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 900;
   color: var(--color-text-primary);
   line-height: 1.35;
@@ -399,129 +511,188 @@ onMounted(() => {
 }
 
 .leader-store-card__copy p {
-  margin: 6px 0 0;
+  margin: 5px 0 0;
   color: var(--color-text-hint);
-  font-size: var(--font-size-sm);
+  font-size: 13px;
   line-height: 1.45;
 }
 
 .leader-store-card__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: #f36b2a;
+  color: var(--color-text-hint);
   font-size: var(--font-size-xs);
-  font-weight: 800;
-  margin-top: 8px;
+  margin-top: 5px;
 }
 
 .leader-store-card__actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 16px;
   flex-shrink: 0;
 }
 
-.leader-coupon {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.leader-coupon span {
-  background: var(--color-price);
-  border-radius: 9px;
-  color: #fff;
-  padding: 8px 13px;
-  font-weight: 900;
-}
-
-.leader-benefits {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.leader-benefit {
-  min-height: 58px;
+.leader-action-icon {
   border: 0;
-  background: #fff7de;
-  border-radius: 12px;
-  padding: 10px 12px;
-  color: #7a6740;
-  font-weight: 800;
-  display: flex;
+  background: transparent;
+  color: #7a808a;
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  text-align: left;
-  cursor: pointer;
+  gap: 3px;
+  min-width: 54px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.leader-benefit b {
-  font-size: var(--font-size-sm);
+.leader-action-icon .van-icon {
+  color: var(--color-primary);
+  font-size: 31px;
 }
 
-.leader-showcase {
-  min-height: 76px;
-  width: calc(100% - 28px);
-  margin: 0 14px 12px;
+.leader-action-icon--subscribe {
+  position: relative;
+}
+
+.leader-action-icon--subscribe::after {
+  content: '';
+  position: absolute;
+  right: 7px;
+  top: 1px;
+  width: 10px;
+  height: 10px;
+  background: #f25541;
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+
+.leader-profile-lines {
+  border-top: 1px solid var(--color-border-light);
+  padding: 9px 18px 12px;
+}
+
+.leader-profile-line {
+  min-height: 34px;
   border: 0;
-  background: #fff;
-  border-radius: 12px;
-  padding: 13px;
+  background: transparent;
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--color-text-primary);
+  gap: 9px;
+  padding: 0;
+  color: #717780;
+  font-size: 15px;
   text-align: left;
-  box-shadow: var(--shadow-card);
-  cursor: pointer;
 }
 
-.leader-showcase span {
+.leader-profile-line > span {
   flex: 1;
   min-width: 0;
-  color: var(--color-text-hint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.leader-showcase__photo {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  background: linear-gradient(145deg, #f8cadc, #9f89df);
-  color: #fff;
+.leader-profile-line b {
+  color: #9aa0a6;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.leader-follow-banner {
+  min-height: 58px;
+  background: #fff7e6;
+  color: #e96c2b;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-xs);
+  gap: 10px;
+  padding: 10px 18px;
+  font-weight: 800;
+}
+
+.leader-follow-banner span {
+  flex: 1;
+  min-width: 0;
+}
+
+.leader-follow-banner button {
+  border: 0;
+  border-radius: 9px;
+  background: var(--color-primary);
+  color: #fff;
+  min-height: 36px;
+  padding: 0 18px;
   font-weight: 900;
-  flex: none;
+}
+
+.leader-follow-banner > .van-icon {
+  color: #b8a995;
+  font-size: 18px;
+}
+
+.leader-helper-card {
+  margin: 12px 14px;
+  border-radius: 12px;
+}
+
+.leader-helper-row {
+  min-height: 58px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 18px;
+  font-weight: 900;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.leader-helper-row button {
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-primary);
+  min-height: 36px;
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.leader-album-row {
+  width: 100%;
+  min-height: 58px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.leader-album-row span {
+  flex: 1;
 }
 
 .leader-tabs {
   display: flex;
-  gap: 28px;
   align-items: center;
+  justify-content: space-around;
   background: #fff;
-  padding: 0 18px;
-  height: 54px;
-  margin-bottom: 12px;
+  padding: 0;
+  height: 64px;
+  margin: 0;
 }
 
 .leader-tabs button {
-  height: 54px;
+  height: 64px;
   border: 0;
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 18px;
+  font-size: 19px;
   position: relative;
   cursor: pointer;
+  min-width: 72px;
 }
 
 .leader-tabs button.active {
@@ -532,26 +703,60 @@ onMounted(() => {
 .leader-tabs button.active::after {
   content: '';
   position: absolute;
-  left: 6px;
-  right: 6px;
+  left: 20px;
+  right: 20px;
   bottom: 0;
-  height: 3px;
+  height: 4px;
   background: var(--color-primary);
   border-radius: 6px;
 }
 
 .leader-feed {
-  padding: 0 12px;
+  padding: 0 14px;
+  min-height: 420px;
+  background: #fff;
+}
+
+.leader-empty {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #a3a8af;
+  font-size: 16px;
+}
+
+.leader-empty__illustration {
+  width: 116px;
+  height: 116px;
+  border-radius: 34px;
+  background: #f3f7f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-size: 58px;
+  margin-bottom: 20px;
 }
 
 @media (max-width: 374px) {
-  .leader-store-card__main {
-    flex-direction: column;
+  .leader-topbar {
+    gap: 7px;
+    padding-inline: 10px;
+  }
+
+  .leader-topbar__more {
+    width: 58px;
   }
 
   .leader-store-card__actions {
-    width: 100%;
-    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .leader-action-icon {
+    min-width: 44px;
+    font-size: 12px;
   }
 }
 </style>

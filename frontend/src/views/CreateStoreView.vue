@@ -64,6 +64,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { createStore } from '@/api/stores'
+import { resolveDisplayImageUrl } from '@/utils'
 import PageLayout from '@/components/PageLayout.vue'
 import ReminderBanner from '@/components/ReminderBanner.vue'
 
@@ -112,7 +113,7 @@ async function handleSubmit() {
   try {
     const data = {
       name: form.value.name.trim(),
-      logoUrl: form.value.logoUrl.trim() || null,
+      logoUrl: resolveDisplayImageUrl(form.value.logoUrl.trim(), form.value.name, 'store'),
       description: form.value.description.trim() || null,
       defaultDeliveryType: form.value.defaultDeliveryType,
     }

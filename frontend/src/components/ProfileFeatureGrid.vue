@@ -39,7 +39,7 @@ export interface ProfileGridEntry {
 defineProps<{
   title: string
   entries: ProfileGridEntry[]
-  columns?: 3 | 4
+  columns?: 3 | 4 | 5
 }>()
 
 defineEmits<{
@@ -64,6 +64,10 @@ defineEmits<{
   grid-template-columns: repeat(4, 1fr);
 }
 
+.profile-feature-grid__grid--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .profile-feature-grid__grid--3 {
   grid-template-columns: repeat(3, 1fr);
 }
@@ -81,6 +85,7 @@ defineEmits<{
   min-height: 74px;
   font-size: 12px;
   font-family: inherit;
+  padding: 0;
 }
 
 .profile-feature-grid__item:active {
