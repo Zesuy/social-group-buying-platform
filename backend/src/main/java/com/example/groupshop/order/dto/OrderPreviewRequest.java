@@ -19,6 +19,9 @@ public class OrderPreviewRequest {
     @NotNull
     private Long addressId;
 
+    /** Optional share token — required for hidden group buys */
+    private String shareToken;
+
     @NotEmpty
     @Valid
     private List<OrderItemEntry> items;

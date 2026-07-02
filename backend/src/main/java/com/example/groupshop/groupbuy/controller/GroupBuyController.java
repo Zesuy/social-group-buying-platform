@@ -3,10 +3,14 @@ package com.example.groupshop.groupbuy.controller;
 import com.example.groupshop.auth.AuthInterceptor;
 import com.example.groupshop.common.response.ApiResponse;
 import com.example.groupshop.common.response.PageResponse;
+import com.example.groupshop.groupbuy.dto.CreateDraftGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.GroupBuyResponse;
+import com.example.groupshop.groupbuy.dto.ShareCardResponse;
+import com.example.groupshop.groupbuy.dto.UpdateGroupBuyPermissionRequest;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyRequest;
 import com.example.groupshop.groupbuy.service.GroupBuyService;
+import com.example.groupshop.publicbrowsing.dto.GroupBuyDetailResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,14 +36,86 @@ public class GroupBuyController {
     private final GroupBuyService groupBuyService;
 
     /**
-     * Create and publish a group buy. Supports inline product creation
-     * and reusing existing products.
+     * Create and publish a group buy (MVP compatible — direct publish).
+     * Supports inline product creation and reusing existing products.
      */
     @PostMapping("/my/store/group-buys")
     public ApiResponse<GroupBuyResponse> createGroupBuy(
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
             @Valid @RequestBody CreateGroupBuyRequest request) {
         GroupBuyResponse response = groupBuyService.createGroupBuy(userId, request);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Create a group buy draft (status=draft).
+     * Uses minimal validation — only title, deliveryType, and at least one valid item required.
+     */
+    @PostMapping("/my/store/group-buys/drafts")
+    public ApiResponse<GroupBuyResponse> createDraft(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @Valid @RequestBody CreateDraftGroupBuyRequest request) {
+        GroupBuyResponse response = groupBuyService.createDraft(userId, request);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Publish a draft group buy (draft → published).
+     * Validates publish-readiness including presale time constraints.
+     */
+    @PostMapping("/my/store/group-buys/{groupBuyId}/publish")
+    public ApiResponse<GroupBuyResponse> publishGroupBuy(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long groupBuyId) {
+        GroupBuyResponse response = groupBuyService.publishGroupBuy(userId, groupBuyId);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Preview a group buy (any status) for the owning leader.
+     * Returns the same detail structure as the public detail endpoint.
+     */
+    @GetMapping("/my/store/group-buys/{groupBuyId}/preview")
+    public ApiResponse<GroupBuyDetailResponse> previewGroupBuy(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long groupBuyId) {
+        GroupBuyDetailResponse response = groupBuyService.previewGroupBuy(userId, groupBuyId);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Copy a group buy as a new draft.
+     */
+    @PostMapping("/my/store/group-buys/{groupBuyId}/copy")
+    public ApiResponse<GroupBuyResponse> copyGroupBuy(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long groupBuyId) {
+        GroupBuyResponse response = groupBuyService.copyGroupBuy(userId, groupBuyId);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Update a group buy's visibility (public / hidden).
+     * Ended or removed group buys are rejected.
+     */
+    @PatchMapping("/my/store/group-buys/{groupBuyId}/permission")
+    public ApiResponse<GroupBuyResponse> updatePermission(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long groupBuyId,
+            @Valid @RequestBody UpdateGroupBuyPermissionRequest request) {
+        GroupBuyResponse response = groupBuyService.updatePermission(userId, groupBuyId, request);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Get or create a share card with a share token for a group buy.
+     * If an active token already exists, it is reused.
+     */
+    @PostMapping("/my/store/group-buys/{groupBuyId}/share-card")
+    public ApiResponse<ShareCardResponse> getShareCard(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @PathVariable Long groupBuyId) {
+        ShareCardResponse response = groupBuyService.getOrCreateShareToken(userId, groupBuyId);
         return ApiResponse.success(response);
     }
 

@@ -43,6 +43,11 @@ public enum ErrorCode {
 
     INSUFFICIENT_STOCK(422, "INSUFFICIENT_STOCK", "团购商品库存不足"),
     SUBSCRIPTION_EXISTS(409, "SUBSCRIPTION_EXISTS", "已订阅该团长"),
+
+    // ── Share token errors ────────────────────────────────────────────
+    SHARE_TOKEN_INVALID(404, "SHARE_TOKEN_INVALID", "分享链接无效或已过期"),
+    SHARE_TOKEN_MISMATCH(422, "SHARE_TOKEN_MISMATCH", "分享 token 与团购不匹配"),
+    HIDDEN_GROUP_BUY_REQUIRES_TOKEN(422, "HIDDEN_GROUP_BUY_REQUIRES_TOKEN", "隐藏团购需要有效分享 token"),
     ;
 
     private final int httpStatus;

@@ -591,4 +591,309 @@ class OrderControllerTest extends MockMvcTestBase {
                 .andExpectAll(errorResult("UNAUTHORIZED"));
     }
 
+    // ── Hidden group buy ordering ───────────────────────────────────────
+
+    @Test
+    void previewOrder_shouldFailForHiddenWithoutShareToken() throws Exception {
+        // Create a hidden group buy
+        String hiddenGbResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "隐藏团购下单测试",
+                                    "visibility": "hidden",
+                                    "deliveryType": "express",
+                                    "startTime": "2026-06-24T12:00:00+08:00",
+                                    "endTime": "2028-07-01T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "隐藏商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "隐藏商品",
+                                            "groupPriceAmount": 990,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long hiddenGbId = Long.parseLong(hiddenGbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long hiddenItemId = Long.parseLong(hiddenGbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Preview without shareToken — should fail
+        mockMvc.perform(post(ORDER_PREVIEW_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                                }
+                                """.formatted(hiddenGbId, addressId, hiddenItemId)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpectAll(errorResult("HIDDEN_GROUP_BUY_REQUIRES_TOKEN"));
+    }
+
+    @Test
+    void previewOrder_shouldSucceedForHiddenWithValidShareToken() throws Exception {
+        // Create a hidden group buy
+        String hiddenGbResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "隐藏团购带token",
+                                    "visibility": "hidden",
+                                    "deliveryType": "express",
+                                    "startTime": "2026-06-24T12:00:00+08:00",
+                                    "endTime": "2028-07-01T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "隐藏商品B",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "隐藏商品B",
+                                            "groupPriceAmount": 990,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long hiddenGbId = Long.parseLong(hiddenGbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long hiddenItemId = Long.parseLong(hiddenGbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Get share token
+        String shareCardResponse = mockMvc.perform(post(GROUP_BUYS_URL + "/" + hiddenGbId + "/share-card")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andReturn().getResponse().getContentAsString();
+        String shareToken = shareCardResponse.split("\"shareToken\":\"")[1].split("\"")[0];
+
+        // Preview with valid shareToken — should succeed
+        mockMvc.perform(post(ORDER_PREVIEW_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "shareToken": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                                }
+                                """.formatted(hiddenGbId, addressId, shareToken, hiddenItemId)))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.totalAmount").value(990));
+    }
+
+    @Test
+    void previewOrder_shouldFailForHiddenWithWrongShareToken() throws Exception {
+        // Create a hidden group buy
+        String hiddenGbResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "隐藏团购错token",
+                                    "visibility": "hidden",
+                                    "deliveryType": "express",
+                                    "startTime": "2026-06-24T12:00:00+08:00",
+                                    "endTime": "2028-07-01T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "隐藏商品C",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "隐藏商品C",
+                                            "groupPriceAmount": 990,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long hiddenGbId = Long.parseLong(hiddenGbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long hiddenItemId = Long.parseLong(hiddenGbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Preview with wrong shareToken — should fail
+        mockMvc.perform(post(ORDER_PREVIEW_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "shareToken": "definitely-wrong-token",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                                }
+                                """.formatted(hiddenGbId, addressId, hiddenItemId)))
+                .andExpect(status().isNotFound())
+                .andExpectAll(errorResult("SHARE_TOKEN_INVALID"));
+    }
+
+    @Test
+    void createOrder_shouldFailForHiddenWithoutShareToken() throws Exception {
+        // Create a hidden group buy
+        String hiddenGbResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "隐藏下单无token",
+                                    "visibility": "hidden",
+                                    "deliveryType": "express",
+                                    "startTime": "2026-06-24T12:00:00+08:00",
+                                    "endTime": "2028-07-01T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "隐藏商品D",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "隐藏商品D",
+                                            "groupPriceAmount": 990,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long hiddenGbId = Long.parseLong(hiddenGbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long hiddenItemId = Long.parseLong(hiddenGbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Create order without shareToken — should fail
+        mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                                }
+                                """.formatted(hiddenGbId, addressId, hiddenItemId)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpectAll(errorResult("HIDDEN_GROUP_BUY_REQUIRES_TOKEN"));
+    }
+
+    @Test
+    void createOrder_shouldSucceedForHiddenWithValidShareToken() throws Exception {
+        // Create a hidden group buy
+        String hiddenGbResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "隐藏下单带token",
+                                    "visibility": "hidden",
+                                    "deliveryType": "express",
+                                    "startTime": "2026-06-24T12:00:00+08:00",
+                                    "endTime": "2028-07-01T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "隐藏商品E",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "隐藏商品E",
+                                            "groupPriceAmount": 990,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long hiddenGbId = Long.parseLong(hiddenGbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+        Long hiddenItemId = Long.parseLong(hiddenGbResponse.split("\"items\":\\[\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Get share token
+        String shareCardResponse = mockMvc.perform(post(GROUP_BUYS_URL + "/" + hiddenGbId + "/share-card")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andReturn().getResponse().getContentAsString();
+        String shareToken = shareCardResponse.split("\"shareToken\":\"")[1].split("\"")[0];
+
+        // Create order with valid shareToken — should succeed
+        mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "shareToken": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                                }
+                                """.formatted(hiddenGbId, addressId, shareToken, hiddenItemId)))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.id").isString())
+                .andExpect(jsonPath("$.data.payAmount").value(990));
+    }
+
+    // ── Share token public access (no auth required) ─────────────────────
+
+    @Test
+    void getGroupBuyByShareToken_shouldSucceedWithoutAuth() throws Exception {
+        // Create a hidden group buy and get its share token
+        String hiddenGbResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "分享链接受欢迎",
+                                    "visibility": "hidden",
+                                    "deliveryType": "express",
+                                    "startTime": "2026-06-24T12:00:00+08:00",
+                                    "endTime": "2028-07-01T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "分享商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "分享商品",
+                                            "groupPriceAmount": 990,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long hiddenGbId = Long.parseLong(hiddenGbResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Get share token
+        String shareCardResponse = mockMvc.perform(post(GROUP_BUYS_URL + "/" + hiddenGbId + "/share-card")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andReturn().getResponse().getContentAsString();
+        String shareToken = shareCardResponse.split("\"shareToken\":\"")[1].split("\"")[0];
+
+        // Access share link WITHOUT auth — should return full detail
+        mockMvc.perform(get("/api/v1/share/group-buys/" + shareToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.id").value(String.valueOf(hiddenGbId)))
+                .andExpect(jsonPath("$.data.groupBuy.title").value("分享链接受欢迎"))
+                .andExpect(jsonPath("$.data.groupBuy.visibility").value("hidden"))
+                .andExpect(jsonPath("$.data.items[0].displayName").value("分享商品"));
+    }
+
+    @Test
+    void getGroupBuyByShareToken_shouldFailForInvalidToken() throws Exception {
+        mockMvc.perform(get("/api/v1/share/group-buys/nonexistent-token")
+                        .contentType("application/json"))
+                .andExpect(status().isNotFound())
+                .andExpectAll(errorResult("SHARE_TOKEN_INVALID"));
+    }
 }

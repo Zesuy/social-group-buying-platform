@@ -17,7 +17,10 @@ public class PublicGroupBuyItem {
     private String title;
     private String coverImageUrl;
     private String status;
+    private String groupType;
+    private String startTime;
     private String endTime;
+    private String shippingTime;
     private Long minPriceAmount;
     private Integer soldCount;
     private LeaderLite leader;

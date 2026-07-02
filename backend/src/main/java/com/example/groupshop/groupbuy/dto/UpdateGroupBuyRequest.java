@@ -28,6 +28,12 @@ public class UpdateGroupBuyRequest {
     private String startTime;
     private String endTime;
 
+    /** Update groupType (only for drafts — published group buys cannot change groupType) */
+    private String groupType;
+
+    /** Update visibility (use permission endpoint instead for clarity, but supported here too) */
+    private String visibility;
+
     /** Optional list of item-level updates. Each must reference an existing item by id. */
     @Valid
     private List<UpdateItemEntry> items;
@@ -35,8 +41,11 @@ public class UpdateGroupBuyRequest {
     @Data
     public static class UpdateItemEntry {
 
-        @NotNull
+        /** Existing item id. Null for new items in draft replacement. */
         private Long id;
+
+        /** Product id for draft item replacement. If null and id is set, copies from existing item. */
+        private Long productId;
 
         private String displayName;
 

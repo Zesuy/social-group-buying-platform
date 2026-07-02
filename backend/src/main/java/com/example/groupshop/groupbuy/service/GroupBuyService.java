@@ -8,12 +8,15 @@ import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.common.util.CurrentStoreHelper;
 import com.example.groupshop.favorite.service.FavoriteService;
+import com.example.groupshop.groupbuy.dto.CreateDraftGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest.InlineProduct;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest.ItemEntry;
 import com.example.groupshop.groupbuy.dto.GroupBuyResponse;
 import com.example.groupshop.groupbuy.dto.GroupBuyResponse.GroupBuyData;
 import com.example.groupshop.groupbuy.dto.GroupBuyResponse.GroupBuyItemData;
+import com.example.groupshop.groupbuy.dto.ShareCardResponse;
+import com.example.groupshop.groupbuy.dto.UpdateGroupBuyPermissionRequest;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyRequest.UpdateItemEntry;
 import com.example.groupshop.model.entity.GroupBuy;
@@ -23,7 +26,9 @@ import com.example.groupshop.model.entity.OrderItem;
 import com.example.groupshop.model.entity.Product;
 import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
+import com.example.groupshop.model.entity.GroupBuyShareToken;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
+import com.example.groupshop.model.mapper.GroupBuyShareTokenMapper;
 import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.ProductMapper;
@@ -48,6 +53,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -67,6 +73,7 @@ public class GroupBuyService {
     private final SubscriptionService subscriptionService;
     private final FavoriteService favoriteService;
     private final BrowsingHistoryService browsingHistoryService;
+    private final GroupBuyShareTokenMapper groupBuyShareTokenMapper;
 
     // ── Create ────────────────────────────────────────────────────────
 
@@ -82,7 +89,31 @@ public class GroupBuyService {
 
         LocalDateTime startTime = parseIsoDateTime(request.getStartTime());
         LocalDateTime endTime = parseIsoDateTime(request.getEndTime());
-        validateEndTimeAfterStart(startTime, endTime);
+        LocalDateTime shippingTime = parseIsoDateTime(request.getShippingTime());
+
+        // Determine groupType: support from request, default to "normal"
+        String groupType = request.getGroupType();
+        if (groupType == null || groupType.isBlank()) {
+            groupType = "normal";
+        } else if (!"normal".equals(groupType) && !"presale".equals(groupType)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购类型只允许 normal 或 presale");
+        }
+
+        // Presale time validation
+        if ("presale".equals(groupType)) {
+            if (startTime == null || endTime == null || shippingTime == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "预售团购必须指定 startTime、endTime 和 shippingTime");
+            }
+            if (!endTime.isAfter(startTime)) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "结束时间必须晚于开始时间");
+            }
+            if (!shippingTime.isAfter(endTime)) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "发货时间必须晚于结束时间");
+            }
+        } else {
+            validateEndTimeAfterStart(startTime, endTime);
+        }
 
         GroupBuy groupBuy = new GroupBuy();
         groupBuy.setStoreId(store.getId());
@@ -90,12 +121,20 @@ public class GroupBuyService {
         groupBuy.setTitle(request.getTitle());
         groupBuy.setIntroduction(request.getIntroduction());
         groupBuy.setCoverImageUrl(request.getCoverImageUrl());
-        groupBuy.setGroupType("normal");
+        groupBuy.setGroupType(groupType);
+
+        String visibility = request.getVisibility();
+        if (visibility == null || visibility.isBlank()) {
+            visibility = "public";
+        } else if (!"public".equals(visibility) && !"hidden".equals(visibility)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购可见性只允许 public 或 hidden");
+        }
+        groupBuy.setVisibility(visibility);
+
         groupBuy.setDeliveryType(request.getDeliveryType().getValue());
-        groupBuy.setShippingTime(parseIsoDateTime(request.getShippingTime()));
+        groupBuy.setShippingTime(shippingTime);
         groupBuy.setStartTime(startTime);
         groupBuy.setEndTime(endTime);
-        groupBuy.setVisibility("public");
         groupBuy.setStatus("published");
         groupBuyMapper.insert(groupBuy);
 
@@ -175,6 +214,13 @@ public class GroupBuyService {
 
         GroupBuy groupBuy = findGroupBuyForStore(groupBuyId, store.getId());
 
+        boolean isDraft = "draft".equals(groupBuy.getStatus());
+
+        // Ended/removed group buys cannot be edited at all
+        if ("ended".equals(groupBuy.getStatus()) || "removed".equals(groupBuy.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "已结束或已移除的团购不可修改");
+        }
+
         if (request.getTitle() != null) {
             groupBuy.setTitle(request.getTitle());
         }
@@ -193,43 +239,135 @@ public class GroupBuyService {
         if (request.getEndTime() != null) {
             groupBuy.setEndTime(parseIsoDateTime(request.getEndTime()));
         }
-        validateEndTimeAfterStart(groupBuy.getStartTime(), groupBuy.getEndTime());
+        // Apply groupType — only allowed for drafts; published group buys cannot change type
+        if (request.getGroupType() != null) {
+            if (!isDraft) {
+                throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "已发布团购不可修改团购类型");
+            }
+            if (!"normal".equals(request.getGroupType()) && !"presale".equals(request.getGroupType())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购类型只允许 normal 或 presale");
+            }
+            groupBuy.setGroupType(request.getGroupType());
+        }
+        // Apply visibility — allowed for drafts and published (unless ended/removed — handled by permission endpoint)
+        if (request.getVisibility() != null) {
+            if ("ended".equals(groupBuy.getStatus()) || "removed".equals(groupBuy.getStatus())) {
+                throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "已结束或已移除的团购不可修改可见性");
+            }
+            if (!"public".equals(request.getVisibility()) && !"hidden".equals(request.getVisibility())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购可见性只允许 public 或 hidden");
+            }
+            groupBuy.setVisibility(request.getVisibility());
+        }
+
+        // Validate time constraints (including presale rules)
+        String resolvedGroupType = groupBuy.getGroupType();
+        LocalDateTime start = groupBuy.getStartTime();
+        LocalDateTime end = groupBuy.getEndTime();
+        LocalDateTime shipping = groupBuy.getShippingTime();
+        if ("presale".equals(resolvedGroupType)) {
+            if (start != null && end != null && shipping != null) {
+                if (!end.isAfter(start)) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR, "结束时间必须晚于开始时间");
+                }
+                if (!shipping.isAfter(end)) {
+                    throw new BusinessException(ErrorCode.VALIDATION_ERROR, "发货时间必须晚于结束时间");
+                }
+            }
+            // partial updates: if only some times are set, skip full validation
+        } else {
+            validateEndTimeAfterStart(start, end);
+        }
         groupBuyMapper.updateById(groupBuy);
 
+        // ── Item updates ────────────────────────────────────────────
         if (request.getItems() != null && !request.getItems().isEmpty()) {
-            for (UpdateItemEntry itemEntry : request.getItems()) {
-                GroupBuyItem existingItem = groupBuyItemMapper.selectById(itemEntry.getId());
-                if (existingItem == null || !existingItem.getGroupBuyId().equals(groupBuyId)) {
-                    throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "团购商品不存在");
-                }
+            if (isDraft) {
+                // Draft item replacement: read existing item productId map,
+                // delete all, then insert new items
+                List<GroupBuyItem> existingItems = groupBuyItemMapper.selectList(
+                        new LambdaQueryWrapper<GroupBuyItem>()
+                                .eq(GroupBuyItem::getGroupBuyId, groupBuyId));
+                java.util.Map<Long, Long> existingProductIds = existingItems.stream()
+                        .collect(Collectors.toMap(GroupBuyItem::getId, GroupBuyItem::getProductId));
 
-                boolean hasOrders = orderItemMapper.selectCount(
-                        new LambdaQueryWrapper<OrderItem>()
-                                .eq(OrderItem::getGroupBuyItemId, existingItem.getId())) > 0;
+                groupBuyItemMapper.delete(new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, groupBuyId));
 
-                if (hasOrders && itemEntry.getGroupPriceAmount() != null
-                        && !itemEntry.getGroupPriceAmount().equals(existingItem.getGroupPriceAmount())) {
-                    throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
-                            "团购商品已产生订单，不允许修改价格");
-                }
+                for (int i = 0; i < request.getItems().size(); i++) {
+                    UpdateItemEntry itemEntry = request.getItems().get(i);
 
-                if (itemEntry.getDisplayName() != null) {
-                    existingItem.setDisplayName(itemEntry.getDisplayName());
-                }
-                if (itemEntry.getGroupPriceAmount() != null) {
-                    existingItem.setGroupPriceAmount(itemEntry.getGroupPriceAmount());
-                }
-                if (itemEntry.getGroupStock() != null) {
-                    if (itemEntry.getGroupStock() < existingItem.getSoldCount()) {
-                        throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
-                                "库存不能小于已售数量");
+                    // Resolve productId: explicit > from existing item > error
+                    Long productId = itemEntry.getProductId();
+                    if (productId == null && itemEntry.getId() != null) {
+                        productId = existingProductIds.get(itemEntry.getId());
                     }
-                    existingItem.setGroupStock(itemEntry.getGroupStock());
+                    if (productId == null) {
+                        throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                                "每个团购商品必须指定 productId 或引用已有商品 id");
+                    }
+                    // Validate the product exists, belongs to this store, and is not deleted
+                    Product product = productMapper.selectById(productId);
+                    if (product == null) {
+                        throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "商品不存在");
+                    }
+                    if ("deleted".equals(product.getStatus())) {
+                        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "商品已被删除");
+                    }
+                    if (!product.getStoreId().equals(store.getId())) {
+                        throw new BusinessException(ErrorCode.STORE_FORBIDDEN, "商品不属于当前店铺");
+                    }
+
+                    GroupBuyItem newItem = new GroupBuyItem();
+                    newItem.setGroupBuyId(groupBuyId);
+                    newItem.setProductId(productId);
+                    newItem.setDisplayName(itemEntry.getDisplayName() != null
+                            ? itemEntry.getDisplayName() : "商品");
+                    newItem.setGroupPriceAmount(itemEntry.getGroupPriceAmount() != null
+                            ? itemEntry.getGroupPriceAmount() : 0);
+                    newItem.setGroupStock(itemEntry.getGroupStock() != null
+                            ? itemEntry.getGroupStock() : 0);
+                    newItem.setSoldCount(0);
+                    newItem.setSortOrder(itemEntry.getSortOrder() != null ? itemEntry.getSortOrder() : i);
+                    newItem.setShowStock(true);
+                    groupBuyItemMapper.insert(newItem);
                 }
-                if (itemEntry.getSortOrder() != null) {
-                    existingItem.setSortOrder(itemEntry.getSortOrder());
+            } else {
+                // Published group buy: update existing items by ID with price protection
+                for (UpdateItemEntry itemEntry : request.getItems()) {
+                    GroupBuyItem existingItem = groupBuyItemMapper.selectById(itemEntry.getId());
+                    if (existingItem == null || !existingItem.getGroupBuyId().equals(groupBuyId)) {
+                        throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "团购商品不存在");
+                    }
+
+                    boolean hasOrders = orderItemMapper.selectCount(
+                            new LambdaQueryWrapper<OrderItem>()
+                                    .eq(OrderItem::getGroupBuyItemId, existingItem.getId())) > 0;
+
+                    if (hasOrders && itemEntry.getGroupPriceAmount() != null
+                            && !itemEntry.getGroupPriceAmount().equals(existingItem.getGroupPriceAmount())) {
+                        throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
+                                "团购商品已产生订单，不允许修改价格");
+                    }
+
+                    if (itemEntry.getDisplayName() != null) {
+                        existingItem.setDisplayName(itemEntry.getDisplayName());
+                    }
+                    if (itemEntry.getGroupPriceAmount() != null) {
+                        existingItem.setGroupPriceAmount(itemEntry.getGroupPriceAmount());
+                    }
+                    if (itemEntry.getGroupStock() != null) {
+                        if (itemEntry.getGroupStock() < existingItem.getSoldCount()) {
+                            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION,
+                                    "库存不能小于已售数量");
+                        }
+                        existingItem.setGroupStock(itemEntry.getGroupStock());
+                    }
+                    if (itemEntry.getSortOrder() != null) {
+                        existingItem.setSortOrder(itemEntry.getSortOrder());
+                    }
+                    groupBuyItemMapper.updateById(existingItem);
                 }
-                groupBuyItemMapper.updateById(existingItem);
             }
         }
 
@@ -268,6 +406,410 @@ public class GroupBuyService {
         return GroupBuyResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
                 .items(items.stream().map(this::toItemData).collect(Collectors.toList()))
+                .build();
+    }
+
+    // ── Draft ─────────────────────────────────────────────────────────
+
+    /**
+     * Create a group buy draft with minimal validation.
+     * Status is set to "draft".
+     */
+    @Transactional
+    public GroupBuyResponse createDraft(Long userId, CreateDraftGroupBuyRequest request) {
+        var ls = currentStoreHelper.getLeaderAndStore(userId);
+        Store store = ls.getStore();
+        Leader leader = ls.getLeader();
+
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购至少包含一个商品");
+        }
+
+        String groupType = request.getGroupType();
+        if (groupType == null || groupType.isBlank()) {
+            groupType = "normal";
+        } else if (!"normal".equals(groupType) && !"presale".equals(groupType)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购类型只允许 normal 或 presale");
+        }
+
+        String visibility = request.getVisibility();
+        if (visibility == null || visibility.isBlank()) {
+            visibility = "public";
+        } else if (!"public".equals(visibility) && !"hidden".equals(visibility)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购可见性只允许 public 或 hidden");
+        }
+
+        // Validate deliveryType
+        String deliveryType = request.getDeliveryType();
+        if (!isValidDeliveryType(deliveryType)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "配送方式只支持 express / pickup / local_delivery");
+        }
+
+        GroupBuy groupBuy = new GroupBuy();
+        groupBuy.setStoreId(store.getId());
+        groupBuy.setLeaderId(leader.getId());
+        groupBuy.setTitle(request.getTitle());
+        groupBuy.setIntroduction(request.getIntroduction());
+        groupBuy.setCoverImageUrl(request.getCoverImageUrl());
+        groupBuy.setGroupType(groupType);
+        groupBuy.setVisibility(visibility);
+        groupBuy.setDeliveryType(deliveryType);
+        groupBuy.setShippingTime(parseIsoDateTime(request.getShippingTime()));
+        groupBuy.setStartTime(parseIsoDateTime(request.getStartTime()));
+        groupBuy.setEndTime(parseIsoDateTime(request.getEndTime()));
+        groupBuy.setStatus("draft");
+        groupBuyMapper.insert(groupBuy);
+
+        List<GroupBuyItemData> itemResponses = new ArrayList<>();
+        for (int i = 0; i < request.getItems().size(); i++) {
+            CreateDraftGroupBuyRequest.ItemEntry entry = request.getItems().get(i);
+            Long productId = resolveDraftProductId(entry, store);
+
+            GroupBuyItem item = new GroupBuyItem();
+            item.setGroupBuyId(groupBuy.getId());
+            item.setProductId(productId);
+            item.setDisplayName(entry.getDisplayName());
+            item.setGroupPriceAmount(entry.getGroupPriceAmount() != null ? entry.getGroupPriceAmount() : 0);
+            item.setGroupStock(entry.getGroupStock() != null ? entry.getGroupStock() : 0);
+            item.setSoldCount(0);
+            item.setSortOrder(entry.getSortOrder() != null ? entry.getSortOrder() : i);
+            item.setShowStock(true);
+            groupBuyItemMapper.insert(item);
+
+            itemResponses.add(toItemData(item));
+        }
+
+        return GroupBuyResponse.builder()
+                .groupBuy(toGroupBuyData(groupBuy))
+                .items(itemResponses)
+                .build();
+    }
+
+    // ── Publish ────────────────────────────────────────────────────────
+
+    /**
+     * Publish a draft group buy. Validates publish-readiness:
+     * - title, deliveryType, items are already required
+     * - For presale: startTime, endTime, shippingTime are required with correct ordering
+     */
+    @Transactional
+    public GroupBuyResponse publishGroupBuy(Long userId, Long groupBuyId) {
+        var ls = currentStoreHelper.getLeaderAndStore(userId);
+        Store store = ls.getStore();
+
+        GroupBuy groupBuy = findGroupBuyForStore(groupBuyId, store.getId());
+
+        if (!"draft".equals(groupBuy.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "只有草稿状态的团购可以发布");
+        }
+
+        // Validate publish-readiness
+        if (groupBuy.getTitle() == null || groupBuy.getTitle().isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "标题不能为空");
+        }
+        if (!isValidDeliveryType(groupBuy.getDeliveryType())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "配送方式只支持 express / pickup / local_delivery");
+        }
+
+        List<GroupBuyItem> items = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId()));
+        if (items.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购至少包含一个商品");
+        }
+
+        // Validate item prices and stock are non-negative
+        for (GroupBuyItem item : items) {
+            if (item.getGroupPriceAmount() == null || item.getGroupPriceAmount() < 0) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "团购商品 \"" + item.getDisplayName() + "\" 的团购价不能为负数");
+            }
+            if (item.getGroupStock() == null || item.getGroupStock() < 0) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "团购商品 \"" + item.getDisplayName() + "\" 的库存不能为负数");
+            }
+        }
+
+        // Presale validation
+        if ("presale".equals(groupBuy.getGroupType())) {
+            if (groupBuy.getStartTime() == null || groupBuy.getEndTime() == null || groupBuy.getShippingTime() == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "预售团购必须指定 startTime、endTime 和 shippingTime");
+            }
+            if (!groupBuy.getEndTime().isAfter(groupBuy.getStartTime())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "结束时间必须晚于开始时间");
+            }
+            if (!groupBuy.getShippingTime().isAfter(groupBuy.getEndTime())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "发货时间必须晚于结束时间");
+            }
+        } else {
+            validateEndTimeAfterStart(groupBuy.getStartTime(), groupBuy.getEndTime());
+        }
+
+        groupBuy.setStatus("published");
+        groupBuyMapper.updateById(groupBuy);
+
+        return GroupBuyResponse.builder()
+                .groupBuy(toGroupBuyData(groupBuy))
+                .items(items.stream().map(this::toItemData).collect(Collectors.toList()))
+                .build();
+    }
+
+    // ── Preview ────────────────────────────────────────────────────────
+
+    /**
+     * Preview a group buy (any status) for the owning leader.
+     * Returns the same detail structure as the public detail endpoint.
+     */
+    public GroupBuyDetailResponse previewGroupBuy(Long userId, Long groupBuyId) {
+        var ls = currentStoreHelper.getLeaderAndStore(userId);
+        Store store = ls.getStore();
+
+        GroupBuy groupBuy = findGroupBuyForStore(groupBuyId, store.getId());
+
+        List<GroupBuyItem> items = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId())
+                        .orderByAsc(GroupBuyItem::getSortOrder));
+
+        Leader leader = leaderMapper.selectById(groupBuy.getLeaderId());
+        Store storeDetail = storeMapper.selectById(groupBuy.getStoreId());
+
+        return GroupBuyDetailResponse.builder()
+                .groupBuy(toGroupBuyData(groupBuy))
+                .leader(LeaderDetail.builder()
+                        .id(leader.getId())
+                        .displayName(leader.getDisplayName())
+                        .avatarUrl(leader.getAvatarUrl())
+                        .followerCount(leader.getFollowerCount())
+                        .build())
+                .store(StoreDetail.builder()
+                        .id(storeDetail.getId())
+                        .name(storeDetail.getName())
+                        .logoUrl(storeDetail.getLogoUrl())
+                        .build())
+                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .viewer(new ViewerInfo(false, false))
+                .build();
+    }
+
+    // ── Copy ──────────────────────────────────────────────────────────
+
+    /**
+     * Copy a group buy as a new draft.
+     * Copies title, introduction, coverImageUrl, groupType, deliveryType,
+     * visibility, and all item configurations.
+     * New item IDs are generated; soldCount is reset to 0.
+     * The original group buy is not affected.
+     */
+    @Transactional
+    public GroupBuyResponse copyGroupBuy(Long userId, Long sourceGroupBuyId) {
+        var ls = currentStoreHelper.getLeaderAndStore(userId);
+        Store store = ls.getStore();
+        Leader leader = ls.getLeader();
+
+        GroupBuy source = findGroupBuyForStore(sourceGroupBuyId, store.getId());
+
+        // Create new draft from source
+        GroupBuy draft = new GroupBuy();
+        draft.setStoreId(store.getId());
+        draft.setLeaderId(leader.getId());
+        draft.setTitle(source.getTitle());
+        draft.setIntroduction(source.getIntroduction());
+        draft.setCoverImageUrl(source.getCoverImageUrl());
+        draft.setGroupType(source.getGroupType());
+        draft.setDeliveryType(source.getDeliveryType());
+        draft.setShippingTime(null);        // Don't copy times — buyer must set fresh
+        draft.setStartTime(null);
+        draft.setEndTime(null);
+        draft.setVisibility(source.getVisibility());
+        draft.setStatus("draft");
+        groupBuyMapper.insert(draft);
+
+        // Copy items with new IDs and reset soldCount
+        List<GroupBuyItem> sourceItems = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, source.getId())
+                        .orderByAsc(GroupBuyItem::getSortOrder));
+
+        List<GroupBuyItemData> itemResponses = new ArrayList<>();
+        for (int i = 0; i < sourceItems.size(); i++) {
+            GroupBuyItem srcItem = sourceItems.get(i);
+
+            GroupBuyItem newItem = new GroupBuyItem();
+            newItem.setGroupBuyId(draft.getId());
+            newItem.setProductId(srcItem.getProductId());
+            newItem.setDisplayName(srcItem.getDisplayName());
+            newItem.setGroupPriceAmount(srcItem.getGroupPriceAmount());
+            newItem.setGroupStock(srcItem.getGroupStock());
+            newItem.setSoldCount(0);
+            newItem.setSortOrder(srcItem.getSortOrder() != null ? srcItem.getSortOrder() : i);
+            newItem.setShowStock(srcItem.getShowStock());
+            groupBuyItemMapper.insert(newItem);
+
+            itemResponses.add(toItemData(newItem));
+        }
+
+        return GroupBuyResponse.builder()
+                .groupBuy(toGroupBuyData(draft))
+                .items(itemResponses)
+                .build();
+    }
+
+    // ── Permission ──────────────────────────────────────────────────────
+
+    /**
+     * Update a group buy's visibility. Only published/draft/hidden group buys
+     * can have their visibility changed. Ended/removed group buys are rejected.
+     */
+    @Transactional
+    public GroupBuyResponse updatePermission(Long userId, Long groupBuyId, UpdateGroupBuyPermissionRequest request) {
+        var ls = currentStoreHelper.getLeaderAndStore(userId);
+        Store store = ls.getStore();
+
+        GroupBuy groupBuy = findGroupBuyForStore(groupBuyId, store.getId());
+
+        if ("ended".equals(groupBuy.getStatus()) || "removed".equals(groupBuy.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "已结束或已移除的团购不可修改权限");
+        }
+
+        String visibility = request.getVisibility();
+        if (!"public".equals(visibility) && !"hidden".equals(visibility)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购可见性只允许 public 或 hidden");
+        }
+
+        groupBuy.setVisibility(visibility);
+        groupBuyMapper.updateById(groupBuy);
+
+        List<GroupBuyItem> items = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId())
+                        .orderByAsc(GroupBuyItem::getSortOrder));
+
+        return GroupBuyResponse.builder()
+                .groupBuy(toGroupBuyData(groupBuy))
+                .items(items.stream().map(this::toItemData).collect(Collectors.toList()))
+                .build();
+    }
+
+    // ── Share Card / Token ──────────────────────────────────────────────
+
+    /**
+     * Get or create an active share token for a group buy.
+     * If an active token already exists, it is reused (not regenerated).
+     */
+    public ShareCardResponse getOrCreateShareToken(Long userId, Long groupBuyId) {
+        var ls = currentStoreHelper.getLeaderAndStore(userId);
+        Store store = ls.getStore();
+
+        GroupBuy groupBuy = findGroupBuyForStore(groupBuyId, store.getId());
+
+        // Only published group buys can have share tokens
+        if (!"published".equals(groupBuy.getStatus())) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "只有已发布的团购可以生成分享链接");
+        }
+
+        // Check for existing active token
+        GroupBuyShareToken existing = groupBuyShareTokenMapper.selectOne(
+                new LambdaQueryWrapper<GroupBuyShareToken>()
+                        .eq(GroupBuyShareToken::getGroupBuyId, groupBuy.getId())
+                        .eq(GroupBuyShareToken::getStatus, "active"));
+
+        if (existing != null) {
+            // Check if still valid by expiresAt
+            if (existing.getExpiresAt() != null && existing.getExpiresAt().isBefore(LocalDateTime.now())) {
+                // Expired — deactivate and create new
+                existing.setStatus("expired");
+                groupBuyShareTokenMapper.updateById(existing);
+                existing = null;
+            } else {
+                return buildShareCardResponse(groupBuy, existing.getToken());
+            }
+        }
+
+        // Create new token
+        GroupBuyShareToken token = new GroupBuyShareToken();
+        token.setGroupBuyId(groupBuy.getId());
+        token.setToken(UUID.randomUUID().toString().replace("-", ""));
+        token.setStatus("active");
+        token.setExpiresAt(null); // long-lived
+        groupBuyShareTokenMapper.insert(token);
+
+        return buildShareCardResponse(groupBuy, token.getToken());
+    }
+
+    /**
+     * Validate a share token and return the group buy ID it grants access to.
+     * Throws if token is invalid, expired, revoked, or missing.
+     */
+    public GroupBuy validateShareToken(String shareToken) {
+        if (shareToken == null || shareToken.isBlank()) {
+            throw new BusinessException(ErrorCode.SHARE_TOKEN_INVALID, "分享 token 不能为空");
+        }
+
+        GroupBuyShareToken token = groupBuyShareTokenMapper.selectOne(
+                new LambdaQueryWrapper<GroupBuyShareToken>()
+                        .eq(GroupBuyShareToken::getToken, shareToken));
+
+        if (token == null || !"active".equals(token.getStatus())) {
+            throw new BusinessException(ErrorCode.SHARE_TOKEN_INVALID, "分享链接无效或已过期");
+        }
+
+        if (token.getExpiresAt() != null && token.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.SHARE_TOKEN_INVALID, "分享链接已过期");
+        }
+
+        GroupBuy groupBuy = groupBuyMapper.selectById(token.getGroupBuyId());
+        if (groupBuy == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "团购不存在");
+        }
+        if (!"published".equals(groupBuy.getStatus())) {
+            throw new BusinessException(ErrorCode.GROUP_BUY_NOT_PURCHASABLE, "团购不可购买");
+        }
+        return groupBuy;
+    }
+
+    /**
+     * Get public group buy detail via share token.
+     * This allows access to hidden group buys that have a valid share token.
+     */
+    public GroupBuyDetailResponse getPublicGroupBuyDetailByShareToken(String shareToken, Long viewerUserId) {
+        GroupBuy groupBuy = validateShareToken(shareToken);
+
+        // Record browsing history
+        if (viewerUserId != null) {
+            browsingHistoryService.recordView(viewerUserId, groupBuy.getId());
+        }
+
+        List<GroupBuyItem> items = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, groupBuy.getId())
+                        .orderByAsc(GroupBuyItem::getSortOrder));
+
+        Leader leader = leaderMapper.selectById(groupBuy.getLeaderId());
+        Store storeDetail = storeMapper.selectById(groupBuy.getStoreId());
+
+        boolean subscribed = viewerUserId != null
+                && subscriptionService.isSubscribed(viewerUserId, groupBuy.getLeaderId());
+        boolean favorited = favoriteService.isFavorited(viewerUserId, groupBuy.getId());
+
+        return GroupBuyDetailResponse.builder()
+                .groupBuy(toGroupBuyData(groupBuy))
+                .leader(LeaderDetail.builder()
+                        .id(leader.getId())
+                        .displayName(leader.getDisplayName())
+                        .avatarUrl(leader.getAvatarUrl())
+                        .followerCount(leader.getFollowerCount())
+                        .build())
+                .store(StoreDetail.builder()
+                        .id(storeDetail.getId())
+                        .name(storeDetail.getName())
+                        .logoUrl(storeDetail.getLogoUrl())
+                        .build())
+                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .viewer(new ViewerInfo(subscribed, favorited))
                 .build();
     }
 
@@ -522,7 +1064,10 @@ public class GroupBuyService {
                 .title(gb.getTitle())
                 .coverImageUrl(gb.getCoverImageUrl())
                 .status(gb.getStatus())
+                .groupType(gb.getGroupType())
+                .startTime(gb.getStartTime() != null ? gb.getStartTime().toString() : null)
                 .endTime(gb.getEndTime() != null ? gb.getEndTime().toString() : null)
+                .shippingTime(gb.getShippingTime() != null ? gb.getShippingTime().toString() : null)
                 .minPriceAmount(minPriceAmount)
                 .soldCount(soldCount)
                 .leader(leaderLite)
@@ -568,5 +1113,83 @@ public class GroupBuyService {
         }
 
         return builder.build();
+    }
+
+    // ── Share card helper ───────────────────────────────────────────
+
+    private ShareCardResponse buildShareCardResponse(GroupBuy gb, String shareToken) {
+        List<GroupBuyItem> gbItems = groupBuyItemMapper.selectList(
+                new LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, gb.getId()));
+
+        long minPrice = gbItems.stream().mapToLong(GroupBuyItem::getGroupPriceAmount).min().orElse(0);
+        long maxPrice = gbItems.stream().mapToLong(GroupBuyItem::getGroupPriceAmount).max().orElse(0);
+
+        Leader leader = leaderMapper.selectById(gb.getLeaderId());
+        Store store = storeMapper.selectById(gb.getStoreId());
+
+        return ShareCardResponse.builder()
+                .shareToken(shareToken)
+                .landingPath("/share/group-buys/" + shareToken)
+                .groupBuyId(gb.getId())
+                .title(gb.getTitle())
+                .coverImageUrl(gb.getCoverImageUrl())
+                .minPriceAmount(minPrice)
+                .maxPriceAmount(maxPrice)
+                .endTime(gb.getEndTime() != null ? gb.getEndTime().toString() : null)
+                .groupType(gb.getGroupType())
+                .storeId(store != null ? store.getId() : null)
+                .storeName(store != null ? store.getName() : null)
+                .storeLogoUrl(store != null ? store.getLogoUrl() : null)
+                .leaderId(leader != null ? leader.getId() : null)
+                .leaderName(leader != null ? leader.getDisplayName() : null)
+                .leaderAvatarUrl(leader != null ? leader.getAvatarUrl() : null)
+                .deliveryType(gb.getDeliveryType())
+                .shippingTime(gb.getShippingTime() != null ? gb.getShippingTime().toString() : null)
+                .build();
+    }
+
+    // ── Draft product resolver ──────────────────────────────────────
+
+    private Long resolveDraftProductId(CreateDraftGroupBuyRequest.ItemEntry entry, Store store) {
+        if (entry.getProductId() != null && entry.getProduct() != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "每个团购商品只能指定 productId 或 product 之一，不能同时指定");
+        }
+        if (entry.getProductId() != null) {
+            Product product = productMapper.selectById(entry.getProductId());
+            if (product == null) {
+                throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "商品不存在");
+            }
+            if (!product.getStoreId().equals(store.getId())) {
+                throw new BusinessException(ErrorCode.STORE_FORBIDDEN, "商品不属于当前店铺");
+            }
+            if ("deleted".equals(product.getStatus())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "商品已被删除");
+            }
+            return product.getId();
+        } else if (entry.getProduct() != null) {
+            CreateDraftGroupBuyRequest.InlineProduct inlineProduct = entry.getProduct();
+            Product product = new Product();
+            product.setStoreId(store.getId());
+            product.setName(inlineProduct.getName());
+            product.setDescription(inlineProduct.getDescription());
+            product.setCoverImageUrl(inlineProduct.getCoverImageUrl());
+            product.setBasePriceAmount(inlineProduct.getBasePriceAmount() != null ? inlineProduct.getBasePriceAmount() : 0);
+            product.setStock(inlineProduct.getStock() != null ? inlineProduct.getStock() : 0);
+            product.setStatus("active");
+            productMapper.insert(product);
+            return product.getId();
+        } else {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "每个团购商品必须指定 productId 或 product");
+        }
+    }
+
+    // ── DeliveryType validation ──────────────────────────────────────
+
+    private boolean isValidDeliveryType(String deliveryType) {
+        if (deliveryType == null) return false;
+        return "express".equals(deliveryType)
+                || "pickup".equals(deliveryType)
+                || "local_delivery".equals(deliveryType);
     }
 }

@@ -5,12 +5,16 @@ import com.example.groupshop.common.enums.DeliveryType;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
+import com.example.groupshop.groupbuy.dto.CreateDraftGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.GroupBuyResponse;
+import com.example.groupshop.groupbuy.dto.ShareCardResponse;
+import com.example.groupshop.groupbuy.dto.UpdateGroupBuyPermissionRequest;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyRequest;
 import com.example.groupshop.groupbuy.service.GroupBuyService;
 import com.example.groupshop.model.entity.GroupBuy;
 import com.example.groupshop.model.entity.GroupBuyItem;
+import com.example.groupshop.model.entity.GroupBuyShareToken;
 import com.example.groupshop.model.entity.Leader;
 import com.example.groupshop.model.entity.OrderItem;
 import com.example.groupshop.model.entity.Product;
@@ -18,6 +22,7 @@ import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.entity.User;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
+import com.example.groupshop.model.mapper.GroupBuyShareTokenMapper;
 import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.ProductMapper;
@@ -77,6 +82,9 @@ class GroupBuyServiceTest extends ServiceTestBase {
 
     @Autowired
     private FavoriteService favoriteService;
+
+    @Autowired
+    private GroupBuyShareTokenMapper groupBuyShareTokenMapper;
 
     private Long userId;
     private Long storeId;
@@ -651,5 +659,422 @@ class GroupBuyServiceTest extends ServiceTestBase {
         GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(gbId, viewer.getId());
         assertThat(detail).isNotNull();
         assertThat(detail.getViewer().isFavorited()).isFalse();
+    }
+
+    // ── Draft ─────────────────────────────────────────────────────────
+
+    @Test
+    void createDraft_shouldCreateWithStatusDraft() {
+        CreateDraftGroupBuyRequest request = new CreateDraftGroupBuyRequest();
+        request.setTitle("草稿团购");
+        request.setDeliveryType("express");
+
+        CreateDraftGroupBuyRequest.ItemEntry item = new CreateDraftGroupBuyRequest.ItemEntry();
+        CreateDraftGroupBuyRequest.InlineProduct inlineProduct = new CreateDraftGroupBuyRequest.InlineProduct();
+        inlineProduct.setName("商品");
+        inlineProduct.setBasePriceAmount(1000L);
+        inlineProduct.setStock(10);
+        item.setProduct(inlineProduct);
+        item.setDisplayName("测试商品");
+        item.setGroupPriceAmount(0L);  // draft allows 0 price
+        item.setGroupStock(0);         // draft allows 0 stock
+        request.setItems(List.of(item));
+
+        GroupBuyResponse response = groupBuyService.createDraft(userId, request);
+
+        assertThat(response.getGroupBuy().getStatus()).isEqualTo("draft");
+        assertThat(response.getGroupBuy().getTitle()).isEqualTo("草稿团购");
+        assertThat(response.getGroupBuy().getGroupType()).isEqualTo("normal");
+        assertThat(response.getGroupBuy().getVisibility()).isEqualTo("public");
+        assertThat(response.getItems()).hasSize(1);
+    }
+
+    @Test
+    void createDraft_shouldSupportPresaleGroupType() {
+        CreateDraftGroupBuyRequest request = new CreateDraftGroupBuyRequest();
+        request.setTitle("预售草稿");
+        request.setDeliveryType("express");
+        request.setGroupType("presale");
+
+        CreateDraftGroupBuyRequest.ItemEntry item = new CreateDraftGroupBuyRequest.ItemEntry();
+        CreateDraftGroupBuyRequest.InlineProduct inlineProduct = new CreateDraftGroupBuyRequest.InlineProduct();
+        inlineProduct.setName("预售商品");
+        inlineProduct.setBasePriceAmount(1000L);
+        inlineProduct.setStock(10);
+        item.setProduct(inlineProduct);
+        item.setDisplayName("预售商品");
+        request.setItems(List.of(item));
+
+        GroupBuyResponse response = groupBuyService.createDraft(userId, request);
+        assertThat(response.getGroupBuy().getGroupType()).isEqualTo("presale");
+        assertThat(response.getGroupBuy().getStatus()).isEqualTo("draft");
+    }
+
+    @Test
+    void createDraft_shouldSupportHiddenVisibility() {
+        CreateDraftGroupBuyRequest request = new CreateDraftGroupBuyRequest();
+        request.setTitle("隐藏草稿");
+        request.setDeliveryType("express");
+        request.setVisibility("hidden");
+
+        CreateDraftGroupBuyRequest.ItemEntry item = new CreateDraftGroupBuyRequest.ItemEntry();
+        CreateDraftGroupBuyRequest.InlineProduct inlineProduct = new CreateDraftGroupBuyRequest.InlineProduct();
+        inlineProduct.setName("商品");
+        inlineProduct.setBasePriceAmount(1000L);
+        inlineProduct.setStock(10);
+        item.setProduct(inlineProduct);
+        item.setDisplayName("测试商品");
+        request.setItems(List.of(item));
+
+        GroupBuyResponse response = groupBuyService.createDraft(userId, request);
+        assertThat(response.getGroupBuy().getVisibility()).isEqualTo("hidden");
+        assertThat(response.getGroupBuy().getStatus()).isEqualTo("draft");
+    }
+
+    // ── Publish ────────────────────────────────────────────────────────
+
+    @Test
+    void publishGroupBuy_shouldPublishDraft() {
+        // Create draft
+        CreateDraftGroupBuyRequest draftReq = new CreateDraftGroupBuyRequest();
+        draftReq.setTitle("可发布草稿");
+        draftReq.setDeliveryType("express");
+        draftReq.setStartTime("2026-07-10T12:00:00+08:00");
+        draftReq.setEndTime("2026-07-20T12:00:00+08:00");
+        CreateDraftGroupBuyRequest.ItemEntry item = new CreateDraftGroupBuyRequest.ItemEntry();
+        CreateDraftGroupBuyRequest.InlineProduct ip = new CreateDraftGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1000L);
+        item.setGroupStock(10);
+        draftReq.setItems(List.of(item));
+        GroupBuyResponse draft = groupBuyService.createDraft(userId, draftReq);
+
+        // Publish
+        GroupBuyResponse published = groupBuyService.publishGroupBuy(userId, draft.getGroupBuy().getId());
+        assertThat(published.getGroupBuy().getStatus()).isEqualTo("published");
+    }
+
+    @Test
+    void publishGroupBuy_shouldThrowWhenAlreadyPublished() {
+        // Create and publish directly
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("已发布团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+
+        assertThatThrownBy(() -> groupBuyService.publishGroupBuy(userId, created.getGroupBuy().getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("只有草稿状态的团购可以发布");
+    }
+
+    @Test
+    void publishGroupBuy_shouldValidatePresaleTime() {
+        // Create draft as presale without times
+        CreateDraftGroupBuyRequest draftReq = new CreateDraftGroupBuyRequest();
+        draftReq.setTitle("预售无时间");
+        draftReq.setDeliveryType("express");
+        draftReq.setGroupType("presale");
+        CreateDraftGroupBuyRequest.ItemEntry item = new CreateDraftGroupBuyRequest.ItemEntry();
+        CreateDraftGroupBuyRequest.InlineProduct ip = new CreateDraftGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1000L);
+        item.setGroupStock(10);
+        draftReq.setItems(List.of(item));
+        GroupBuyResponse draft = groupBuyService.createDraft(userId, draftReq);
+
+        // Publish without required times — should fail
+        assertThatThrownBy(() -> groupBuyService.publishGroupBuy(userId, draft.getGroupBuy().getId()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("预售团购必须指定");
+    }
+
+    // ── Preview ────────────────────────────────────────────────────────
+
+    @Test
+    void previewGroupBuy_shouldReturnDetailForDraft() {
+        CreateDraftGroupBuyRequest draftReq = new CreateDraftGroupBuyRequest();
+        draftReq.setTitle("预览草稿");
+        draftReq.setDeliveryType("express");
+        CreateDraftGroupBuyRequest.ItemEntry item = new CreateDraftGroupBuyRequest.ItemEntry();
+        CreateDraftGroupBuyRequest.InlineProduct ip = new CreateDraftGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1000L);
+        item.setGroupStock(10);
+        draftReq.setItems(List.of(item));
+        GroupBuyResponse draft = groupBuyService.createDraft(userId, draftReq);
+
+        GroupBuyDetailResponse preview = groupBuyService.previewGroupBuy(userId, draft.getGroupBuy().getId());
+        assertThat(preview).isNotNull();
+        assertThat(preview.getGroupBuy().getStatus()).isEqualTo("draft");
+        assertThat(preview.getItems()).hasSize(1);
+    }
+
+    // ── Copy ───────────────────────────────────────────────────────────
+
+    @Test
+    void copyGroupBuy_shouldCreateNewDraft() {
+        // Create a published group buy
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("原团购");
+        request.setIntroduction("原介绍");
+        request.setCoverImageUrl("https://example.com/cover.png");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("原商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse original = groupBuyService.createGroupBuy(userId, request);
+
+        // Copy
+        GroupBuyResponse copy = groupBuyService.copyGroupBuy(userId, original.getGroupBuy().getId());
+
+        assertThat(copy.getGroupBuy().getStatus()).isEqualTo("draft");
+        assertThat(copy.getGroupBuy().getTitle()).isEqualTo("原团购");
+        assertThat(copy.getGroupBuy().getIntroduction()).isEqualTo("原介绍");
+        assertThat(copy.getGroupBuy().getId()).isNotEqualTo(original.getGroupBuy().getId());
+        assertThat(copy.getItems()).hasSize(1);
+        assertThat(copy.getItems().get(0).getId()).isNotEqualTo(original.getItems().get(0).getId());
+        assertThat(copy.getItems().get(0).getProductId()).isEqualTo(original.getItems().get(0).getProductId());
+        assertThat(copy.getItems().get(0).getSoldCount()).isZero();
+    }
+
+    // ── Permission ─────────────────────────────────────────────────────
+
+    @Test
+    void updatePermission_shouldChangeVisibility() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("权限测试");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+
+        UpdateGroupBuyPermissionRequest permReq = new UpdateGroupBuyPermissionRequest();
+        permReq.setVisibility("hidden");
+        GroupBuyResponse updated = groupBuyService.updatePermission(userId, created.getGroupBuy().getId(), permReq);
+        assertThat(updated.getGroupBuy().getVisibility()).isEqualTo("hidden");
+
+        // Change back to public
+        permReq.setVisibility("public");
+        updated = groupBuyService.updatePermission(userId, created.getGroupBuy().getId(), permReq);
+        assertThat(updated.getGroupBuy().getVisibility()).isEqualTo("public");
+    }
+
+    @Test
+    void updatePermission_shouldRejectEndedGroupBuy() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("已结束权限测试");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+        groupBuyService.endGroupBuy(userId, created.getGroupBuy().getId());
+
+        UpdateGroupBuyPermissionRequest permReq = new UpdateGroupBuyPermissionRequest();
+        permReq.setVisibility("hidden");
+        assertThatThrownBy(() -> groupBuyService.updatePermission(userId, created.getGroupBuy().getId(), permReq))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("已结束");
+    }
+
+    // ── Share Token ────────────────────────────────────────────────────
+
+    @Test
+    void getOrCreateShareToken_shouldCreateNewToken() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("分享测试");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+
+        ShareCardResponse shareCard = groupBuyService.getOrCreateShareToken(userId, created.getGroupBuy().getId());
+        assertThat(shareCard.getShareToken()).isNotBlank();
+        assertThat(shareCard.getGroupBuyId()).isEqualTo(created.getGroupBuy().getId());
+        assertThat(shareCard.getLandingPath()).contains(shareCard.getShareToken());
+    }
+
+    @Test
+    void getOrCreateShareToken_shouldReuseExistingToken() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("复用分享");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+
+        ShareCardResponse first = groupBuyService.getOrCreateShareToken(userId, created.getGroupBuy().getId());
+        ShareCardResponse second = groupBuyService.getOrCreateShareToken(userId, created.getGroupBuy().getId());
+        assertThat(second.getShareToken()).isEqualTo(first.getShareToken());
+    }
+
+    @Test
+    void validateShareToken_shouldReturnGroupBuy() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("校验token");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+
+        ShareCardResponse shareCard = groupBuyService.getOrCreateShareToken(userId, created.getGroupBuy().getId());
+        GroupBuy validated = groupBuyService.validateShareToken(shareCard.getShareToken());
+        assertThat(validated.getId()).isEqualTo(created.getGroupBuy().getId());
+    }
+
+    @Test
+    void validateShareToken_shouldThrowForInvalidToken() {
+        assertThatThrownBy(() -> groupBuyService.validateShareToken("invalid-token"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("无效");
+    }
+
+    @Test
+    void getPublicGroupBuyDetailByShareToken_shouldAccessHiddenGroupBuy() {
+        // Create hidden group buy
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("隐藏分享团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        request.setVisibility("hidden");
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+
+        // Get share token
+        ShareCardResponse shareCard = groupBuyService.getOrCreateShareToken(userId, created.getGroupBuy().getId());
+
+        // Access via share token
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetailByShareToken(shareCard.getShareToken(), null);
+        assertThat(detail).isNotNull();
+        assertThat(detail.getGroupBuy().getId()).isEqualTo(created.getGroupBuy().getId());
+    }
+
+    // ── Hidden group buy not in public list ────────────────────────────
+
+    @Test
+    void getPublicGroupBuys_shouldNotIncludeHidden() {
+        // Create a hidden group buy
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("隐藏团购不可见");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        request.setVisibility("hidden");
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("隐藏商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("隐藏商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        groupBuyService.createGroupBuy(userId, request);
+
+        // Search by "隐藏" keyword — should find nothing since hidden group buys are excluded
+        PageResponse<PublicGroupBuyItem> result = groupBuyService.getPublicGroupBuys(1, 20, "隐藏", null);
+        assertThat(result.getItems()).isEmpty();
+
+        // Also search by item name
+        PageResponse<PublicGroupBuyItem> result2 = groupBuyService.getPublicGroupBuys(1, 20, "隐藏商品", null);
+        assertThat(result2.getItems()).isEmpty();
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldThrowForHidden() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("隐藏不可详情");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        request.setVisibility("hidden");
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse created = groupBuyService.createGroupBuy(userId, request);
+
+        assertThatThrownBy(() -> groupBuyService.getPublicGroupBuyDetail(created.getGroupBuy().getId(), null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("资源不存在");
     }
 }
