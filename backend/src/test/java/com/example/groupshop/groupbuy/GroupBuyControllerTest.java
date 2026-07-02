@@ -425,4 +425,432 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpectAll(errorResult("BUSINESS_RULE_VIOLATION"));
     }
+
+    // ── Draft endpoints ────────────────────────────────────────────────
+
+    @Test
+    void createDraft_shouldSucceed() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL + "/drafts")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "测试草稿",
+                                    "deliveryType": "express",
+                                    "groupType": "normal",
+                                    "visibility": "public",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 0,
+                                            "groupStock": 0
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.status").value("draft"))
+                .andExpect(jsonPath("$.data.groupBuy.groupType").value("normal"));
+    }
+
+    @Test
+    void createDraft_shouldFailWhenNotAuthenticated() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL + "/drafts")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "测试草稿",
+                                    "deliveryType": "express",
+                                    "items": []
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
+    @Test
+    void createDraft_shouldFailWhenNotLeader() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL + "/drafts")
+                        .header("Authorization", "Bearer " + regularUserToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "测试草稿",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 0,
+                                            "groupStock": 0
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpectAll(errorResult("LEADER_REQUIRED"));
+    }
+
+    // ── Publish endpoint ────────────────────────────────────────────────
+
+    @Test
+    void publishGroupBuy_shouldSucceed() throws Exception {
+        // Create draft
+        String draftResponse = mockMvc.perform(post(GROUP_BUYS_URL + "/drafts")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "可发布草稿",
+                                    "deliveryType": "express",
+                                    "startTime": "2026-07-10T12:00:00+08:00",
+                                    "endTime": "2026-07-20T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long groupBuyId = Long.parseLong(draftResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(post(GROUP_BUYS_URL + "/" + groupBuyId + "/publish")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.status").value("published"));
+    }
+
+    @Test
+    void publishGroupBuy_shouldFailWhenNotDraft() throws Exception {
+        // Create and publish a group buy directly
+        String createResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "已发布",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Try to publish an already-published group buy
+        mockMvc.perform(post(GROUP_BUYS_URL + "/" + groupBuyId + "/publish")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpectAll(errorResult("BUSINESS_RULE_VIOLATION"));
+    }
+
+    // ── Preview endpoint ───────────────────────────────────────────────
+
+    @Test
+    void previewGroupBuy_shouldSucceedForDraft() throws Exception {
+        // Create draft
+        String draftResponse = mockMvc.perform(post(GROUP_BUYS_URL + "/drafts")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "预览草稿",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long groupBuyId = Long.parseLong(draftResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(get(GROUP_BUYS_URL + "/" + groupBuyId + "/preview")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.status").value("draft"))
+                .andExpect(jsonPath("$.data.items").isArray());
+    }
+
+    @Test
+    void previewGroupBuy_shouldFailWhenCrossStore() throws Exception {
+        // Create draft as leader
+        String draftResponse = mockMvc.perform(post(GROUP_BUYS_URL + "/drafts")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "跨店预览",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long groupBuyId = Long.parseLong(draftResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        // Other leader tries to preview
+        mockMvc.perform(get(GROUP_BUYS_URL + "/" + groupBuyId + "/preview")
+                        .header("Authorization", "Bearer " + otherLeaderToken))
+                .andExpect(status().isForbidden())
+                .andExpectAll(errorResult("STORE_FORBIDDEN"));
+    }
+
+    // ── Copy endpoint ──────────────────────────────────────────────────
+
+    @Test
+    void copyGroupBuy_shouldSucceed() throws Exception {
+        String createResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "被复制团购",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(post(GROUP_BUYS_URL + "/" + groupBuyId + "/copy")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.status").value("draft"))
+                .andExpect(jsonPath("$.data.groupBuy.title").value("被复制团购"));
+    }
+
+    // ── Permission endpoint ────────────────────────────────────────────
+
+    @Test
+    void updatePermission_shouldChangeToHidden() throws Exception {
+        String createResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "权限修改",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(patch(GROUP_BUYS_URL + "/" + groupBuyId + "/permission")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("{\"visibility\":\"hidden\"}"))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.visibility").value("hidden"));
+    }
+
+    // ── Share card endpoint ─────────────────────────────────────────────
+
+    @Test
+    void getShareCard_shouldSucceed() throws Exception {
+        String createResponse = mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "分享测试",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long groupBuyId = Long.parseLong(createResponse.split("\"groupBuy\":\\{\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(post(GROUP_BUYS_URL + "/" + groupBuyId + "/share-card")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.shareToken").isString())
+                .andExpect(jsonPath("$.data.landingPath").isString())
+                .andExpect(jsonPath("$.data.title").value("分享测试"));
+    }
+
+    // ── Hidden group buy not in public list / detail ────────────────────
+
+    @Test
+    void publicList_shouldNotIncludeHidden() throws Exception {
+        // Create a hidden group buy
+        mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "隐藏团购",
+                                    "visibility": "hidden",
+                                    "deliveryType": "express",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """));
+
+        // Public list should NOT contain the hidden group buy by title
+        mockMvc.perform(get("/api/v1/group-buys"))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items[*].title").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("隐藏团购"))));
+    }
+
+    // ── Presale ─────────────────────────────────────────────────────────
+
+    @Test
+    void createPresaleGroupBuy_shouldSucceedWithTimes() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "预售团购",
+                                    "deliveryType": "express",
+                                    "groupType": "presale",
+                                    "startTime": "2026-07-10T12:00:00+08:00",
+                                    "endTime": "2026-07-20T12:00:00+08:00",
+                                    "shippingTime": "2026-07-30T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "预售商品",
+                                                "basePriceAmount": 2000,
+                                                "stock": 50
+                                            },
+                                            "displayName": "预售商品",
+                                            "groupPriceAmount": 1990,
+                                            "groupStock": 50
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.groupType").value("presale"))
+                .andExpect(jsonPath("$.data.groupBuy.status").value("published"));
+    }
+
+    @Test
+    void createPresaleGroupBuy_shouldFailWithoutShippingTime() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "预售无发货",
+                                    "deliveryType": "express",
+                                    "groupType": "presale",
+                                    "startTime": "2026-07-10T12:00:00+08:00",
+                                    "endTime": "2026-07-20T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
 }

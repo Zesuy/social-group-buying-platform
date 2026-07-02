@@ -11,12 +11,14 @@ import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.model.entity.Address;
 import com.example.groupshop.model.entity.GroupBuy;
 import com.example.groupshop.model.entity.GroupBuyItem;
+import com.example.groupshop.model.entity.GroupBuyShareToken;
 import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.entity.OrderItem;
 import com.example.groupshop.model.entity.Product;
 import com.example.groupshop.model.mapper.AddressMapper;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
+import com.example.groupshop.model.mapper.GroupBuyShareTokenMapper;
 import com.example.groupshop.model.mapper.MemberRelationMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.OrderMapper;
@@ -56,6 +58,7 @@ public class OrderService {
     private final ProductMapper productMapper;
     private final MemberRelationMapper memberRelationMapper;
     private final AddressService addressService;
+    private final GroupBuyShareTokenMapper groupBuyShareTokenMapper;
 
     private static final String DB_STATUS_PENDING_PAY = "pending_pay";
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
@@ -67,8 +70,8 @@ public class OrderService {
      * Does NOT create an order or reserve stock.
      */
     public OrderPreviewResponse previewOrder(Long userId, OrderPreviewRequest request) {
-        // Validate group buy
-        GroupBuy groupBuy = validateGroupBuyForPurchase(request.getGroupBuyId());
+        // Validate group buy with optional share token
+        GroupBuy groupBuy = validateGroupBuyForPurchase(request.getGroupBuyId(), request.getShareToken());
 
         // Validate items belong to group buy and have sufficient stock
         List<GroupBuyItem> gbItems = validateAndLoadItems(request.getGroupBuyId(), request.getItems());
@@ -122,8 +125,8 @@ public class OrderService {
      */
     @Transactional
     public OrderResponse createOrder(Long userId, CreateOrderRequest request) {
-        // Validate group buy
-        GroupBuy groupBuy = validateGroupBuyForPurchase(request.getGroupBuyId());
+        // Validate group buy with optional share token
+        GroupBuy groupBuy = validateGroupBuyForPurchase(request.getGroupBuyId(), request.getShareToken());
 
         // Validate items belong to group buy and have sufficient stock
         List<GroupBuyItem> gbItems = validateAndLoadItems(request.getGroupBuyId(), request.getItems());
@@ -417,9 +420,10 @@ public class OrderService {
     // ── Internal helpers ──────────────────────────────────────────────
 
     /**
-     * Validate that a group buy is purchasable: published, public, started, not ended.
+     * Validate that a group buy is purchasable: published, started, not ended.
+     * For hidden group buys, a valid matching share token is required.
      */
-    private GroupBuy validateGroupBuyForPurchase(Long groupBuyId) {
+    private GroupBuy validateGroupBuyForPurchase(Long groupBuyId, String shareToken) {
         GroupBuy groupBuy = groupBuyMapper.selectById(groupBuyId);
         if (groupBuy == null) {
             throw new BusinessException(ErrorCode.GROUP_BUY_NOT_PURCHASABLE, "团购不存在");
@@ -427,9 +431,26 @@ public class OrderService {
         if (!"published".equals(groupBuy.getStatus())) {
             throw new BusinessException(ErrorCode.GROUP_BUY_NOT_PURCHASABLE, "团购不可购买");
         }
-        if (!"public".equals(groupBuy.getVisibility())) {
-            throw new BusinessException(ErrorCode.GROUP_BUY_NOT_PURCHASABLE, "团购不可购买");
+
+        // Handle visibility
+        if ("hidden".equals(groupBuy.getVisibility())) {
+            // Hidden group buy requires a valid matching share token
+            if (shareToken == null || shareToken.isBlank()) {
+                throw new BusinessException(ErrorCode.HIDDEN_GROUP_BUY_REQUIRES_TOKEN, "隐藏团购需要有效分享 token");
+            }
+            GroupBuyShareToken token = groupBuyShareTokenMapper.selectOne(
+                    new LambdaQueryWrapper<GroupBuyShareToken>()
+                            .eq(GroupBuyShareToken::getToken, shareToken)
+                            .eq(GroupBuyShareToken::getGroupBuyId, groupBuyId)
+                            .eq(GroupBuyShareToken::getStatus, "active"));
+            if (token == null) {
+                throw new BusinessException(ErrorCode.SHARE_TOKEN_INVALID, "分享 token 无效或与团购不匹配");
+            }
+            if (token.getExpiresAt() != null && token.getExpiresAt().isBefore(LocalDateTime.now())) {
+                throw new BusinessException(ErrorCode.SHARE_TOKEN_INVALID, "分享 token 已过期");
+            }
         }
+
         if (groupBuy.getEndTime() != null && groupBuy.getEndTime().isBefore(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.GROUP_BUY_ENDED, "团购已结束");
         }

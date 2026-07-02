@@ -503,6 +503,203 @@ paths:
           $ref: '#/components/responses/NotFoundError'
         '422':
           $ref: '#/components/responses/BusinessRuleViolationError'
+  # ── GroupBuy Draft ───────────────────────────────────────────────
+  /api/v1/my/store/group-buys/drafts:
+    post:
+      tags:
+        - GroupBuy
+      summary: Create a group buy draft (minimal validation).
+      operationId: createDraft
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDraftGroupBuyRequest'
+      responses:
+        '200':
+          description: Draft created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/group-buys/{groupBuyId}/publish:
+    post:
+      tags:
+        - GroupBuy
+      summary: Publish a draft group buy.
+      operationId: publishDraft
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Group buy published.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/store/group-buys/{groupBuyId}/preview:
+    get:
+      tags:
+        - GroupBuy
+      summary: Preview a group buy (any status) for the owning leader.
+      operationId: previewGroupBuy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Preview data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuyDetailSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/store/group-buys/{groupBuyId}/copy:
+    post:
+      tags:
+        - GroupBuy
+      summary: Copy a group buy as a new draft.
+      operationId: copyGroupBuy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Copy created as draft.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/store/group-buys/{groupBuyId}/permission:
+    patch:
+      tags:
+        - GroupBuy
+      summary: Update group buy visibility (public/hidden).
+      operationId: updatePermission
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - visibility
+              properties:
+                visibility:
+                  type: string
+                  enum: [public, hidden]
+      responses:
+        '200':
+          description: Visibility updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/store/group-buys/{groupBuyId}/share-card:
+    post:
+      tags:
+        - GroupBuy
+      summary: Get or create a share card for a group buy.
+      operationId: getShareCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: groupBuyId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Share card data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareCardSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  # ── Share token public access ───────────────────────────────────
+  /api/v1/share/group-buys/{shareToken}:
+    get:
+      tags:
+        - GroupBuyPublic
+      summary: Get group buy detail via share token (supports hidden group buys).
+      operationId: getGroupBuyByShareToken
+      parameters:
+        - name: shareToken
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Group buy detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuyDetailSuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/group-buys:
     get:
       tags:
@@ -1999,6 +2196,14 @@ components:
         endTime:
           type: string
           nullable: true
+        groupType:
+          type: string
+          default: normal
+          description: normal / presale
+        visibility:
+          type: string
+          default: public
+          description: public / hidden
         items:
           type: array
           minItems: 1
@@ -2074,6 +2279,12 @@ components:
         endTime:
           type: string
           nullable: true
+        groupType:
+          type: string
+          description: normal / presale — only for drafts; published group buys cannot change type
+        visibility:
+          type: string
+          description: public / hidden — for drafts and published; ended/removed rejected
         items:
           type: array
           items:
@@ -2081,12 +2292,15 @@ components:
       additionalProperties: false
     UpdateGroupBuyItemEntry:
       type: object
-      required:
-        - id
       properties:
         id:
           type: string
-          description: ID（string）
+          description: Existing item id (null for new items in draft replacement)
+          nullable: true
+        productId:
+          type: string
+          description: Product id for draft item replacement (copies from existing item if null and id is set)
+          nullable: true
         displayName:
           type: string
           minLength: 1
@@ -2215,9 +2429,19 @@ components:
           nullable: true
         status:
           type: string
+        groupType:
+          type: string
+          description: normal / presale
+        startTime:
+          type: string
+          nullable: true
         endTime:
           type: string
           nullable: true
+        shippingTime:
+          type: string
+          nullable: true
+          description: 承诺发货时间（预售展示用）
         minPriceAmount:
           type: integer
           minimum: 0
@@ -2256,6 +2480,158 @@ components:
         name:
           type: string
       additionalProperties: false
+    # ── GroupBuy Draft Request ──────────────────────────────────────
+    CreateDraftGroupBuyRequest:
+      type: object
+      required:
+        - title
+        - deliveryType
+        - items
+      properties:
+        title:
+          type: string
+          maxLength: 128
+        introduction:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        deliveryType:
+          type: string
+          description: express / pickup / local_delivery
+        shippingTime:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        groupType:
+          type: string
+          default: normal
+          description: normal / presale
+        visibility:
+          type: string
+          default: public
+          description: public / hidden
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CreateDraftGroupBuyItemEntry'
+      additionalProperties: false
+    CreateDraftGroupBuyItemEntry:
+      type: object
+      required:
+        - displayName
+      properties:
+        productId:
+          type: string
+          description: ID（string），mutually exclusive with product
+        product:
+          $ref: '#/components/schemas/CreateDraftGroupBuyInlineProduct'
+        displayName:
+          type: string
+          maxLength: 128
+        groupPriceAmount:
+          type: integer
+          minimum: 0
+          nullable: true
+        groupStock:
+          type: integer
+          minimum: 0
+          nullable: true
+        sortOrder:
+          type: integer
+      additionalProperties: false
+    CreateDraftGroupBuyInlineProduct:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 128
+        description:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        basePriceAmount:
+          type: integer
+          minimum: 0
+          nullable: true
+        stock:
+          type: integer
+          minimum: 0
+          nullable: true
+      additionalProperties: false
+    # ── Share Card Response ──────────────────────────────────────────
+    ShareCardSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/ShareCardData'
+        traceId:
+          type: string
+      additionalProperties: false
+    ShareCardData:
+      type: object
+      properties:
+        shareToken:
+          type: string
+        landingPath:
+          type: string
+        groupBuyId:
+          type: string
+        title:
+          type: string
+        coverImageUrl:
+          type: string
+          nullable: true
+        minPriceAmount:
+          type: integer
+          minimum: 0
+        maxPriceAmount:
+          type: integer
+          minimum: 0
+        endTime:
+          type: string
+          nullable: true
+        groupType:
+          type: string
+        storeId:
+          type: string
+        storeName:
+          type: string
+        storeLogoUrl:
+          type: string
+          nullable: true
+        leaderId:
+          type: string
+        leaderName:
+          type: string
+        leaderAvatarUrl:
+          type: string
+          nullable: true
+        deliveryType:
+          type: string
+        shippingTime:
+          type: string
+          nullable: true
+      additionalProperties: false
+
     # ── GroupBuy Detail ──────────────────────────────────────────────
     GroupBuyDetailSuccessResponse:
       type: object
@@ -2692,6 +3068,9 @@ components:
         addressId:
           type: string
           description: ID（string）
+        shareToken:
+          type: string
+          description: Required for hidden group buys (optional for public)
         items:
           type: array
           items:
@@ -2882,6 +3261,9 @@ components:
         addressId:
           type: string
           description: ID（string）
+        shareToken:
+          type: string
+          description: Required for hidden group buys (optional for public)
         remark:
           type: string
           nullable: true

@@ -700,10 +700,16 @@ POST /api/v1/my/store/group-buys
 
 业务规则：
 
-- MVP 只支持 `groupType = normal`。
+- `groupType` 支持 `normal`（普通团购）和 `presale`（预售团购）。
+- 预售团购发布时必须指定 `startTime`、`endTime`、`shippingTime`，且满足 `endTime > startTime`、`shippingTime > endTime`。
 - 一个团购至少包含一个团购商品。
 - 团购商品价格是用户下单价格。
-- MVP 可直接创建为 `published`，不做草稿保存。
+- 支持两种创建方式：
+  - **直接发布**：`POST /my/store/group-buys`，直接创建为 `status=published`，兼容 MVP。
+  - **草稿创建**：`POST /my/store/group-buys/drafts`，创建为 `status=draft`，使用最小可预览校验（标题、配送方式、至少一个有效商品项必填），价格库存可为空。草稿可通过 `POST /my/store/group-buys/{id}/publish` 发布。
+- 草稿商品项可替换：`PATCH /my/store/group-buys/{id}` 传 `items` 时会删除旧 item 并插入新的。
+- 已发布团购只能更新已有 item，有订单的 item 不可改价。
+- `visibility` 支持 `public`（公开）和 `hidden`（隐藏）。隐藏团购不进入公共列表和团长主页，只能通过有效分享 token 访问和下单。
 - 推荐使用内联商品创建：团长在发布团购时可以直接在 `items` 中提交商品信息，后端在同一个事务中创建 `product` 和 `groupBuyItem`。
 - 如果传入 `productId`，表示复用当前店铺已有商品；如果传入 `product`，表示发布时创建新商品。
 - MVP 不使用 `skuId`，规格文本可放在 `displayName` 或 `product.name` 中。
@@ -1677,15 +1683,21 @@ sequenceDiagram
     participant P as products
     participant GI as group_buy_items
 
-    C->>API: POST /api/v1/my/store/group-buys
+    C->>API: POST /api/v1/my/store/group-buys (直接发布)
     API->>S: 根据 token 查询当前团长自己的店铺
     API->>API: 开启数据库事务
-    API->>API: 校验 groupType=normal 且 groupStock >= 0
+    alt groupType=presale
+        API->>API: 校验 startTime、endTime、shippingTime 均不为空
+        API->>API: 校验 endTime > startTime && shippingTime > endTime
+    else
+        API->>API: 校验 endTime > startTime（如均非空）
+    end
+    API->>API: 校验 groupStock >= 0
     alt 参数不合法
         API->>API: 回滚事务
         API-->>C: VALIDATION_ERROR
     else 参数合法
-        API->>G: 创建 group_buy(status=published, groupType=normal)
+        API->>G: 创建 group_buy(status=published, groupType, visibility)
         loop items
             alt item 内联 product
                 API->>P: 创建 product(basePriceAmount, stock)

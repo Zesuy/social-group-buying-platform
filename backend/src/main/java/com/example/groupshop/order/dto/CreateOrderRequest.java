@@ -23,6 +23,9 @@ public class CreateOrderRequest {
     @Size(max = 256)
     private String remark;
 
+    /** Optional share token — required for hidden group buys */
+    private String shareToken;
+
     @NotEmpty
     @Valid
     private List<OrderItemEntry> items;
