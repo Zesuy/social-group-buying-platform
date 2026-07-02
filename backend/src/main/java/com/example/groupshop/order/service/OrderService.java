@@ -3,19 +3,20 @@ package com.example.groupshop.order.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.example.groupshop.address.dto.AddressResponse;
 import com.example.groupshop.address.service.AddressService;
+import com.example.groupshop.cart.service.CartCheckoutPreviewResult;
+import com.example.groupshop.cart.service.CartService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.model.entity.Address;
+import com.example.groupshop.model.entity.Cart;
 import com.example.groupshop.model.entity.GroupBuy;
 import com.example.groupshop.model.entity.GroupBuyItem;
 import com.example.groupshop.model.entity.GroupBuyShareToken;
 import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.entity.OrderItem;
 import com.example.groupshop.model.entity.Product;
-import com.example.groupshop.model.mapper.AddressMapper;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
 import com.example.groupshop.model.mapper.GroupBuyShareTokenMapper;
@@ -31,7 +32,6 @@ import com.example.groupshop.order.dto.OrderPreviewResponse.AddressPreview;
 import com.example.groupshop.order.dto.OrderPreviewResponse.ItemPreview;
 import com.example.groupshop.order.dto.OrderResponse;
 import com.example.groupshop.order.dto.OrderResponse.OrderItemData;
-import com.example.groupshop.common.util.CurrentStoreHelper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +45,13 @@ import java.util.stream.Collectors;
 
 /**
  * Service for order preview, creation, and querying.
+ *
+ * <p>Supports two purchase modes:
+ * <ul>
+ *   <li><b>Direct mode:</b> buyer picks items and quantities directly.</li>
+ *   <li><b>Cart mode:</b> buyer selects from pre-added cart items.
+ *       All cart items must belong to the same group buy.</li>
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
@@ -54,30 +61,117 @@ public class OrderService {
     private final OrderItemMapper orderItemMapper;
     private final GroupBuyMapper groupBuyMapper;
     private final GroupBuyItemMapper groupBuyItemMapper;
-    private final AddressMapper addressMapper;
     private final ProductMapper productMapper;
     private final MemberRelationMapper memberRelationMapper;
     private final AddressService addressService;
     private final GroupBuyShareTokenMapper groupBuyShareTokenMapper;
+    private final CartService cartService;
 
     private static final String DB_STATUS_PENDING_PAY = "pending_pay";
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
 
-    // ── Order Preview ──────────────────────────────────────────────────
+    // ── Order Preview (public) ──────────────────────────────────────────
 
     /**
-     * Preview order: validate group buy, items, address, stock.
-     * Does NOT create an order or reserve stock.
+     * Preview an order, supporting both direct and cart modes.
+     *
+     * <p>In cart mode ({@code cartItemIds} set), loads the cart items,
+     * validates they belong to the same group buy, and derives the
+     * groupBuyId and item entries from the cart.
+     *
+     * <p>In direct mode ({@code groupBuyId + items}), validates the
+     * group buy and items directly.
+     *
+     * <p>The two modes are mutually exclusive — passing both or neither
+     * results in {@code VALIDATION_ERROR}.
      */
     public OrderPreviewResponse previewOrder(Long userId, OrderPreviewRequest request) {
-        // Validate group buy with optional share token
-        GroupBuy groupBuy = validateGroupBuyForPurchase(request.getGroupBuyId(), request.getShareToken());
+        // Validate that either cart mode or direct mode is used
+        validateOrderMode(request.getCartItemIds(), request.getGroupBuyId(), request.getItems());
 
-        // Validate items belong to group buy and have sufficient stock
-        List<GroupBuyItem> gbItems = validateAndLoadItems(request.getGroupBuyId(), request.getItems());
+        if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
+            // ── Cart mode ──────────────────────────────────────────────────
+            CartCheckoutPreviewResult preview = cartService.loadCartItemsForOrder(
+                    userId, request.getCartItemIds(), request.getShareToken());
+            return previewOrderFromCart(userId, preview.getGroupBuyId(),
+                    request.getAddressId(), preview.getCartItems(), preview.getShareToken());
+        }
+
+        // ── Direct mode ──────────────────────────────────────────────────
+        return doPreviewOrder(userId, request.getGroupBuyId(), request.getAddressId(),
+                request.getShareToken(), request.getItems());
+    }
+
+    /**
+     * Preview an order from cart items (used by CartController.checkoutPreview).
+     * All cart items must belong to the same group buy.
+     */
+    public OrderPreviewResponse previewOrderFromCart(Long userId, Long groupBuyId,
+                                                       Long addressId,
+                                                       List<Cart> cartItems,
+                                                       String shareToken) {
+        // Create transient OrderItemEntry list from cart items
+        List<OrderItemEntry> entries = cartItems.stream()
+                .map(cart -> new CartDerivedOrderItemEntry(cart.getGroupBuyItemId(), cart.getQuantity()))
+                .collect(Collectors.toList());
+
+        return doPreviewOrder(userId, groupBuyId, addressId, shareToken, entries);
+    }
+
+    // ── Create Order ───────────────────────────────────────────────────
+
+    /**
+     * Create an order, supporting both direct and cart modes.
+     *
+     * <p>In cart mode, after successful creation, the processed cart items
+     * are deleted from the cart.
+     */
+    @Transactional
+    public OrderResponse createOrder(Long userId, CreateOrderRequest request) {
+        // Validate that either cart mode or direct mode is used
+        validateOrderMode(request.getCartItemIds(), request.getGroupBuyId(), request.getItems());
+
+        List<Long> cartItemIdsForCleanup = null;
+
+        if (request.getCartItemIds() != null && !request.getCartItemIds().isEmpty()) {
+            // ── Cart mode: load from cart, derive groupBuyId/items ────────
+            CartCheckoutPreviewResult result = cartService.loadCartItemsForOrder(
+                    userId, request.getCartItemIds(), request.getShareToken());
+
+            // Create transient item entries from cart
+            List<OrderItemEntry> entries = result.getCartItems().stream()
+                    .map(cart -> new CartDerivedOrderItemEntry(
+                            cart.getGroupBuyItemId(), cart.getQuantity()))
+                    .collect(Collectors.toList());
+
+            cartItemIdsForCleanup = request.getCartItemIds();
+
+            return doCreateOrder(userId, result.getGroupBuyId(), request.getAddressId(),
+                    result.getShareToken(), request.getRemark(), entries, cartItemIdsForCleanup);
+        }
+
+        // ── Direct mode ──────────────────────────────────────────────────
+        return doCreateOrder(userId, request.getGroupBuyId(), request.getAddressId(),
+                request.getShareToken(), request.getRemark(), request.getItems(), null);
+    }
+
+    // ── Internal order preview (shared by both modes) ───────────────────
+
+    /**
+     * Core preview logic shared by direct and cart modes.
+     */
+    private OrderPreviewResponse doPreviewOrder(Long userId, Long groupBuyId,
+                                                  Long addressId,
+                                                  String shareToken,
+                                                  List<? extends OrderItemEntry> entries) {
+        // Validate group buy
+        GroupBuy groupBuy = validateGroupBuyForPurchase(groupBuyId, shareToken);
+
+        // Validate items
+        List<GroupBuyItem> gbItems = validateAndLoadItems(groupBuyId, entries);
 
         // Validate address
-        Address address = addressService.findAddressForUser(request.getAddressId(), userId);
+        Address address = addressService.findAddressForUser(addressId, userId);
 
         // Calculate amounts
         long totalAmount = 0;
@@ -85,7 +179,7 @@ public class OrderService {
         Map<Long, GroupBuyItem> itemMap = gbItems.stream()
                 .collect(Collectors.toMap(GroupBuyItem::getId, i -> i));
 
-        for (OrderPreviewRequest.OrderItemEntry entry : request.getItems()) {
+        for (OrderItemEntry entry : entries) {
             GroupBuyItem gbItem = itemMap.get(entry.getGroupBuyItemId());
             long unitPrice = gbItem.getGroupPriceAmount();
             int quantity = entry.getQuantity();
@@ -108,7 +202,7 @@ public class OrderService {
         }
 
         return OrderPreviewResponse.builder()
-                .groupBuyId(request.getGroupBuyId())
+                .groupBuyId(groupBuyId)
                 .address(toAddressPreview(address))
                 .items(itemPreviews)
                 .totalAmount(totalAmount)
@@ -117,24 +211,27 @@ public class OrderService {
                 .build();
     }
 
-    // ── Create Order ───────────────────────────────────────────────────
+    // ── Internal order creation (shared by both modes) ─────────────────
 
     /**
-     * Create an order. Re-validates everything from preview, saves address
-     * and item snapshots. Does NOT deduct stock.
+     * Core create-order logic shared by direct and cart modes.
+     * Optionally cleans up cart items after successful creation.
      */
-    @Transactional
-    public OrderResponse createOrder(Long userId, CreateOrderRequest request) {
-        // Validate group buy with optional share token
-        GroupBuy groupBuy = validateGroupBuyForPurchase(request.getGroupBuyId(), request.getShareToken());
+    private OrderResponse doCreateOrder(Long userId, Long groupBuyId,
+                                         Long addressId, String shareToken,
+                                         String remark,
+                                         List<? extends OrderItemEntry> entries,
+                                         List<Long> cartItemIdsToDelete) {
+        // Validate group buy
+        GroupBuy groupBuy = validateGroupBuyForPurchase(groupBuyId, shareToken);
 
-        // Validate items belong to group buy and have sufficient stock
-        List<GroupBuyItem> gbItems = validateAndLoadItems(request.getGroupBuyId(), request.getItems());
+        // Validate items
+        List<GroupBuyItem> gbItems = validateAndLoadItems(groupBuyId, entries);
 
         // Validate address and get snapshot
-        Address address = addressService.findAddressForUser(request.getAddressId(), userId);
+        Address address = addressService.findAddressForUser(addressId, userId);
 
-        // Build order number: date prefix + IdWorker value
+        // Build order number
         String orderNo = generateOrderNo();
 
         // Calculate amounts
@@ -143,7 +240,7 @@ public class OrderService {
         Map<Long, GroupBuyItem> itemMap = gbItems.stream()
                 .collect(Collectors.toMap(GroupBuyItem::getId, i -> i));
 
-        for (CreateOrderRequest.OrderItemEntry entry : request.getItems()) {
+        for (OrderItemEntry entry : entries) {
             GroupBuyItem gbItem = itemMap.get(entry.getGroupBuyItemId());
             long unitPrice = gbItem.getGroupPriceAmount();
             int quantity = entry.getQuantity();
@@ -167,7 +264,7 @@ public class OrderService {
         order.setUserId(userId);
         order.setLeaderId(groupBuy.getLeaderId());
         order.setStoreId(groupBuy.getStoreId());
-        order.setGroupBuyId(request.getGroupBuyId());
+        order.setGroupBuyId(groupBuyId);
         order.setAddressId(address.getId());
 
         // Address snapshot
@@ -188,13 +285,13 @@ public class OrderService {
         // Status — DB uses snake_case
         order.setPayStatus("unpaid");
         order.setOrderStatus(DB_STATUS_PENDING_PAY);
-        order.setRemark(request.getRemark());
+        order.setRemark(remark);
 
         orderMapper.insert(order);
 
         // Create order items with snapshots
-        for (int i = 0; i < request.getItems().size(); i++) {
-            CreateOrderRequest.OrderItemEntry entry = request.getItems().get(i);
+        int idx = 0;
+        for (OrderItemEntry entry : entries) {
             GroupBuyItem gbItem = itemMap.get(entry.getGroupBuyItemId());
             Product product = productMapper.selectById(gbItem.getProductId());
 
@@ -209,7 +306,13 @@ public class OrderService {
             orderItem.setTotalAmount(gbItem.getGroupPriceAmount() * entry.getQuantity());
             orderItemMapper.insert(orderItem);
 
-            itemDataList.get(i).setId(orderItem.getId());
+            itemDataList.get(idx).setId(orderItem.getId());
+            idx++;
+        }
+
+        // Clean up cart items if this was a cart checkout
+        if (cartItemIdsToDelete != null && !cartItemIdsToDelete.isEmpty()) {
+            cartService.deleteCartItemsByIds(cartItemIdsToDelete);
         }
 
         return toOrderResponse(order, itemDataList);
@@ -219,7 +322,6 @@ public class OrderService {
 
     /**
      * List current user's orders with optional status filter.
-     * API status (camelCase) is converted to DB status (snake_case) for the query.
      */
     public PageResponse<OrderResponse> getMyOrders(Long userId, String status, int page, int pageSize) {
         Page<Order> pageObj = new Page<>(page, pageSize);
@@ -271,19 +373,7 @@ public class OrderService {
     // ── Simulate Pay (Batch 07) ───────────────────────────────────────
 
     /**
-     * Simulate payment for an order. Only the order owner can pay.
-     *
-     * <p>In a single transaction:
-     * <ol>
-     *   <li>Validates order belongs to user and is in pendingPay+unpaid state</li>
-     *   <li>Updates order to paid status, sets paidAt</li>
-     *   <li>Atomically deducts group_stock and increments sold_count for each item</li>
-     *   <li>Creates or updates MemberRelation for the buyer</li>
-     * </ol>
-     *
-     * @throws BusinessException with ORDER_ALREADY_PAID if already paid
-     * @throws BusinessException with ORDER_NOT_PAYABLE if not in payable state
-     * @throws BusinessException with INSUFFICIENT_STOCK if stock insufficient
+     * Simulate payment for an order.
      */
     @Transactional
     public OrderResponse simulatePay(Long userId, Long orderId) {
@@ -308,7 +398,7 @@ public class OrderService {
                 new LambdaQueryWrapper<OrderItem>()
                         .eq(OrderItem::getOrderId, order.getId()));
 
-        // Validate and deduct stock atomically (optimistic via MyBatis update with condition)
+        // Validate and deduct stock atomically
         for (OrderItem orderItem : orderItems) {
             GroupBuyItem gbItem = groupBuyItemMapper.selectById(orderItem.getGroupBuyItemId());
             if (gbItem == null) {
@@ -320,7 +410,7 @@ public class OrderService {
 
             // Atomic deduction: groupStock -= quantity, soldCount += quantity
             int updated = groupBuyItemMapper.update(null,
-                    new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<GroupBuyItem>()
+                    new LambdaUpdateWrapper<GroupBuyItem>()
                             .eq(GroupBuyItem::getId, gbItem.getId())
                             .eq(GroupBuyItem::getGroupStock, gbItem.getGroupStock())
                             .setSql("group_stock = group_stock - " + orderItem.getQuantity()
@@ -330,7 +420,7 @@ public class OrderService {
             }
         }
 
-        // Update order to paid — atomic condition update prevents concurrent duplicate payment
+        // Update order to paid — atomic condition update
         LocalDateTime now = LocalDateTime.now();
         int updated = orderMapper.update(null,
                 new LambdaUpdateWrapper<Order>()
@@ -341,14 +431,12 @@ public class OrderService {
                         .set(Order::getOrderStatus, "paid")
                         .set(Order::getPaidAt, now));
         if (updated == 0) {
-            // Already paid or status changed — re-read to determine the right error
             Order current = orderMapper.selectById(order.getId());
             if ("paid".equals(current.getPayStatus())) {
                 throw new BusinessException(ErrorCode.ORDER_ALREADY_PAID, "订单已支付");
             }
             throw new BusinessException(ErrorCode.ORDER_NOT_PAYABLE, "订单当前状态不可支付");
         }
-        // Sync back the in-memory order so upsertMemberRelation sees current state
         order.setPayStatus("paid");
         order.setOrderStatus("paid");
         order.setPaidAt(now);
@@ -361,11 +449,6 @@ public class OrderService {
 
     /**
      * Atomically create or update member relation via DB UPSERT.
-     *
-     * <p>Uses {@code INSERT ... ON DUPLICATE KEY UPDATE} to eliminate the
-     * read-then-write gap that would let concurrent first payments from the
-     * same user to the same store both attempt to insert and collide on the
-     * unique constraint {@code uk_member_relations_user_store}.
      */
     private void upsertMemberRelation(Order order, LocalDateTime now) {
         memberRelationMapper.upsert(
@@ -379,19 +462,12 @@ public class OrderService {
     // ── Complete Order (Batch 10) ────────────────────────────────────
 
     /**
-     * Complete (confirm receipt for) an order. Only the order owner can complete.
-     *
-     * <p>Uses an atomic conditional update to transition {@code shipped → completed},
-     * preventing concurrent requests from double-completing.
-     *
-     * @throws BusinessException with ORDER_ALREADY_COMPLETED if already completed
-     * @throws BusinessException with ORDER_NOT_COMPLETABLE if not in a completable state
+     * Complete (confirm receipt for) an order.
      */
     @Transactional
     public OrderResponse completeOrder(Long userId, Long orderId) {
         Order order = findOrderForUser(orderId, userId);
 
-        // Atomic condition update: only shipped orders can transition to completed
         LocalDateTime now = LocalDateTime.now();
         int updated = orderMapper.update(null,
                 new LambdaUpdateWrapper<Order>()
@@ -400,7 +476,6 @@ public class OrderService {
                         .set(Order::getOrderStatus, "completed")
                         .set(Order::getCompletedAt, now));
         if (updated == 0) {
-            // Re-read to determine the actual state
             Order current = orderMapper.selectById(order.getId());
             if (current == null) {
                 throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -410,14 +485,31 @@ public class OrderService {
             }
             throw new BusinessException(ErrorCode.ORDER_NOT_COMPLETABLE, "当前订单状态不可确认收货");
         }
-        // Sync in-memory state
         order.setOrderStatus("completed");
         order.setCompletedAt(now);
 
         return toOrderResponseWithItems(order);
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────
+    // ── Validation ───────────────────────────────────────────────────
+
+    /**
+     * Validate that the order request uses exactly one mode:
+     * either {@code cartItemIds} (cart mode) or {@code groupBuyId + items} (direct mode).
+     */
+    private void validateOrderMode(List<Long> cartItemIds, Long groupBuyId, List<?> items) {
+        boolean hasCartMode = cartItemIds != null && !cartItemIds.isEmpty();
+        boolean hasDirectMode = groupBuyId != null && items != null && !items.isEmpty();
+
+        if (hasCartMode && hasDirectMode) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "items 和 cartItemIds 不能同时使用");
+        }
+        if (!hasCartMode && !hasDirectMode) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "必须选择一种下单方式：items（直接购买）或 cartItemIds（购物车结算）");
+        }
+    }
 
     /**
      * Validate that a group buy is purchasable: published, started, not ended.
@@ -432,9 +524,7 @@ public class OrderService {
             throw new BusinessException(ErrorCode.GROUP_BUY_NOT_PURCHASABLE, "团购不可购买");
         }
 
-        // Handle visibility
         if ("hidden".equals(groupBuy.getVisibility())) {
-            // Hidden group buy requires a valid matching share token
             if (shareToken == null || shareToken.isBlank()) {
                 throw new BusinessException(ErrorCode.HIDDEN_GROUP_BUY_REQUIRES_TOKEN, "隐藏团购需要有效分享 token");
             }
@@ -462,7 +552,6 @@ public class OrderService {
 
     /**
      * Validate that items belong to the group buy and have sufficient stock.
-     * Also checks for duplicate items, empty items, and positive quantities.
      */
     private List<GroupBuyItem> validateAndLoadItems(Long groupBuyId, List<? extends OrderItemEntry> entries) {
         if (entries == null || entries.isEmpty()) {
@@ -502,6 +591,8 @@ public class OrderService {
         return gbItems;
     }
 
+    // ── Internal helpers ──────────────────────────────────────────────
+
     private Order findOrderForUser(Long orderId, Long userId) {
         Order order = orderMapper.selectById(orderId);
         if (order == null) {
@@ -514,19 +605,14 @@ public class OrderService {
     }
 
     private String generateOrderNo() {
-        // Use date prefix + IdWorker value for uniqueness within VARCHAR(64)
         return java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"))
                 + com.baomidou.mybatisplus.core.toolkit.IdWorker.getIdStr();
     }
 
-    /**
-     * Convert API camelCase order status to DB snake_case.
-     */
     private String toDbOrderStatus(String apiStatus) {
         if (API_STATUS_PENDING_PAY.equals(apiStatus)) {
             return DB_STATUS_PENDING_PAY;
         }
-        // For direct matches (paid, shipped, completed, canceled), return as-is
         return apiStatus;
     }
 
@@ -592,13 +678,33 @@ public class OrderService {
         return toOrderResponse(order, itemDataList);
     }
 
-    /**
-     * Convert DB snake_case order status to API camelCase.
-     */
     private String toApiOrderStatus(String dbStatus) {
         if (DB_STATUS_PENDING_PAY.equals(dbStatus)) {
             return API_STATUS_PENDING_PAY;
         }
         return dbStatus;
+    }
+
+    /**
+     * Transient OrderItemEntry implementation derived from cart items.
+     */
+    private static class CartDerivedOrderItemEntry implements OrderItemEntry {
+        private final Long groupBuyItemId;
+        private final Integer quantity;
+
+        CartDerivedOrderItemEntry(Long groupBuyItemId, Integer quantity) {
+            this.groupBuyItemId = groupBuyItemId;
+            this.quantity = quantity;
+        }
+
+        @Override
+        public Long getGroupBuyItemId() {
+            return groupBuyItemId;
+        }
+
+        @Override
+        public Integer getQuantity() {
+            return quantity;
+        }
     }
 }

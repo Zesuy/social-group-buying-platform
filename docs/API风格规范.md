@@ -96,11 +96,22 @@ Authorization: Bearer <accessToken>
 Content-Type: application/json
 ```
 
-P1 如需更强幂等能力，可额外传入：
+Idempotency-Key（P1 Batch 03 正式规则）：
 
 ```http
 Idempotency-Key: <client-generated-unique-key>
 ```
+
+| 规则 | 说明 |
+|---|---|
+| 使用条件 | 可选，仅在 `Idempotency-Key` 请求头存在时启用；未传时保持旧行为 |
+| 幂等维度 | `userId + HTTP method + 实际请求路径 + Idempotency-Key` |
+| 请求体校验 | 首次请求保存请求体 SHA-256 hash；重复请求 hash 不一致返回 `IDEMPOTENCY_KEY_MISMATCH` |
+| 成功重放 | 首次成功后重复请求返回首次响应 data |
+| 失败重放 | 首次失败后重复请求返回首次错误 |
+| 处理中超时 | 首次请求处理中：等待 500ms 重读；仍未完成返回 `IDEMPOTENCY_IN_PROCESSING` |
+| 作用域 | 只对同一用户有效；不同用户使用相同 key 独立计算 |
+| 适用接口 | `POST /api/v1/orders`、`POST /api/v1/orders/{orderId}/simulate-pay`、`POST /api/v1/orders/{orderId}/cancel`、`POST /api/v1/orders/{orderId}/complete`、`POST /api/v1/my/store/orders/{orderId}/ship` |
 
 ### 4.2 登录要求
 
@@ -109,6 +120,8 @@ Idempotency-Key: <client-generated-unique-key>
 | 查看首页团购列表 | 否 |
 | 查看团购详情 | 否 |
 | 查看团长主页 | 否 |
+| 购物车管理 | 是 |
+| 购物车结算预览 | 是 |
 | 下单 | 是 |
 | 查看自己的订单 | 是 |
 | 创建店铺 | 是 |
