@@ -23,6 +23,11 @@ public class MemberCardResponse {
     private Integer totalOrders;
     private String lastOrderAt;
 
+    /** Next level info */
+    private String nextLevelName;
+    private Integer nextLevelGrowthValue;
+    private Integer growthToNextLevel;
+
     /** Enriched leader info */
     private LeaderInfo leader;
 

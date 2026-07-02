@@ -42,6 +42,9 @@ public class CreateOrderRequest {
     /** Cart item IDs for cart checkout (mutually exclusive with groupBuyId + items) */
     private List<Long> cartItemIds;
 
+    /** Optional user coupon ID to use for this order */
+    private Long userCouponId;
+
     @Data
     public static class OrderItemEntry implements com.example.groupshop.order.dto.OrderItemEntry {
         @NotNull

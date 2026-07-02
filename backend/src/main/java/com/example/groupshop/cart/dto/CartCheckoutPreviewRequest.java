@@ -26,4 +26,7 @@ public class CartCheckoutPreviewRequest {
 
     /** Optional share token — required for hidden group buys when cart items don't have one */
     private String shareToken;
+
+    /** Optional user coupon ID for discount calculation */
+    private Long userCouponId;
 }

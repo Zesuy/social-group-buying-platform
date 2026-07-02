@@ -203,6 +203,10 @@ public class StoreOrderService {
                 .detail(order.getDetail())
                 .fullAddress(order.getFullAddress())
                 .items(items)
+                .userCouponId(order.getUserCouponId())
+                .couponId(order.getCouponId())
+                .couponName(order.getCouponName())
+                .couponType(order.getCouponType())
                 .build();
     }
 

@@ -106,6 +106,7 @@ public class CartController {
                 preview.getGroupBuyId(),
                 request.getAddressId(),
                 preview.getCartItems(),
-                preview.getShareToken()));
+                preview.getShareToken(),
+                request.getUserCouponId()));
     }
 }

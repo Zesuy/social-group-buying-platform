@@ -25,7 +25,14 @@ import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserMapper;
 import com.example.groupshop.cart.dto.AddCartItemRequest;
 import com.example.groupshop.cart.service.CartService;
+import com.example.groupshop.coupon.dto.CreateCouponRequest;
+import com.example.groupshop.coupon.dto.CouponResponse;
+import com.example.groupshop.coupon.dto.UserCouponResponse;
+import com.example.groupshop.coupon.service.CouponService;
+import com.example.groupshop.model.entity.UserCoupon;
 import com.example.groupshop.model.mapper.CartMapper;
+import com.example.groupshop.model.mapper.CouponMapper;
+import com.example.groupshop.model.mapper.UserCouponMapper;
 import com.example.groupshop.order.dto.CreateOrderRequest;
 import com.example.groupshop.order.dto.OrderPreviewRequest;
 import com.example.groupshop.order.dto.OrderPreviewResponse;
@@ -80,6 +87,15 @@ class OrderServiceTest extends ServiceTestBase {
 
     @Autowired
     private CartMapper cartMapper;
+
+    @Autowired
+    private CouponService couponService;
+
+    @Autowired
+    private CouponMapper couponMapper;
+
+    @Autowired
+    private UserCouponMapper userCouponMapper;
 
     private Long userId;
     private Long leaderId;
@@ -735,5 +751,230 @@ class OrderServiceTest extends ServiceTestBase {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.CART_CROSS_GROUP_BUY);
+    }
+
+    // ── Coupon Order Flows (Batch 04) ────────────────────────────────────
+
+    private Long createTestCoupon() {
+        CreateCouponRequest request = new CreateCouponRequest();
+        request.setName("无门槛10元券");
+        request.setCouponType("amount");
+        request.setAmount(1000L);
+        request.setThresholdAmount(0L);
+        request.setTotalQuantity(100);
+        request.setPerUserLimit(1);
+        request.setStartTime(LocalDateTime.now().minusDays(1));
+        request.setEndTime(LocalDateTime.now().plusDays(30));
+        CouponResponse response = couponService.createCoupon(leaderUserId, request);
+        return response.getId();
+    }
+
+    @Test
+    void previewOrder_withCoupon_shouldShowAvailableCoupons() {
+        createTestCoupon();
+
+        OrderPreviewRequest request = new OrderPreviewRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        OrderPreviewRequest.OrderItemEntry entry = new OrderPreviewRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(2);
+        request.setItems(List.of(entry));
+
+        // No userCouponId — should return available coupons
+        OrderPreviewResponse response = orderService.previewOrder(userId, request);
+
+        assertThat(response.getTotalAmount()).isEqualTo(3980L);
+        assertThat(response.getDiscountAmount()).isZero();
+        assertThat(response.getPayAmount()).isEqualTo(3980L);
+        // availableCoupons will be null/empty since user hasn't claimed any
+    }
+
+    @Test
+    void createOrder_withCoupon_shouldLockCoupon() {
+        // Create and claim a coupon
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        // Create order with the user coupon
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        request.setUserCouponId(userCoupon.getId());
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(2);
+        request.setItems(List.of(entry));
+
+        OrderResponse response = orderService.createOrder(userId, request);
+
+        assertThat(response.getId()).isPositive();
+        assertThat(response.getDiscountAmount()).isEqualTo(1000L);
+        assertThat(response.getPayAmount()).isEqualTo(2980L); // 3980 - 1000
+        assertThat(response.getUserCouponId()).isEqualTo(userCoupon.getId());
+        assertThat(response.getCouponName()).isEqualTo("无门槛10元券");
+        assertThat(response.getCouponType()).isEqualTo("amount");
+
+        // Coupon should be locked
+        UserCoupon locked = userCouponMapper.selectById(userCoupon.getId());
+        assertThat(locked.getStatus()).isEqualTo("locked");
+        assertThat(locked.getLockedOrderId()).isEqualTo(response.getId());
+    }
+
+    @Test
+    void createOrder_withCoupon_shouldNotLockIfCreationFails() {
+        // Create and claim a coupon
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        // Create order with invalid quantity (should fail)
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        request.setUserCouponId(userCoupon.getId());
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(99999L); // invalid item
+        entry.setQuantity(1);
+        request.setItems(List.of(entry));
+
+        assertThatThrownBy(() -> orderService.createOrder(userId, request))
+                .isInstanceOf(BusinessException.class);
+
+        // Coupon should remain unused
+        UserCoupon unchanged = userCouponMapper.selectById(userCoupon.getId());
+        assertThat(unchanged.getStatus()).isEqualTo("unused");
+    }
+
+    @Test
+    void cancelOrder_withCoupon_shouldReleaseCoupon() {
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        // Create order with coupon
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        request.setUserCouponId(userCoupon.getId());
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(1);
+        request.setItems(List.of(entry));
+        OrderResponse order = orderService.createOrder(userId, request);
+
+        // Cancel the order
+        orderService.cancelOrder(userId, order.getId());
+
+        // Coupon should be released back to unused
+        UserCoupon released = userCouponMapper.selectById(userCoupon.getId());
+        assertThat(released.getStatus()).isEqualTo("unused");
+        assertThat(released.getLockedOrderId()).isNull();
+    }
+
+    @Test
+    void simulatePay_withCoupon_shouldMarkCouponUsed() {
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        // Create order with coupon
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        request.setUserCouponId(userCoupon.getId());
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(1);
+        request.setItems(List.of(entry));
+        OrderResponse order = orderService.createOrder(userId, request);
+
+        // Pay
+        OrderResponse paid = orderService.simulatePay(userId, order.getId());
+
+        // Coupon should be used
+        UserCoupon used = userCouponMapper.selectById(userCoupon.getId());
+        assertThat(used.getStatus()).isEqualTo("used");
+        assertThat(used.getUsedAt()).isNotNull();
+
+        // Verify pay amount reflects discount
+        assertThat(paid.getDiscountAmount()).isEqualTo(1000L);
+        assertThat(paid.getPayAmount()).isEqualTo(990L); // 1990 - 1000
+    }
+
+    @Test
+    void simulatePay_shouldNotDoubleUseCouponOnRetry() {
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        request.setUserCouponId(userCoupon.getId());
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(1);
+        request.setItems(List.of(entry));
+        OrderResponse order = orderService.createOrder(userId, request);
+
+        // Pay first time
+        orderService.simulatePay(userId, order.getId());
+
+        // Try to pay again (should fail without double-using the coupon)
+        assertThatThrownBy(() -> orderService.simulatePay(userId, order.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ORDER_ALREADY_PAID);
+
+        // Coupon still used once, not double-used
+        UserCoupon used = userCouponMapper.selectById(userCoupon.getId());
+        assertThat(used.getStatus()).isEqualTo("used");
+    }
+
+    @Test
+    void previewOrder_withCouponId_shouldCalculateDiscount() {
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        OrderPreviewRequest request = new OrderPreviewRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        request.setUserCouponId(userCoupon.getId());
+        OrderPreviewRequest.OrderItemEntry entry = new OrderPreviewRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(2);
+        request.setItems(List.of(entry));
+
+        OrderPreviewResponse response = orderService.previewOrder(userId, request);
+
+        assertThat(response.getTotalAmount()).isEqualTo(3980L);
+        assertThat(response.getDiscountAmount()).isEqualTo(1000L);
+        assertThat(response.getPayAmount()).isEqualTo(2980L);
+        assertThat(response.getSelectedCoupon()).isNotNull();
+        assertThat(response.getSelectedCoupon().getAmount()).isEqualTo(1000L);
+    }
+
+    @Test
+    void simulatePay_withCoupon_shouldAccumulateGrowthByPayAmount() {
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        request.setUserCouponId(userCoupon.getId());
+        CreateOrderRequest.OrderItemEntry entry = new CreateOrderRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(2); // totalAmount = 3980
+        request.setItems(List.of(entry));
+        OrderResponse order = orderService.createOrder(userId, request);
+
+        orderService.simulatePay(userId, order.getId());
+
+        // Member relation should use payAmount (2980 = 3980 - 1000)
+        MemberRelation relation = memberRelationMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<MemberRelation>()
+                        .eq(MemberRelation::getUserId, userId)
+                        .eq(MemberRelation::getStoreId, storeId));
+        assertThat(relation).isNotNull();
+        assertThat(relation.getTotalOrderAmount()).isEqualTo(2980L); // payAmount, not totalAmount
+        assertThat(relation.getGrowthValue()).isEqualTo(2980);
     }
 }
