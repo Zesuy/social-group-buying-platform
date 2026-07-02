@@ -193,8 +193,8 @@ test.describe('Real E2E: Auth + Public Browsing', () => {
     // 团长主页应显示店铺名称（真实数据断言）
     await expect(page.locator(`text=${STORE_NAME}`).first()).toBeVisible({ timeout: 10000 })
 
-    // 团长主页应显示团长信息区域
-    await expect(page.locator('.leader-header')).toBeVisible({ timeout: 5000 })
+    // 团长主页应显示当前设计中的店铺信息卡
+    await expect(page.locator('.leader-store-card')).toBeVisible({ timeout: 5000 })
   })
 
   test('authenticated user sees subscribed state on group buy detail', async ({ page }) => {

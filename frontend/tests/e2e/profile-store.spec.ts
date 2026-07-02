@@ -193,23 +193,24 @@ test.describe('Profile and store E2E', () => {
     await expect(page.locator('text=买家用户')).toBeVisible({ timeout: 5000 })
     // Should show buyer-specific entries
     await expect(page.locator('text=我的订单')).toBeVisible()
-    await expect(page.locator('text=地址管理')).toBeVisible()
-    await expect(page.locator('text=创建店铺')).toBeVisible()
+    await expect(page.locator('text=收货地址')).toBeVisible()
+    await expect(page.locator('text=会员卡')).toBeVisible()
     // Should show logout button
     await expect(page.locator('button:has-text("退出登录")')).toBeVisible()
   })
 
   test('logged-in leader profile shows leader entries', async ({ page }) => {
     await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token_leader_store'))
+    await page.evaluate(() => localStorage.setItem('profileFeatureRole', 'leader'))
     await navigateToHash(page, '/profile')
     await page.waitForTimeout(1500)
 
     // Should show leader info
     await expect(page.locator('text=团长用户')).toBeVisible({ timeout: 5000 })
     // Should show leader-specific entries
-    await expect(page.locator('text=我的店铺')).toBeVisible()
-    await expect(page.locator('text=我的团购')).toBeVisible()
-    await expect(page.locator('text=团长订单')).toBeVisible()
+    await expect(page.locator('text=商品库')).toBeVisible()
+    await expect(page.locator('text=订单管理')).toBeVisible()
+    await expect(page.locator('text=团长管理')).toBeVisible()
   })
 
   test('profile login click goes to login page', async ({ page }) => {
