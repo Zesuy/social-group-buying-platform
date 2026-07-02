@@ -7,9 +7,11 @@ import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.common.util.CurrentStoreHelper;
+import com.example.groupshop.model.entity.AfterSale;
 import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.entity.Shipment;
 import com.example.groupshop.model.entity.Store;
+import com.example.groupshop.model.mapper.AfterSaleMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.OrderMapper;
 import com.example.groupshop.model.mapper.ShipmentMapper;
@@ -38,6 +40,7 @@ public class StoreOrderService {
     private final OrderItemMapper orderItemMapper;
     private final ShipmentMapper shipmentMapper;
     private final CurrentStoreHelper currentStoreHelper;
+    private final AfterSaleMapper afterSaleMapper;
 
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
 
@@ -207,6 +210,33 @@ public class StoreOrderService {
                 .couponId(order.getCouponId())
                 .couponName(order.getCouponName())
                 .couponType(order.getCouponType())
+                .afterSale(loadAfterSaleSummary(order.getId()))
+                .build();
+    }
+
+    /**
+     * Load the after-sale summary for an order, if one exists.
+     */
+    private OrderResponse.AfterSaleSummary loadAfterSaleSummary(Long orderId) {
+        AfterSale afterSale = afterSaleMapper.selectOne(
+                new LambdaQueryWrapper<AfterSale>()
+                        .eq(AfterSale::getOrderId, orderId)
+                        .orderByDesc(AfterSale::getCreatedAt)
+                        .last("LIMIT 1"));
+        if (afterSale == null) {
+            return null;
+        }
+        return OrderResponse.AfterSaleSummary.builder()
+                .id(afterSale.getId())
+                .type(afterSale.getType())
+                .status(afterSale.getStatus())
+                .amount(afterSale.getAmount())
+                .reason(afterSale.getReason())
+                .rejectReason(afterSale.getRejectReason())
+                .createdAt(afterSale.getCreatedAt() != null ? afterSale.getCreatedAt().toString() : null)
+                .approvedAt(afterSale.getApprovedAt() != null ? afterSale.getApprovedAt().toString() : null)
+                .rejectedAt(afterSale.getRejectedAt() != null ? afterSale.getRejectedAt().toString() : null)
+                .completedAt(afterSale.getCompletedAt() != null ? afterSale.getCompletedAt().toString() : null)
                 .build();
     }
 

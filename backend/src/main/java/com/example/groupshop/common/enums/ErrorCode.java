@@ -62,6 +62,13 @@ public enum ErrorCode {
     COUPON_NOT_AVAILABLE(422, "COUPON_NOT_AVAILABLE", "优惠券不可用"),
     COUPON_ALREADY_CLAIMED(409, "COUPON_ALREADY_CLAIMED", "已领取过该优惠券"),
     COUPON_OUT_OF_STOCK(422, "COUPON_OUT_OF_STOCK", "优惠券已被领完"),
+
+    // ── After-sale errors ─────────────────────────────────────────────────
+    AFTER_SALE_NOT_APPLICABLE(422, "AFTER_SALE_NOT_APPLICABLE", "当前订单不可申请售后"),
+    AFTER_SALE_IN_PROGRESS(409, "AFTER_SALE_IN_PROGRESS", "当前订单已有进行中的售后单"),
+    AFTER_SALE_NOT_APPROVABLE(422, "AFTER_SALE_NOT_APPROVABLE", "当前售后单不可审核通过"),
+    AFTER_SALE_NOT_REJECTABLE(422, "AFTER_SALE_NOT_REJECTABLE", "当前售后单不可拒绝"),
+    AFTER_SALE_NOT_REFUNDABLE(422, "AFTER_SALE_NOT_REFUNDABLE", "当前售后单不可退款"),
     ;
 
     private final int httpStatus;

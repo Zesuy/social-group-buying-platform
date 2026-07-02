@@ -5,6 +5,7 @@ import com.example.groupshop.model.entity.MemberRelation;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +14,26 @@ import java.time.LocalDateTime;
  */
 @Mapper
 public interface MemberRelationMapper extends BaseMapper<MemberRelation> {
+
+    /**
+     * Reverse member stats on refund completion.
+     * Subtracts payAmount from total_order_amount and growth_value,
+     * decrements total_orders by 1, with floor at 0.
+     *
+     * @return number of rows affected
+     */
+    @Update("""
+            UPDATE member_relations
+            SET total_order_amount = GREATEST(0, total_order_amount - #{payAmount}),
+                growth_value = GREATEST(0, growth_value - #{payAmount}),
+                total_orders = GREATEST(0, total_orders - 1)
+            WHERE user_id = #{userId} AND store_id = #{storeId}
+            """)
+    int reverseOnRefund(@Param("userId") Long userId,
+                        @Param("storeId") Long storeId,
+                        @Param("payAmount") Long payAmount);
+
+
 
     /**
      * Atomic upsert: INSERT ... ON DUPLICATE KEY UPDATE.

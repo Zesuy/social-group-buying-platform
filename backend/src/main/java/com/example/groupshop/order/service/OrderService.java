@@ -13,6 +13,7 @@ import com.example.groupshop.coupon.dto.AvailableCouponResponse;
 import com.example.groupshop.coupon.service.CouponService;
 import com.example.groupshop.memberlevel.service.MemberLevelRuleService;
 import com.example.groupshop.model.entity.Address;
+import com.example.groupshop.model.entity.AfterSale;
 import com.example.groupshop.model.entity.Cart;
 import com.example.groupshop.model.entity.GroupBuy;
 import com.example.groupshop.model.entity.GroupBuyItem;
@@ -22,6 +23,7 @@ import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.entity.OrderItem;
 import com.example.groupshop.model.entity.Product;
 import com.example.groupshop.model.entity.UserCoupon;
+import com.example.groupshop.model.mapper.AfterSaleMapper;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
 import com.example.groupshop.model.mapper.GroupBuyShareTokenMapper;
@@ -73,6 +75,7 @@ public class OrderService {
     private final CartService cartService;
     private final CouponService couponService;
     private final MemberLevelRuleService memberLevelRuleService;
+    private final AfterSaleMapper afterSaleMapper;
 
     private static final String DB_STATUS_PENDING_PAY = "pending_pay";
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
@@ -787,6 +790,34 @@ public class OrderService {
                 .couponId(order.getCouponId())
                 .couponName(order.getCouponName())
                 .couponType(order.getCouponType())
+                .afterSale(loadAfterSaleSummary(order.getId()))
+                .build();
+    }
+
+    /**
+     * Load the after-sale summary for an order, if one exists.
+     * Returns the most recent pending/approved/completed after-sale, or null.
+     */
+    private OrderResponse.AfterSaleSummary loadAfterSaleSummary(Long orderId) {
+        AfterSale afterSale = afterSaleMapper.selectOne(
+                new LambdaQueryWrapper<AfterSale>()
+                        .eq(AfterSale::getOrderId, orderId)
+                        .orderByDesc(AfterSale::getCreatedAt)
+                        .last("LIMIT 1"));
+        if (afterSale == null) {
+            return null;
+        }
+        return OrderResponse.AfterSaleSummary.builder()
+                .id(afterSale.getId())
+                .type(afterSale.getType())
+                .status(afterSale.getStatus())
+                .amount(afterSale.getAmount())
+                .reason(afterSale.getReason())
+                .rejectReason(afterSale.getRejectReason())
+                .createdAt(afterSale.getCreatedAt() != null ? afterSale.getCreatedAt().toString() : null)
+                .approvedAt(afterSale.getApprovedAt() != null ? afterSale.getApprovedAt().toString() : null)
+                .rejectedAt(afterSale.getRejectedAt() != null ? afterSale.getRejectedAt().toString() : null)
+                .completedAt(afterSale.getCompletedAt() != null ? afterSale.getCompletedAt().toString() : null)
                 .build();
     }
 

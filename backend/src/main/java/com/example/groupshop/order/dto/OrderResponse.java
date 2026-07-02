@@ -45,6 +45,26 @@ public class OrderResponse {
     private String couponName;
     private String couponType;
 
+    /** After-sale summary (nullable — only present when an after-sale exists) */
+    private AfterSaleSummary afterSale;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AfterSaleSummary {
+        private Long id;
+        private String type;
+        private String status;
+        private Long amount;
+        private String reason;
+        private String rejectReason;
+        private String createdAt;
+        private String approvedAt;
+        private String rejectedAt;
+        private String completedAt;
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
