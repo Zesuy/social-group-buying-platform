@@ -104,7 +104,9 @@ MVP 统一约定：
   "description": "店铺简介",
   "defaultDeliveryType": "express",
   "distributionEnabled": false,
-  "status": "active"
+  "status": "active",
+  "latitude": 31.2304,
+  "longitude": 121.4737
 }
 ```
 
@@ -279,8 +281,13 @@ GET /api/v1/group-buys
 | categoryId | number | 按商品分类筛选，匹配团购商品所属分类 |
 | page | number | 页码 |
 | pageSize | number | 每页数量 |
+| latitude | number | 用户纬度（WGS84），与 longitude 同时提供 |
+| longitude | number | 用户经度（WGS84），与 latitude 同时提供 |
+| maxDistanceMeters | number | 距离筛选（米），需同时提供 latitude/longitude |
+| sort | string | 排序方式，`distance` 表示按距离升序，需同时提供 latitude/longitude |
 
 > 注意：公共列表固定只返回 `status=published` 且 `visibility=public` 的团购。不支持 `status` 参数，传入 `status` 将返回 `VALIDATION_ERROR`。
+> 坐标缺失、非法、店铺无坐标时，距离字段返回 `null`；普通浏览不受影响。
 
 响应：
 
@@ -304,7 +311,11 @@ GET /api/v1/group-buys
         },
         "store": {
           "id": 20,
-          "name": "某某的小店"
+          "name": "某某的小店",
+          "latitude": 31.2304,
+          "longitude": 121.4737,
+          "distanceMeters": 164874,
+          "distanceText": "164.9km"
         }
       }
     ],
@@ -324,6 +335,15 @@ GET /api/v1/group-buys/{groupBuyId}
 ```
 
 登录：不需要。
+
+查询参数：
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| latitude | number | 用户纬度（WGS84），与 longitude 同时提供 |
+| longitude | number | 用户经度（WGS84），与 latitude 同时提供 |
+
+> 坐标缺失、非法、店铺无坐标时，距离字段返回 `null`。
 
 响应：返回团购、团长、店铺、团购商品列表。
 
@@ -352,7 +372,11 @@ GET /api/v1/group-buys/{groupBuyId}
     "store": {
       "id": 20,
       "name": "某某的小店",
-      "logoUrl": "https://example.com/logo.png"
+      "logoUrl": "https://example.com/logo.png",
+      "latitude": 31.2304,
+      "longitude": 121.4737,
+      "distanceMeters": 164874,
+      "distanceText": "164.9km"
     },
     "items": [
       {
@@ -462,7 +486,9 @@ POST /api/v1/stores
   "name": "某某的小店",
   "logoUrl": "https://example.com/logo.png",
   "description": "店铺简介",
-  "defaultDeliveryType": "express"
+  "defaultDeliveryType": "express",
+  "latitude": 31.2304,
+  "longitude": 121.4737
 }
 ```
 
@@ -485,7 +511,9 @@ POST /api/v1/stores
       "description": "店铺简介",
       "defaultDeliveryType": "express",
       "distributionEnabled": false,
-      "status": "active"
+      "status": "active",
+      "latitude": 31.2304,
+      "longitude": 121.4737
     }
   },
   "traceId": "req_001"
@@ -525,9 +553,13 @@ PATCH /api/v1/my/store
   "name": "新的店铺名称",
   "logoUrl": "https://example.com/logo.png",
   "description": "新的店铺简介",
-  "defaultDeliveryType": "express"
+  "defaultDeliveryType": "express",
+  "latitude": 30.2741,
+  "longitude": 120.1551
 }
 ```
+
+> 创建和更新时，`latitude` 和 `longitude` 可省略。若提供必须成对出现，纬度范围 `[-90, 90]`，经度范围 `[-180, 180]`。
 
 响应：返回更新后的店铺。
 

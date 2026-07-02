@@ -3,8 +3,11 @@ package com.example.groupshop.publicbrowsing;
 import com.example.groupshop.base.MockMvcTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,8 +19,12 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
 
     private static final String MOCK_LOGIN_URL = "/api/v1/auth/mock-login";
     private static final String STORES_URL = "/api/v1/stores";
+    private static final String MY_STORE_URL = "/api/v1/my/store";
     private static final String GROUP_BUYS_URL = "/api/v1/my/store/group-buys";
     private static final String PUBLIC_GROUP_BUYS_URL = "/api/v1/group-buys";
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private String leaderToken;
 
@@ -316,5 +323,118 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.viewer.favorited").value(true));
+    }
+
+    // ── Batch 06: Location / Distance ──────────────────────────────────
+
+    @Test
+    void listPublicGroupBuys_shouldReturnDistanceWithLocation() throws Exception {
+        // Update store with coordinates (Shanghai)
+        mockMvc.perform(patch(MY_STORE_URL)
+                .header("Authorization", "Bearer " + leaderToken)
+                .contentType("application/json")
+                .content("{\"latitude\":31.2304,\"longitude\":121.4737}"));
+
+        createPublishedGroupBuy("坐标团购");
+
+        // Query from Hangzhou
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("latitude", "30.2741")
+                        .param("longitude", "120.1551"))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items[0].store.latitude").value(31.2304))
+                .andExpect(jsonPath("$.data.items[0].store.longitude").value(121.4737))
+                .andExpect(jsonPath("$.data.items[0].store.distanceMeters").isNumber())
+                .andExpect(jsonPath("$.data.items[0].store.distanceText").isString());
+    }
+
+    @Test
+    void listPublicGroupBuys_shouldRejectMissingCoordinate() throws Exception {
+        // Only latitude without longitude
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("latitude", "31.2304"))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void listPublicGroupBuys_shouldRejectMaxDistanceWithoutLocation() throws Exception {
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("maxDistanceMeters", "5000"))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void listPublicGroupBuys_shouldRejectSortDistanceWithoutLocation() throws Exception {
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("sort", "distance"))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void listPublicGroupBuys_shouldRejectOutOfRangeLatitude() throws Exception {
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("latitude", "100")
+                        .param("longitude", "121"))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void listPublicGroupBuys_shouldRejectOutOfRangeLongitude() throws Exception {
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL)
+                        .param("latitude", "30")
+                        .param("longitude", "200"))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldRejectOutOfRangeLatitude() throws Exception {
+        Long gbId = createPublishedGroupBuy("范围详情测试");
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL + "/" + gbId)
+                        .param("latitude", "-100")
+                        .param("longitude", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnDistanceWithLocation() throws Exception {
+        // Update store with coordinates (Shanghai)
+        mockMvc.perform(patch(MY_STORE_URL)
+                .header("Authorization", "Bearer " + leaderToken)
+                .contentType("application/json")
+                .content("{\"latitude\":31.2304,\"longitude\":121.4737}"));
+
+        Long gbId = createPublishedGroupBuy("详情坐标测试");
+
+        // Query from Hangzhou
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL + "/" + gbId)
+                        .param("latitude", "30.2741")
+                        .param("longitude", "120.1551"))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.store.latitude").value(31.2304))
+                .andExpect(jsonPath("$.data.store.longitude").value(121.4737))
+                .andExpect(jsonPath("$.data.store.distanceMeters").isNumber())
+                .andExpect(jsonPath("$.data.store.distanceText").isString());
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnNullDistanceWithoutLocation() throws Exception {
+        Long gbId = createPublishedGroupBuy("无位置详情测试");
+
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL + "/" + gbId))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.store.distanceMeters").doesNotExist())
+                .andExpect(jsonPath("$.data.store.distanceText").doesNotExist());
     }
 }

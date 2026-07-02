@@ -392,4 +392,79 @@ class StoreControllerTest extends MockMvcTestBase {
                 .andExpect(status().isBadRequest())
                 .andExpectAll(errorResult("VALIDATION_ERROR"));
     }
+
+    // ── Batch 06: Store Location ──────────────────────────────────────
+
+    @Test
+    void createStore_shouldSucceedWithLatitudeLongitude() throws Exception {
+        String token = loginAndGetToken("13800005001");
+
+        mockMvc.perform(post(STORES_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "坐标店铺",
+                                    "defaultDeliveryType": "express",
+                                    "latitude": 31.2304,
+                                    "longitude": 121.4737
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.store.latitude").value(31.2304))
+                .andExpect(jsonPath("$.data.store.longitude").value(121.4737));
+    }
+
+    @Test
+    void createStore_shouldFailWhenLatitudeOutOfRange() throws Exception {
+        String token = loginAndGetToken("13800005002");
+
+        mockMvc.perform(post(STORES_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "无效纬度",
+                                    "defaultDeliveryType": "express",
+                                    "latitude": 100,
+                                    "longitude": 121
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void updateMyStore_shouldSetLatitudeLongitude() throws Exception {
+        String token = loginAndGetToken("13800005003");
+
+        // Create store first
+        mockMvc.perform(post(STORES_URL)
+                .header("Authorization", "Bearer " + token)
+                .contentType("application/json")
+                .content("""
+                        {
+                            "name": "坐标更新店铺",
+                            "defaultDeliveryType": "express"
+                        }
+                        """));
+
+        // Update with coordinates
+        mockMvc.perform(patch(MY_STORE_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "latitude": 30.2741,
+                                    "longitude": 120.1551
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.store.latitude").value(30.2741))
+                .andExpect(jsonPath("$.data.store.longitude").value(120.1551));
+    }
 }

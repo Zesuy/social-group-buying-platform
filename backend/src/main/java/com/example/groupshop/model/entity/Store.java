@@ -3,6 +3,7 @@ package com.example.groupshop.model.entity;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -20,6 +21,10 @@ public class Store {
     private String defaultDeliveryType;
     private Boolean distributionEnabled;
     private String status;
+    /** GPS latitude (WGS84), nullable */
+    private BigDecimal latitude;
+    /** GPS longitude (WGS84), nullable */
+    private BigDecimal longitude;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

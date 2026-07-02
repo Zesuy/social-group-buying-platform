@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 /**
  * A single item in the public group buy list response.
  */
@@ -43,5 +45,13 @@ public class PublicGroupBuyItem {
     public static class StoreLite {
         private Long id;
         private String name;
+        /** GPS latitude (WGS84), nullable */
+        private BigDecimal latitude;
+        /** GPS longitude (WGS84), nullable */
+        private BigDecimal longitude;
+        /** Distance in meters from the user's location, nullable */
+        private Long distanceMeters;
+        /** Human-readable distance text (e.g. "800m", "1.2km"), nullable */
+        private String distanceText;
     }
 }
