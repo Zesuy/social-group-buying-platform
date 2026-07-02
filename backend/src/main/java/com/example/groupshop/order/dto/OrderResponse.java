@@ -39,6 +39,12 @@ public class OrderResponse {
     private String fullAddress;
     private List<OrderItemData> items;
 
+    /** Coupon snapshot */
+    private Long userCouponId;
+    private Long couponId;
+    private String couponName;
+    private String couponType;
+
     @Data
     @Builder
     @NoArgsConstructor

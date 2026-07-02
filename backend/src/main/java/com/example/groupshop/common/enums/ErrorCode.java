@@ -57,6 +57,11 @@ public enum ErrorCode {
     // ── Idempotency errors ──────────────────────────────────────────────
     IDEMPOTENCY_KEY_MISMATCH(409, "IDEMPOTENCY_KEY_MISMATCH", "同一 Idempotency-Key 请求体不一致"),
     IDEMPOTENCY_IN_PROCESSING(409, "IDEMPOTENCY_IN_PROCESSING", "请求正在处理中，请稍后重试"),
+
+    // ── Coupon errors ────────────────────────────────────────────────────
+    COUPON_NOT_AVAILABLE(422, "COUPON_NOT_AVAILABLE", "优惠券不可用"),
+    COUPON_ALREADY_CLAIMED(409, "COUPON_ALREADY_CLAIMED", "已领取过该优惠券"),
+    COUPON_OUT_OF_STOCK(422, "COUPON_OUT_OF_STOCK", "优惠券已被领完"),
     ;
 
     private final int httpStatus;

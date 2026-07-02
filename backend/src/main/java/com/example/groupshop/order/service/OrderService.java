@@ -9,14 +9,19 @@ import com.example.groupshop.cart.service.CartService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
+import com.example.groupshop.coupon.dto.AvailableCouponResponse;
+import com.example.groupshop.coupon.service.CouponService;
+import com.example.groupshop.memberlevel.service.MemberLevelRuleService;
 import com.example.groupshop.model.entity.Address;
 import com.example.groupshop.model.entity.Cart;
 import com.example.groupshop.model.entity.GroupBuy;
 import com.example.groupshop.model.entity.GroupBuyItem;
 import com.example.groupshop.model.entity.GroupBuyShareToken;
+import com.example.groupshop.model.entity.MemberRelation;
 import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.entity.OrderItem;
 import com.example.groupshop.model.entity.Product;
+import com.example.groupshop.model.entity.UserCoupon;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
 import com.example.groupshop.model.mapper.GroupBuyShareTokenMapper;
@@ -66,6 +71,8 @@ public class OrderService {
     private final AddressService addressService;
     private final GroupBuyShareTokenMapper groupBuyShareTokenMapper;
     private final CartService cartService;
+    private final CouponService couponService;
+    private final MemberLevelRuleService memberLevelRuleService;
 
     private static final String DB_STATUS_PENDING_PAY = "pending_pay";
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
@@ -94,12 +101,13 @@ public class OrderService {
             CartCheckoutPreviewResult preview = cartService.loadCartItemsForOrder(
                     userId, request.getCartItemIds(), request.getShareToken());
             return previewOrderFromCart(userId, preview.getGroupBuyId(),
-                    request.getAddressId(), preview.getCartItems(), preview.getShareToken());
+                    request.getAddressId(), preview.getCartItems(), preview.getShareToken(),
+                    request.getUserCouponId());
         }
 
         // ── Direct mode ──────────────────────────────────────────────────
         return doPreviewOrder(userId, request.getGroupBuyId(), request.getAddressId(),
-                request.getShareToken(), request.getItems());
+                request.getShareToken(), request.getItems(), request.getUserCouponId());
     }
 
     /**
@@ -110,12 +118,23 @@ public class OrderService {
                                                        Long addressId,
                                                        List<Cart> cartItems,
                                                        String shareToken) {
+        return previewOrderFromCart(userId, groupBuyId, addressId, cartItems, shareToken, null);
+    }
+
+    /**
+     * Preview an order from cart items with optional coupon.
+     */
+    public OrderPreviewResponse previewOrderFromCart(Long userId, Long groupBuyId,
+                                                       Long addressId,
+                                                       List<Cart> cartItems,
+                                                       String shareToken,
+                                                       Long userCouponId) {
         // Create transient OrderItemEntry list from cart items
         List<OrderItemEntry> entries = cartItems.stream()
                 .map(cart -> new CartDerivedOrderItemEntry(cart.getGroupBuyItemId(), cart.getQuantity()))
                 .collect(Collectors.toList());
 
-        return doPreviewOrder(userId, groupBuyId, addressId, shareToken, entries);
+        return doPreviewOrder(userId, groupBuyId, addressId, shareToken, entries, userCouponId);
     }
 
     // ── Create Order ───────────────────────────────────────────────────
@@ -147,12 +166,14 @@ public class OrderService {
             cartItemIdsForCleanup = request.getCartItemIds();
 
             return doCreateOrder(userId, result.getGroupBuyId(), request.getAddressId(),
-                    result.getShareToken(), request.getRemark(), entries, cartItemIdsForCleanup);
+                    result.getShareToken(), request.getRemark(), entries, cartItemIdsForCleanup,
+                    request.getUserCouponId());
         }
 
         // ── Direct mode ──────────────────────────────────────────────────
         return doCreateOrder(userId, request.getGroupBuyId(), request.getAddressId(),
-                request.getShareToken(), request.getRemark(), request.getItems(), null);
+                request.getShareToken(), request.getRemark(), request.getItems(), null,
+                request.getUserCouponId());
     }
 
     // ── Internal order preview (shared by both modes) ───────────────────
@@ -163,7 +184,8 @@ public class OrderService {
     private OrderPreviewResponse doPreviewOrder(Long userId, Long groupBuyId,
                                                   Long addressId,
                                                   String shareToken,
-                                                  List<? extends OrderItemEntry> entries) {
+                                                  List<? extends OrderItemEntry> entries,
+                                                  Long userCouponId) {
         // Validate group buy
         GroupBuy groupBuy = validateGroupBuyForPurchase(groupBuyId, shareToken);
 
@@ -201,14 +223,38 @@ public class OrderService {
                     .build());
         }
 
-        return OrderPreviewResponse.builder()
+        OrderPreviewResponse.OrderPreviewResponseBuilder builder = OrderPreviewResponse.builder()
                 .groupBuyId(groupBuyId)
                 .address(toAddressPreview(address))
                 .items(itemPreviews)
-                .totalAmount(totalAmount)
-                .discountAmount(0L)
-                .payAmount(totalAmount)
-                .build();
+                .totalAmount(totalAmount);
+
+        // ── Coupon handling ──────────────────────────────────────────────
+        if (userCouponId != null) {
+            // Validate and use the specified coupon
+            UserCoupon userCoupon = couponService.validateUserCouponForOrder(userId, userCouponId, groupBuyId, totalAmount);
+            long discountAmount = calculateDiscount(userCoupon, totalAmount);
+            long payAmount = totalAmount - discountAmount;
+
+            builder.discountAmount(discountAmount)
+                    .payAmount(payAmount)
+                    .selectedCoupon(toAvailableCouponResponseFromUserCoupon(userCoupon));
+        } else {
+            // No coupon specified — show available/unavailable list
+            builder.discountAmount(0L)
+                    .payAmount(totalAmount);
+
+            // Get coupon availability info
+            CouponService.CouponCheckResult checkResult = couponService.getCouponsForOrderPreview(userId, groupBuyId, totalAmount);
+            if (!checkResult.getAvailableCoupons().isEmpty()) {
+                builder.availableCoupons(checkResult.getAvailableCoupons());
+            }
+            if (!checkResult.getUnavailableCoupons().isEmpty()) {
+                builder.unavailableCoupons(checkResult.getUnavailableCoupons());
+            }
+        }
+
+        return builder.build();
     }
 
     // ── Internal order creation (shared by both modes) ─────────────────
@@ -221,7 +267,8 @@ public class OrderService {
                                          Long addressId, String shareToken,
                                          String remark,
                                          List<? extends OrderItemEntry> entries,
-                                         List<Long> cartItemIdsToDelete) {
+                                         List<Long> cartItemIdsToDelete,
+                                         Long userCouponId) {
         // Validate group buy
         GroupBuy groupBuy = validateGroupBuyForPurchase(groupBuyId, shareToken);
 
@@ -258,6 +305,27 @@ public class OrderService {
                     .build());
         }
 
+        // Handle coupon: validate and lock
+        long discountAmount = 0;
+        Long resolvedUserCouponId = null;
+        Long resolvedCouponId = null;
+        String resolvedCouponName = null;
+        String resolvedCouponType = null;
+
+        if (userCouponId != null) {
+            UserCoupon userCoupon = couponService.validateUserCouponForOrder(userId, userCouponId, groupBuyId, totalAmount);
+            discountAmount = calculateDiscount(userCoupon, totalAmount);
+            resolvedUserCouponId = userCoupon.getId();
+            resolvedCouponId = userCoupon.getCouponId();
+            resolvedCouponName = userCoupon.getCouponName();
+            resolvedCouponType = userCoupon.getCouponType();
+        }
+
+        long payAmount = totalAmount - discountAmount;
+        if (payAmount < 0) {
+            payAmount = 0L;
+        }
+
         // Create order
         Order order = new Order();
         order.setOrderNo(orderNo);
@@ -279,8 +347,14 @@ public class OrderService {
 
         // Amounts
         order.setTotalAmount(totalAmount);
-        order.setDiscountAmount(0L);
-        order.setPayAmount(totalAmount);
+        order.setDiscountAmount(discountAmount);
+        order.setPayAmount(payAmount);
+
+        // Coupon snapshot
+        order.setUserCouponId(resolvedUserCouponId);
+        order.setCouponId(resolvedCouponId);
+        order.setCouponName(resolvedCouponName);
+        order.setCouponType(resolvedCouponType);
 
         // Status — DB uses snake_case
         order.setPayStatus("unpaid");
@@ -288,6 +362,11 @@ public class OrderService {
         order.setRemark(remark);
 
         orderMapper.insert(order);
+
+        // Lock coupon if used
+        if (resolvedUserCouponId != null) {
+            couponService.lockUserCoupon(resolvedUserCouponId, order.getId());
+        }
 
         // Create order items with snapshots
         int idx = 0;
@@ -355,6 +434,7 @@ public class OrderService {
 
     /**
      * Cancel an order. Only allowed when orderStatus=pendingPay and payStatus=unpaid.
+     * Releases locked user coupon if one was used.
      */
     @Transactional
     public OrderResponse cancelOrder(Long userId, Long orderId) {
@@ -367,6 +447,11 @@ public class OrderService {
         order.setOrderStatus("canceled");
         orderMapper.updateById(order);
 
+        // Release locked coupon if any
+        if (order.getUserCouponId() != null) {
+            couponService.releaseUserCoupon(order.getId());
+        }
+
         return toOrderResponseWithItems(order);
     }
 
@@ -374,6 +459,7 @@ public class OrderService {
 
     /**
      * Simulate payment for an order.
+     * Handles coupon write-off and member growth accumulation.
      */
     @Transactional
     public OrderResponse simulatePay(Long userId, Long orderId) {
@@ -441,14 +527,20 @@ public class OrderService {
         order.setOrderStatus("paid");
         order.setPaidAt(now);
 
-        // Create or update member relation
+        // Mark coupon as used if any
+        if (order.getUserCouponId() != null) {
+            couponService.useUserCoupon(order.getId());
+        }
+
+        // Create or update member relation with payAmount
         upsertMemberRelation(order, now);
 
         return toOrderResponseWithItems(order);
     }
 
     /**
-     * Atomically create or update member relation via DB UPSERT.
+     * Atomically create or update member relation via DB UPSERT,
+     * then recalculate level name based on current rules.
      */
     private void upsertMemberRelation(Order order, LocalDateTime now) {
         memberRelationMapper.upsert(
@@ -457,6 +549,18 @@ public class OrderService {
                 order.getStoreId(),
                 order.getPayAmount(),
                 now);
+
+        // Read back the member relation to get current growth value
+        MemberRelation relation = memberRelationMapper.selectOne(
+                new LambdaQueryWrapper<MemberRelation>()
+                        .eq(MemberRelation::getUserId, order.getUserId())
+                        .eq(MemberRelation::getStoreId, order.getStoreId()));
+
+        if (relation != null) {
+            // Recalculate level name based on current rules
+            memberLevelRuleService.recalculateMemberLevel(
+                    order.getStoreId(), relation.getId(), relation.getGrowthValue());
+        }
     }
 
     // ── Complete Order (Batch 10) ────────────────────────────────────
@@ -591,6 +695,31 @@ public class OrderService {
         return gbItems;
     }
 
+    // ── Coupon helpers ────────────────────────────────────────────────
+
+    /**
+     * Calculate discount amount from a user coupon.
+     * Discount cannot exceed total amount.
+     */
+    private long calculateDiscount(UserCoupon userCoupon, long totalAmount) {
+        long discount = userCoupon.getAmount();
+        return Math.min(discount, totalAmount);
+    }
+
+    /**
+     * Convert a UserCoupon to an AvailableCouponResponse for preview display.
+     */
+    private AvailableCouponResponse toAvailableCouponResponseFromUserCoupon(UserCoupon userCoupon) {
+        return AvailableCouponResponse.builder()
+                .id(userCoupon.getCouponId())
+                .name(userCoupon.getCouponName())
+                .couponType(userCoupon.getCouponType())
+                .amount(userCoupon.getAmount())
+                .thresholdAmount(userCoupon.getThresholdAmount())
+                .unavailableReason(null)
+                .build();
+    }
+
     // ── Internal helpers ──────────────────────────────────────────────
 
     private Order findOrderForUser(Long orderId, Long userId) {
@@ -654,6 +783,10 @@ public class OrderService {
                 .detail(order.getDetail())
                 .fullAddress(order.getFullAddress())
                 .items(items)
+                .userCouponId(order.getUserCouponId())
+                .couponId(order.getCouponId())
+                .couponName(order.getCouponName())
+                .couponType(order.getCouponType())
                 .build();
     }
 

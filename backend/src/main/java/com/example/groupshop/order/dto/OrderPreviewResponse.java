@@ -1,5 +1,6 @@
 package com.example.groupshop.order.dto;
 
+import com.example.groupshop.coupon.dto.AvailableCouponResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,6 +23,15 @@ public class OrderPreviewResponse {
     private Long totalAmount;
     private Long discountAmount;
     private Long payAmount;
+
+    /** Available coupons for this order (when userCouponId not specified) */
+    private List<AvailableCouponResponse> availableCoupons;
+
+    /** Unavailable coupons with reasons (when userCouponId not specified) */
+    private List<AvailableCouponResponse> unavailableCoupons;
+
+    /** Selected coupon detail (when userCouponId is specified) */
+    private AvailableCouponResponse selectedCoupon;
 
     @Data
     @Builder

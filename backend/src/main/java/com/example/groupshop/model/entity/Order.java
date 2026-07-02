@@ -40,6 +40,12 @@ public class Order {
     private Long discountAmount;
     private Long payAmount;
 
+    // ── Coupon snapshot ──────────────────────────────────────────────
+    private Long userCouponId;
+    private Long couponId;
+    private String couponName;
+    private String couponType;
+
     // ── Status ───────────────────────────────────────────────────────
     /** unpaid / paid / refunded */
     private String payStatus;

@@ -3,6 +3,7 @@ package com.example.groupshop.membercard.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.groupshop.membercard.dto.MemberCardListResponse;
 import com.example.groupshop.membercard.dto.MemberCardResponse;
+import com.example.groupshop.memberlevel.service.MemberLevelRuleService;
 import com.example.groupshop.model.entity.Leader;
 import com.example.groupshop.model.entity.MemberRelation;
 import com.example.groupshop.model.entity.Store;
@@ -27,6 +28,7 @@ public class MemberCardService {
     private final MemberRelationMapper memberRelationMapper;
     private final LeaderMapper leaderMapper;
     private final StoreMapper storeMapper;
+    private final MemberLevelRuleService memberLevelRuleService;
 
     /**
      * List current user's member cards with enriched leader/store info.
@@ -55,6 +57,15 @@ public class MemberCardService {
                 .totalOrders(relation.getTotalOrders())
                 .lastOrderAt(relation.getLastOrderAt() != null
                         ? relation.getLastOrderAt().toString() : null);
+
+        // Add next level info
+        MemberLevelRuleService.NextLevelInfo nextLevelInfo =
+                memberLevelRuleService.getNextLevelInfo(relation.getStoreId(), relation.getGrowthValue());
+        if (nextLevelInfo != null) {
+            builder.nextLevelName(nextLevelInfo.getNextLevelName())
+                    .nextLevelGrowthValue(nextLevelInfo.getNextLevelGrowthValue())
+                    .growthToNextLevel(nextLevelInfo.getGrowthToNextLevel());
+        }
 
         // Enrich with nested leader info
         Leader leader = leaderMapper.selectById(relation.getLeaderId());
