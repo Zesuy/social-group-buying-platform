@@ -41,8 +41,8 @@ async function mockEndpoints(page: Page) {
           success: true,
           data: {
             user: { id: 2, nickname: '团长用户', avatarUrl: null, phone: '13700000000', hasLeader: true, leaderId: 10, storeId: 20 },
-            leader: { id: 10, displayName: '某某的小店', avatarUrl: null },
-            store: { id: 20, name: '某某的小店', logoUrl: null, status: 'active' },
+            leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
+            store: { id: 20, name: '王姐社区鲜果店', logoUrl: null, status: 'active' },
           },
           traceId: 'e2e_001',
         }),
@@ -105,7 +105,7 @@ async function mockEndpoints(page: Page) {
           store: {
             id: 20, leaderId: 10, name: body.name,
             logoUrl: body.logoUrl, description: body.description,
-            defaultDeliveryType: body.defaultDeliveryType || 'express',
+            defaultDeliveryType: body.defaultDeliveryType || 'local_delivery',
             distributionEnabled: false, status: 'active',
           },
         },
@@ -124,11 +124,11 @@ async function mockEndpoints(page: Page) {
         body: JSON.stringify({
           success: true,
           data: {
-            leader: { id: 10, displayName: body.name || '某某的小店', avatarUrl: null },
+            leader: { id: 10, displayName: body.name || '王姐鲜果团', avatarUrl: null },
             store: {
-              id: 20, leaderId: 10, name: body.name || '某某的小店',
+              id: 20, leaderId: 10, name: body.name || '王姐社区鲜果店',
               logoUrl: body.logoUrl, description: body.description,
-              defaultDeliveryType: body.defaultDeliveryType || 'express',
+              defaultDeliveryType: body.defaultDeliveryType || 'local_delivery',
               distributionEnabled: false, status: 'active',
             },
           },
@@ -148,11 +148,11 @@ async function mockEndpoints(page: Page) {
         body: JSON.stringify({
           success: true,
           data: {
-            leader: { id: 10, displayName: '某某的小店', avatarUrl: null, bio: '优质水果团长' },
+            leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null, bio: '小区群每周开团，主做当季鲜果和社区自提。' },
             store: {
-              id: 20, leaderId: 10, name: '某某的小店',
-              logoUrl: null, description: '新鲜水果直供',
-              defaultDeliveryType: 'express',
+              id: 20, leaderId: 10, name: '王姐社区鲜果店',
+              logoUrl: null, description: '当季鲜果集中收单，同城配送到社区。',
+              defaultDeliveryType: 'local_delivery',
               distributionEnabled: false, status: 'active',
             },
           },
@@ -307,7 +307,7 @@ test.describe('Profile and store E2E', () => {
     await page.waitForTimeout(2000)
 
     // Should show store name
-    await expect(page.locator('text=某某的小店')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=王姐社区鲜果店')).toBeVisible({ timeout: 5000 })
     // Should show edit button
     await expect(page.locator('button:has-text("编辑资料")')).toBeVisible()
   })

@@ -22,8 +22,8 @@ describe('non-MVP gate checks', () => {
     expect(isRealWechatPayDisabled()).toBe(true)
   })
 
-  it('should disable cart', () => {
-    expect(isCartDisabled()).toBe(true)
+  it('should enable cart', () => {
+    expect(isCartDisabled()).toBe(false)
   })
 
   it('should disable coupon', () => {
@@ -66,7 +66,7 @@ describe('non-MVP gate checks', () => {
 describe('isFeatureDisabled', () => {
   it('should return true for all known features', () => {
     expect(isFeatureDisabled('realWechatPay')).toBe(true)
-    expect(isFeatureDisabled('cart')).toBe(true)
+    expect(isFeatureDisabled('cart')).toBe(false)
     expect(isFeatureDisabled('coupon')).toBe(true)
     expect(isFeatureDisabled('refund')).toBe(true)
     expect(isFeatureDisabled('distribution')).toBe(true)

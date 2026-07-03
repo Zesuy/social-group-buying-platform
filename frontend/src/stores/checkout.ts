@@ -1,7 +1,7 @@
 /**
  * Checkout 状态管理
  *
- * 保存"立即购买"上下文，不是购物车。
+ * 保存下单上下文：支持“立即购买”和“购物车结算”。
  * 页面刷新后需要从团购详情重新进入。
  */
 
@@ -10,8 +10,10 @@ import { ref } from 'vue'
 
 export const useCheckoutStore = defineStore('checkout', () => {
   // ── 下单上下文 ──
+  const mode = ref<'direct' | 'cart' | null>(null)
   const groupBuyId = ref<string | null>(null)
   const groupBuyItemId = ref<string | null>(null)
+  const cartItemIds = ref<string[]>([])
   const quantity = ref(1)
   const selectedAddressId = ref<string | null>(null)
   const remark = ref('')
@@ -36,8 +38,10 @@ export const useCheckoutStore = defineStore('checkout', () => {
     displayName?: string
     unitPriceAmount?: number
   }): void {
+    mode.value = 'direct'
     groupBuyId.value = params.groupBuyId
     groupBuyItemId.value = params.groupBuyItemId
+    cartItemIds.value = []
     quantity.value = params.quantity
     selectedAddressId.value = null
     remark.value = ''
@@ -49,9 +53,25 @@ export const useCheckoutStore = defineStore('checkout', () => {
     }
   }
 
+  function setCartCheckoutContext(params: {
+    groupBuyId: string
+    cartItemIds: string[]
+  }): void {
+    mode.value = 'cart'
+    groupBuyId.value = params.groupBuyId
+    groupBuyItemId.value = null
+    cartItemIds.value = params.cartItemIds
+    quantity.value = 1
+    selectedAddressId.value = null
+    remark.value = ''
+    snapshot.value = null
+  }
+
   function clearCheckout(): void {
+    mode.value = null
     groupBuyId.value = null
     groupBuyItemId.value = null
+    cartItemIds.value = []
     quantity.value = 1
     selectedAddressId.value = null
     remark.value = ''
@@ -73,11 +93,14 @@ export const useCheckoutStore = defineStore('checkout', () => {
   return {
     groupBuyId,
     groupBuyItemId,
+    cartItemIds,
+    mode,
     quantity,
     selectedAddressId,
     remark,
     snapshot,
     setCheckoutContext,
+    setCartCheckoutContext,
     clearCheckout,
     setAddress,
     setQuantity,

@@ -5,13 +5,13 @@ import type { AddressData } from '@/types'
 
 const mockAddress: AddressData = {
   id: 1,
-  receiverName: '张三',
+  receiverName: '陈小满',
   receiverPhone: '13800000000',
   province: '浙江省',
   city: '杭州市',
   district: '西湖区',
-  detail: '某某路 1 号',
-  fullAddress: '浙江省杭州市西湖区某某路 1 号',
+  detail: '桂花城 3 幢 1 单元门口',
+  fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
   isDefault: true,
 }
 
@@ -20,13 +20,13 @@ const mockNonDefault: AddressData = { ...mockAddress, id: 2, isDefault: false }
 describe('AddressCard', () => {
   it('renders receiver name and phone', () => {
     const wrapper = mount(AddressCard, { props: { address: mockAddress } })
-    expect(wrapper.text()).toContain('张三')
+    expect(wrapper.text()).toContain('陈小满')
     expect(wrapper.text()).toContain('13800000000')
   })
 
   it('renders full address', () => {
     const wrapper = mount(AddressCard, { props: { address: mockAddress } })
-    expect(wrapper.text()).toContain('浙江省杭州市西湖区某某路 1 号')
+    expect(wrapper.text()).toContain('浙江省杭州市西湖区桂花城 3 幢 1 单元门口')
   })
 
   it('shows default tag for default address', () => {

@@ -48,12 +48,12 @@ const mockMeResponseWithLeader: CurrentUserData = {
   },
   leader: {
     id: 10,
-    displayName: '某某的小店',
+    displayName: '王姐鲜果团',
     avatarUrl: null,
   },
   store: {
     id: 20,
-    name: '某某的小店',
+    name: '王姐社区鲜果店',
     logoUrl: null,
     status: 'active',
   },

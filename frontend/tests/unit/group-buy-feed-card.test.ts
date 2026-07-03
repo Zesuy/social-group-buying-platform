@@ -5,27 +5,27 @@ import type { PublicGroupBuyItem } from '@/types'
 
 const mockItem: PublicGroupBuyItem = {
   id: 100,
-  title: '山东蜜桃团购',
+  title: '周末阳山水蜜桃社区团',
   coverImageUrl: 'https://example.com/cover.png',
   status: 'published',
   endTime: '2026-07-01T12:00:00',
   minPriceAmount: 2990,
   soldCount: 12,
-  leader: { id: 10, displayName: '某某团长', avatarUrl: 'https://example.com/avatar.png' },
-  store: { id: 20, name: '某某的小店' },
+  leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: 'https://example.com/avatar.png' },
+  store: { id: 20, name: '王姐社区鲜果店' },
 }
 
 describe('GroupBuyFeedCard', () => {
   it('renders title and price', () => {
     const wrapper = mount(GroupBuyFeedCard, { props: { item: mockItem } })
-    expect(wrapper.text()).toContain('山东蜜桃团购')
+    expect(wrapper.text()).toContain('周末阳山水蜜桃社区团')
     expect(wrapper.text()).toContain('¥29.90')
   })
 
   it('renders leader name and store name', () => {
     const wrapper = mount(GroupBuyFeedCard, { props: { item: mockItem } })
-    expect(wrapper.text()).toContain('某某团长')
-    expect(wrapper.text()).toContain('某某的小店')
+    expect(wrapper.text()).toContain('王姐鲜果团')
+    expect(wrapper.text()).toContain('王姐社区鲜果店')
   })
 
   it('renders sold count', () => {

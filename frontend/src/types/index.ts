@@ -41,6 +41,10 @@ export type {
   OrderPreviewRequest,
   OrderItemEntry,
   CreateOrderRequest,
+  CartItemData,
+  AddCartItemRequest,
+  UpdateCartItemRequest,
+  CartCheckoutPreviewRequest,
   // 店铺
   CreateStoreRequest,
   UpdateStoreRequest,
