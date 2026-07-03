@@ -67,4 +67,20 @@ describe('OrderListCard', () => {
     })
     expect(wrapper.text()).toContain('去支付')
   })
+
+  it('renders discount amount when coupon discount exists', () => {
+    const wrapper = mount(OrderListCard, {
+      props: {
+        order: {
+          ...mockOrder,
+          totalAmount: 3990,
+          discountAmount: 1000,
+          payAmount: 2990,
+          couponName: '新人满减券',
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('已优惠')
+    expect(wrapper.text()).toContain('¥10.00')
+  })
 })

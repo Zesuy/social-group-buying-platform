@@ -16,6 +16,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
   const cartItemIds = ref<string[]>([])
   const quantity = ref(1)
   const selectedAddressId = ref<string | null>(null)
+  const userCouponId = ref<string | null>(null)
   const remark = ref('')
 
   // 商品快照（用于 checkout 页快速展示）
@@ -44,6 +45,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     cartItemIds.value = []
     quantity.value = params.quantity
     selectedAddressId.value = null
+    userCouponId.value = null
     remark.value = ''
     snapshot.value = {
       title: params.title ?? '',
@@ -63,6 +65,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     cartItemIds.value = params.cartItemIds
     quantity.value = 1
     selectedAddressId.value = null
+    userCouponId.value = null
     remark.value = ''
     snapshot.value = null
   }
@@ -74,6 +77,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     cartItemIds.value = []
     quantity.value = 1
     selectedAddressId.value = null
+    userCouponId.value = null
     remark.value = ''
     snapshot.value = null
   }
@@ -84,6 +88,10 @@ export const useCheckoutStore = defineStore('checkout', () => {
 
   function setQuantity(newQuantity: number): void {
     quantity.value = newQuantity
+  }
+
+  function setCoupon(couponId: string | null): void {
+    userCouponId.value = couponId
   }
 
   function setRemark(newRemark: string): void {
@@ -97,6 +105,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     mode,
     quantity,
     selectedAddressId,
+    userCouponId,
     remark,
     snapshot,
     setCheckoutContext,
@@ -104,6 +113,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     clearCheckout,
     setAddress,
     setQuantity,
+    setCoupon,
     setRemark,
   }
 })

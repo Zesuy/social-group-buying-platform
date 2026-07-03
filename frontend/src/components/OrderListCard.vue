@@ -3,15 +3,10 @@
     <template #header>
       <div class="order-list-card__head">
         <span class="order-list-card__store">
-          <AppStatusPill
-            :variant="orderStatus === 'pendingPay' ? 'orange' : orderStatus === 'canceled' ? 'gray' : 'green'"
-            dot
-          >
-            {{ statusText }}
-          </AppStatusPill>
           <span v-if="mode === 'leader' && buyerName" class="order-list-card__buyer">
             {{ buyerName }}
           </span>
+          <span v-else class="order-list-card__order-no">订单号 {{ order.orderNo }}</span>
         </span>
         <AppStatusPill :variant="pillVariant" size="sm">
           {{ statusText }}
@@ -38,6 +33,7 @@
               数量 x{{ item.quantity || 0 }}
             </div>
             <div class="order-list-card__item-price">
+              <span>小计</span>
               <PriceText :amount="item.totalAmount || order.payAmount" size="sm" />
             </div>
           </div>
@@ -49,7 +45,10 @@
       </div>
 
       <div class="order-list-card__amount-line">
-        <span class="order-list-card__order-no">订单号 {{ order.orderNo }}</span>
+        <span v-if="hasDiscount" class="order-list-card__discount">
+          已优惠 <PriceText :amount="order.discountAmount" size="sm" color="var(--color-primary)" />
+        </span>
+        <span v-else class="order-list-card__discount">商品金额</span>
         <span class="order-list-card__pay">
           实付 <PriceText :amount="order.payAmount" size="md" color="var(--color-price)" />
         </span>
@@ -100,8 +99,6 @@ defineEmits<{
 
 const statusText = computed(() => getOrderStatusText(props.order.orderStatus))
 
-const orderStatus = computed(() => props.order.orderStatus)
-
 const pillVariant = computed(() => {
   switch (props.order.orderStatus) {
     case 'pendingPay': return 'orange'
@@ -116,6 +113,7 @@ const pillVariant = computed(() => {
 const displayItems = computed(() => {
   return props.order.items?.slice(0, 1) || []
 })
+const hasDiscount = computed(() => (props.order.discountAmount ?? 0) > 0)
 </script>
 
 <style scoped>
@@ -137,6 +135,16 @@ const displayItems = computed(() => {
 .order-list-card__buyer {
   color: var(--color-text-hint);
   font-weight: 400;
+}
+
+.order-list-card__order-no {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .order-list-card__body {
@@ -162,16 +170,15 @@ const displayItems = computed(() => {
 .order-list-card__item-cover--placeholder {
   width: 72px;
   height: 72px;
-  background: linear-gradient(145deg, #cfddff, #ec715b);
+  background: var(--color-primary-light);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--color-primary-dark);
   font-weight: 900;
   text-align: center;
   line-height: 1.2;
-  text-shadow: 0 1px 8px rgb(0 0 0 / 18%);
 }
 
 .order-list-card__item-info {
@@ -194,6 +201,11 @@ const displayItems = computed(() => {
 
 .order-list-card__item-price {
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 .order-list-card__more {
@@ -211,9 +223,9 @@ const displayItems = computed(() => {
   justify-content: space-between;
 }
 
-.order-list-card__order-no {
-  color: var(--color-text-hint);
-  font-size: 12px;
+.order-list-card__discount {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

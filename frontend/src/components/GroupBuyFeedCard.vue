@@ -19,9 +19,11 @@
       <button
         type="button"
         class="group-buy-feed-card__subscribe"
+        :class="{ 'group-buy-feed-card__subscribe--active': subscribed }"
+        :disabled="subscribeLoading"
         @click.stop="$emit('subscribe')"
       >
-        订阅
+        {{ subscribeText }}
       </button>
     </div>
 
@@ -86,6 +88,8 @@ import ImageWithFallback from './ImageWithFallback.vue'
 
 const props = defineProps<{
   item: PublicGroupBuyItem
+  subscribed?: boolean
+  subscribeLoading?: boolean
 }>()
 
 defineEmits<{
@@ -107,6 +111,10 @@ const statusText = computed(() => {
   if (isEnded.value) return '已结束'
   if (props.item.status === 'published') return '正在开团'
   return props.item.status
+})
+const subscribeText = computed(() => {
+  if (props.subscribeLoading) return '处理中'
+  return props.subscribed ? '已订阅' : '订阅'
 })
 const endTimeText = computed(() => {
   if (!props.item.endTime) return ''
@@ -300,6 +308,16 @@ const endTimeText = computed(() => {
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.group-buy-feed-card__subscribe--active {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+.group-buy-feed-card__subscribe:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .group-buy-feed-card__share,

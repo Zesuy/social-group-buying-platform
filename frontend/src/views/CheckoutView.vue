@@ -25,7 +25,7 @@
     <template v-if="preview && !loading && !error">
       <div class="checkout-content">
         <!-- 收货地址 -->
-        <CheckoutSection title="收货地址" @click="goToAddresses">
+        <CheckoutSection title="收货地址" clickable @click="goToAddresses">
           <template #header-right>
             <van-icon name="arrow" color="var(--color-text-hint)" size="16" />
           </template>
@@ -51,27 +51,49 @@
                 <span class="checkout-item__qty">x{{ item.quantity }}</span>
               </div>
             </div>
-            <!-- 数量调整 -->
-            <van-stepper
-              v-if="checkoutStore.mode === 'direct' && editingItemId === item.groupBuyItemId"
-              v-model="quantity"
-              :min="1"
-              :max="item.availableStock"
-              integer
-              theme="round"
-              button-size="26"
-              @change="onQuantityChange"
-            />
-            <van-button
-              v-else-if="checkoutStore.mode === 'direct'"
-              size="small"
-              round
-              plain
-              type="primary"
-              @click="startEditQuantity(item)"
+            <div class="checkout-item__subtotal">
+              <span>小计</span>
+              <PriceText :amount="item.totalAmount" size="sm" color="var(--color-text-primary)" />
+            </div>
+          </div>
+        </CheckoutSection>
+
+        <!-- 优惠券 -->
+        <CheckoutSection v-if="hasCouponSection" title="优惠券">
+          <div class="checkout-coupons">
+            <button
+              v-for="coupon in availableCoupons"
+              :key="coupon.id"
+              type="button"
+              class="checkout-coupon"
+              :class="{ 'checkout-coupon--selected': checkoutStore.userCouponId === coupon.id }"
+              :disabled="loading"
+              @click="toggleCoupon(coupon.id)"
             >
-              修改
-            </van-button>
+              <span class="checkout-coupon__main">
+                <b>{{ coupon.name }}</b>
+                <small>{{ couponText(coupon) }}</small>
+              </span>
+              <span class="checkout-coupon__action">
+                {{ checkoutStore.userCouponId === coupon.id ? '已使用' : '使用' }}
+              </span>
+            </button>
+
+            <div
+              v-for="coupon in unavailableCoupons"
+              :key="coupon.id"
+              class="checkout-coupon checkout-coupon--disabled"
+            >
+              <span class="checkout-coupon__main">
+                <b>{{ coupon.name }}</b>
+                <small>{{ couponText(coupon) }}</small>
+              </span>
+              <span class="checkout-coupon__reason">{{ coupon.unavailableReason || '暂不可用' }}</span>
+            </div>
+
+            <p v-if="availableCoupons.length === 0 && unavailableCoupons.length === 0" class="checkout-coupon-empty">
+              暂无可用优惠券
+            </p>
           </div>
         </CheckoutSection>
 
@@ -128,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
@@ -143,7 +165,8 @@ import CheckoutSection from '@/components/CheckoutSection.vue'
 import { useCheckoutStore } from '@/stores'
 import { listAddresses } from '@/api/addresses'
 import { previewOrder, createOrder } from '@/api/orders'
-import type { OrderPreviewData, AddressData } from '@/types'
+import { formatAmount } from '@/utils/format'
+import type { OrderPreviewData, AddressData, AvailableCouponData } from '@/types'
 
 const router = useRouter()
 const checkoutStore = useCheckoutStore()
@@ -155,9 +178,8 @@ const error = ref<string | null>(null)
 const submitting = ref(false)
 const agreed = ref(false)
 const remark = ref('')
-const editingItemId = ref<string | null>(null)
-const quantity = ref(1)
 const hasAddress = ref(false)
+const lastPreviewAddressId = ref<string | null>(null)
 
 // ── 计算属性 ──
 const hasCheckoutContext = computed(() => {
@@ -166,6 +188,9 @@ const hasCheckoutContext = computed(() => {
   return !!checkoutStore.groupBuyItemId
 })
 const addressInfo = computed(() => preview.value?.address ?? null)
+const availableCoupons = computed(() => preview.value?.availableCoupons ?? [])
+const unavailableCoupons = computed(() => preview.value?.unavailableCoupons ?? [])
+const hasCouponSection = computed(() => !!preview.value)
 const canSubmit = computed(() => {
   if (!preview.value) return false
   if (!checkoutStore.selectedAddressId) return false
@@ -231,13 +256,17 @@ async function doPreview(): Promise<void> {
       ? await previewOrder({
           cartItemIds: checkoutStore.cartItemIds,
           addressId: checkoutStore.selectedAddressId,
+          userCouponId: checkoutStore.userCouponId,
         })
       : await previewOrder({
           groupBuyId: checkoutStore.groupBuyId!,
           addressId: checkoutStore.selectedAddressId,
+          userCouponId: checkoutStore.userCouponId,
           items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
         })
     preview.value = data
+    checkoutStore.setCoupon(data.selectedCoupon?.id ?? null)
+    lastPreviewAddressId.value = checkoutStore.selectedAddressId
   } catch (err) {
     const apiErr = err as { message?: string }
     error.value = apiErr.message || '加载订单信息失败'
@@ -247,7 +276,7 @@ async function doPreview(): Promise<void> {
   }
 }
 
-// ── 重新预览（数量变化 / 地址变化） ──
+// ── 重新预览（优惠券 / 地址变化） ──
 async function rePreview(): Promise<void> {
   if (!checkoutStore.selectedAddressId) {
     error.value = '请选择收货地址'
@@ -256,18 +285,14 @@ async function rePreview(): Promise<void> {
   await doPreview()
 }
 
-// ── 数量编辑 ──
-function startEditQuantity(item: OrderPreviewData['items'][0]) {
-  editingItemId.value = item.groupBuyItemId
-  quantity.value = item.quantity
+function couponText(coupon: AvailableCouponData): string {
+  const threshold = coupon.thresholdAmount > 0 ? `满${formatAmount(coupon.thresholdAmount)}可用` : '无门槛'
+  return `${threshold}，优惠${formatAmount(coupon.amount)}`
 }
 
-function onQuantityChange(val: number | string) {
-  const newQty = Number(val)
-  quantity.value = newQty
-  checkoutStore.setQuantity(newQty)
-  editingItemId.value = null
-  rePreview()
+async function toggleCoupon(couponId: string): Promise<void> {
+  checkoutStore.setCoupon(checkoutStore.userCouponId === couponId ? null : couponId)
+  await rePreview()
 }
 
 // ── 备注 ──
@@ -293,11 +318,13 @@ async function handleSubmit() {
       ? await createOrder({
           cartItemIds: checkoutStore.cartItemIds,
           addressId: checkoutStore.selectedAddressId,
+          userCouponId: checkoutStore.userCouponId,
           remark: remark.value || null,
         })
       : await createOrder({
           groupBuyId: checkoutStore.groupBuyId!,
           addressId: checkoutStore.selectedAddressId,
+          userCouponId: checkoutStore.userCouponId,
           remark: remark.value || null,
           items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
         })
@@ -342,6 +369,14 @@ function handleBack() {
 onMounted(() => {
   initCheckout()
 })
+
+watch(
+  () => checkoutStore.selectedAddressId,
+  (addressId) => {
+    if (!addressId || addressId === lastPreviewAddressId.value || !preview.value) return
+    rePreview()
+  },
+)
 </script>
 
 <style scoped>
@@ -410,6 +445,77 @@ onMounted(() => {
 .checkout-item__qty {
   font-size: var(--font-size-sm);
   color: var(--color-text-hint);
+}
+
+.checkout-item__subtotal {
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.checkout-coupons {
+  display: grid;
+  gap: 8px;
+}
+
+.checkout-coupon {
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.checkout-coupon--selected {
+  border-color: rgba(16, 196, 104, 0.45);
+  background: var(--color-primary-light);
+}
+
+.checkout-coupon--disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.checkout-coupon__main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.checkout-coupon__main b {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: 1.25;
+}
+
+.checkout-coupon__main small,
+.checkout-coupon__reason {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+}
+
+.checkout-coupon__action {
+  color: var(--color-primary-dark);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.checkout-coupon-empty {
+  margin: 0;
+  color: var(--color-text-hint);
+  font-size: var(--font-size-sm);
 }
 
 .checkout-agreement__link {
