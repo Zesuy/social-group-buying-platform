@@ -35,7 +35,8 @@ export async function listPublicGroupBuys(
  */
 export async function getPublicGroupBuyDetail(
   groupBuyId: string,
+  params?: { latitude?: number; longitude?: number },
 ): Promise<GroupBuyDetailData> {
-  const res = await request.get(`/group-buys/${groupBuyId}`) as ApiResponse<GroupBuyDetailData>
+  const res = await request.get(`/group-buys/${groupBuyId}`, { params }) as ApiResponse<GroupBuyDetailData>
   return res.data
 }

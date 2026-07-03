@@ -99,6 +99,11 @@ async function mockAllEndpoints(page: Page) {
             coverImageUrl: null, groupType: 'normal', deliveryType: 'express',
             shippingTime: '2026-06-30T18:00:00', startTime: '2026-06-24T12:00:00',
             endTime: '2026-07-01T12:00:00', visibility: 'public', status: 'published',
+            galleryImageUrls: [],
+            contentBlocks: [
+              { type: 'section', title: '团长推荐', text: '本团主打产地直发，集中收单后统一发货。' },
+              { type: 'deliveryNote', text: '预计 6 月 30 日前后发出。' },
+            ],
           },
           leader: { id: 10, displayName: '某某团长', avatarUrl: null, followerCount: 50 },
           store: { id: 20, name: '某某的小店', logoUrl: null },
@@ -106,8 +111,30 @@ async function mockAllEndpoints(page: Page) {
             {
               id: 1001, productId: 501, displayName: '蜜桃 5 斤装', groupPriceAmount: 2990,
               groupStock: 100, soldCount: 12, sortOrder: 1, coverImageUrl: null,
+              product: {
+                id: 501,
+                name: '蜜桃',
+                description: '商品自己的口感、规格和储存说明。',
+                coverImageUrl: null,
+                detailImageUrls: [],
+                basePriceAmount: 3990,
+                status: 'active',
+              },
             },
           ],
+          featuredItem: {
+            id: 1001, productId: 501, displayName: '蜜桃 5 斤装', groupPriceAmount: 2990,
+            groupStock: 100, soldCount: 12, sortOrder: 1, coverImageUrl: null,
+            product: {
+              id: 501,
+              name: '蜜桃',
+              description: '商品自己的口感、规格和储存说明。',
+              coverImageUrl: null,
+              detailImageUrls: [],
+              basePriceAmount: 3990,
+              status: 'active',
+            },
+          },
           viewer: { subscribed: false },
         },
         traceId: 'e2e_004',
@@ -128,6 +155,8 @@ async function mockAllEndpoints(page: Page) {
             coverImageUrl: null, groupType: 'normal', deliveryType: 'express',
             shippingTime: null, startTime: null, endTime: null,
             visibility: 'public', status: 'published',
+            galleryImageUrls: [],
+            contentBlocks: [],
           },
           leader: { id: 10, displayName: '某某团长', avatarUrl: null, followerCount: 50 },
           store: { id: 20, name: '某某的小店', logoUrl: null },
@@ -323,7 +352,10 @@ test.describe('Public browsing and checkout E2E', () => {
     // Click on group buy card -> detail page
     await page.getByRole('heading', { name: '测试团购' }).click()
     await page.waitForTimeout(1000)
-    await expect(page.locator('text=好吃不贵')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('#section-activity').getByText('好吃不贵')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('本团热销商品')).toBeVisible()
+    await expect(page.getByText('本团主打产地直发，集中收单后统一发货。')).toBeVisible()
+    await expect(page.getByText('商品自己的口感、规格和储存说明。').first()).toBeVisible()
     await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible()
 
     // Click leader trust block -> leader homepage
@@ -424,7 +456,7 @@ test.describe('Public browsing and checkout E2E', () => {
     await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible({ timeout: 5000 })
 
     // Click subscribe button
-    await page.locator('button:has-text("订阅")').click()
+    await page.getByRole('button', { name: '订阅团长' }).click()
     await page.waitForTimeout(1000)
     await expect(page).toHaveURL(/#\/login/, { timeout: 5000 })
   })

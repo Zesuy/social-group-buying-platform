@@ -15,7 +15,7 @@
         :alt="item?.displayName ?? ''"
       />
       <div class="sku-top__info">
-        <div class="sku-price">¥{{ item?.groupPriceAmount ?? 0 }}</div>
+        <PriceText class="sku-price" :amount="item?.groupPriceAmount ?? 0" />
         <p class="sku-stock">
           库存 {{ item?.groupStock ?? 0 }}｜已团 {{ item?.soldCount ?? 0 }} 件
         </p>
@@ -64,8 +64,8 @@
     </div>
 
     <!-- 底部按钮 -->
-    <div class="sku-bottom">
-      <button class="sku-btn sku-btn--cart" @click="emit('add-to-cart', confirmData)">加入购物车</button>
+    <div class="sku-bottom" :class="{ 'sku-bottom--dual': showCartAction }">
+      <button v-if="showCartAction" class="sku-btn sku-btn--cart" @click="emit('add-to-cart', confirmData)">加入购物车</button>
       <button class="sku-btn sku-btn--buy" @click="emit('buy-now', confirmData)">立即购买</button>
     </div>
   </van-action-sheet>
@@ -75,10 +75,12 @@
 import { ref, computed, watch } from 'vue'
 import type { PublicGroupBuyDetailItem } from '@/types'
 import ImageWithFallback from './ImageWithFallback.vue'
+import PriceText from './PriceText.vue'
 
 const props = defineProps<{
   modelValue: boolean
   item: PublicGroupBuyDetailItem | null
+  showCartAction?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -260,9 +262,13 @@ watch(() => props.modelValue, (val) => {
 
 .sku-bottom {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
   padding: 16px 16px 20px;
+}
+
+.sku-bottom--dual {
+  grid-template-columns: 1fr 1fr;
 }
 
 .sku-btn {
