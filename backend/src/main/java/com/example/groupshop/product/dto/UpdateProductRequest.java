@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * Request DTO for partial-updating a product.
  *
@@ -18,6 +20,9 @@ public class UpdateProductRequest {
     private String description;
 
     private String coverImageUrl;
+
+    /** 商品详情图片，传入非空数组时整体替换；传 [] 表示清空；不传表示不改 */
+    private List<String> detailImageUrls;
 
     @Min(0)
     private Long basePriceAmount;

@@ -834,6 +834,36 @@ class GroupBuyServiceTest extends ServiceTestBase {
     // ── Copy ───────────────────────────────────────────────────────────
 
     @Test
+    void copyGroupBuy_shouldCopyGalleryAndContentBlocks() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("带内容原团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        request.setGalleryImageUrls(List.of("https://example.com/gallery1.jpg"));
+        com.example.groupshop.common.dto.ContentBlockRequest block =
+                new com.example.groupshop.common.dto.ContentBlockRequest();
+        block.setType("paragraph");
+        block.setText("复制的正文");
+        request.setContentBlocks(List.of(block));
+        CreateGroupBuyRequest.ItemEntry i = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(10);
+        i.setProduct(ip);
+        i.setDisplayName("商品");
+        i.setGroupPriceAmount(1000L);
+        i.setGroupStock(10);
+        request.setItems(List.of(i));
+        GroupBuyResponse original = groupBuyService.createGroupBuy(userId, request);
+
+        GroupBuyResponse copy = groupBuyService.copyGroupBuy(userId, original.getGroupBuy().getId());
+
+        assertThat(copy.getGroupBuy().getGalleryImageUrls()).containsExactly("https://example.com/gallery1.jpg");
+        assertThat(copy.getGroupBuy().getContentBlocks()).hasSize(1);
+        assertThat(copy.getGroupBuy().getContentBlocks().get(0).getText()).isEqualTo("复制的正文");
+    }
+
+    @Test
     void copyGroupBuy_shouldCreateNewDraft() {
         // Create a published group buy
         CreateGroupBuyRequest request = new CreateGroupBuyRequest();
@@ -1076,6 +1106,337 @@ class GroupBuyServiceTest extends ServiceTestBase {
         assertThatThrownBy(() -> groupBuyService.getPublicGroupBuyDetail(created.getGroupBuy().getId(), null))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("资源不存在");
+    }
+
+    // ── Content blocks & gallery images ───────────────────────────────────
+
+    @Test
+    void createGroupBuy_shouldSaveGalleryImageUrls() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("多图团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(100);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1990L);
+        item.setGroupStock(100);
+        request.setItems(List.of(item));
+        request.setGalleryImageUrls(List.of(
+                "https://example.com/photo1.jpg",
+                "https://example.com/photo2.jpg"));
+
+        GroupBuyResponse response = groupBuyService.createGroupBuy(userId, request);
+        assertThat(response.getGroupBuy().getGalleryImageUrls()).containsExactly(
+                "https://example.com/photo1.jpg",
+                "https://example.com/photo2.jpg");
+
+        GroupBuy stored = groupBuyMapper.selectById(response.getGroupBuy().getId());
+        assertThat(stored.getGalleryImageUrls()).isNotNull();
+    }
+
+    @Test
+    void createGroupBuy_shouldSaveContentBlocks() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("内容块团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(100);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1990L);
+        item.setGroupStock(100);
+        request.setItems(List.of(item));
+
+        com.example.groupshop.common.dto.ContentBlockRequest block =
+                new com.example.groupshop.common.dto.ContentBlockRequest();
+        block.setType("paragraph");
+        block.setText("欢迎参加本次团购");
+        request.setContentBlocks(List.of(block));
+
+        GroupBuyResponse response = groupBuyService.createGroupBuy(userId, request);
+        assertThat(response.getGroupBuy().getContentBlocks()).hasSize(1);
+        assertThat(response.getGroupBuy().getContentBlocks().get(0).getType()).isEqualTo("paragraph");
+        assertThat(response.getGroupBuy().getContentBlocks().get(0).getText()).isEqualTo("欢迎参加本次团购");
+    }
+
+    @Test
+    void createDraft_shouldSaveContentBlocks() {
+        CreateDraftGroupBuyRequest request = new CreateDraftGroupBuyRequest();
+        request.setTitle("草稿内容块");
+        request.setDeliveryType("express");
+
+        CreateDraftGroupBuyRequest.ItemEntry item = new CreateDraftGroupBuyRequest.ItemEntry();
+        CreateDraftGroupBuyRequest.InlineProduct ip = new CreateDraftGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(100);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        request.setItems(List.of(item));
+
+        com.example.groupshop.common.dto.ContentBlockRequest block =
+                new com.example.groupshop.common.dto.ContentBlockRequest();
+        block.setType("section");
+        block.setTitle("开团理由");
+        block.setText("产地直发");
+        request.setContentBlocks(List.of(block));
+
+        GroupBuyResponse response = groupBuyService.createDraft(userId, request);
+        assertThat(response.getGroupBuy().getContentBlocks()).hasSize(1);
+    }
+
+    @Test
+    void updateGroupBuy_shouldReplaceContentBlocks() {
+        Long gbId = createPublishedGroupBuyWithTitle("待更新内容块");
+
+        UpdateGroupBuyRequest update = new UpdateGroupBuyRequest();
+        com.example.groupshop.common.dto.ContentBlockRequest block =
+                new com.example.groupshop.common.dto.ContentBlockRequest();
+        block.setType("paragraph");
+        block.setText("更新后的正文");
+        update.setContentBlocks(List.of(block));
+
+        GroupBuyResponse response = groupBuyService.updateGroupBuy(userId, gbId, update);
+        assertThat(response.getGroupBuy().getContentBlocks()).hasSize(1);
+        assertThat(response.getGroupBuy().getContentBlocks().get(0).getText()).isEqualTo("更新后的正文");
+    }
+
+    @Test
+    void updateGroupBuy_shouldClearContentBlocksWhenEmptyArray() {
+        Long gbId = createPublishedGroupBuyWithTitle("待清空内容块");
+
+        UpdateGroupBuyRequest update = new UpdateGroupBuyRequest();
+        update.setContentBlocks(List.of());
+
+        GroupBuyResponse response = groupBuyService.updateGroupBuy(userId, gbId, update);
+        assertThat(response.getGroupBuy().getContentBlocks()).isEmpty();
+    }
+
+    @Test
+    void updateGroupBuy_shouldNotChangeContentBlocksWhenNotSent() {
+        Long gbId = createPublishedGroupBuyWithTitle("不传内容块");
+
+        // First set some content blocks
+        UpdateGroupBuyRequest setBlocks = new UpdateGroupBuyRequest();
+        com.example.groupshop.common.dto.ContentBlockRequest block =
+                new com.example.groupshop.common.dto.ContentBlockRequest();
+        block.setType("paragraph");
+        block.setText("原始正文");
+        setBlocks.setContentBlocks(List.of(block));
+        groupBuyService.updateGroupBuy(userId, gbId, setBlocks);
+
+        // Now update without contentBlocks
+        UpdateGroupBuyRequest update = new UpdateGroupBuyRequest();
+        update.setTitle("新标题");
+        GroupBuyResponse response = groupBuyService.updateGroupBuy(userId, gbId, update);
+
+        assertThat(response.getGroupBuy().getContentBlocks()).hasSize(1);
+        assertThat(response.getGroupBuy().getContentBlocks().get(0).getText()).isEqualTo("原始正文");
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnContentFields() {
+        Long gbId = createPublishedGroupBuyWithTitle("详情内容字段");
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(gbId, null);
+
+        assertThat(detail.getGroupBuy().getGalleryImageUrls()).isNotNull();
+        assertThat(detail.getGroupBuy().getContentBlocks()).isNotNull();
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnFeaturedItem() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("热销商品团购");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        // Create item with higher soldCount — should be featured
+        CreateGroupBuyRequest.ItemEntry item1 = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip1 = new CreateGroupBuyRequest.InlineProduct();
+        ip1.setName("热销商品");
+        ip1.setBasePriceAmount(1000L);
+        ip1.setStock(100);
+        item1.setProduct(ip1);
+        item1.setDisplayName("热销商品");
+        item1.setGroupPriceAmount(2990L);
+        item1.setGroupStock(50);
+        item1.setSortOrder(1);
+
+        CreateGroupBuyRequest.ItemEntry item2 = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip2 = new CreateGroupBuyRequest.InlineProduct();
+        ip2.setName("普通商品");
+        ip2.setBasePriceAmount(500L);
+        ip2.setStock(100);
+        item2.setProduct(ip2);
+        item2.setDisplayName("普通商品");
+        item2.setGroupPriceAmount(1990L);
+        item2.setGroupStock(100);
+        item2.setSortOrder(2);
+
+        request.setItems(List.of(item1, item2));
+        GroupBuyResponse createResp = groupBuyService.createGroupBuy(userId, request);
+
+        // Simulate higher sales for item1
+        GroupBuyItem item1Entity = groupBuyItemMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, createResp.getGroupBuy().getId())
+                        .orderByAsc(GroupBuyItem::getSortOrder)).get(0);
+        item1Entity.setSoldCount(10);
+        groupBuyItemMapper.updateById(item1Entity);
+
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(
+                createResp.getGroupBuy().getId(), null);
+
+        assertThat(detail.getFeaturedItem()).isNotNull();
+        assertThat(detail.getFeaturedItem().getDisplayName()).isEqualTo("热销商品");
+        assertThat(detail.getFeaturedItem().getSoldCount()).isEqualTo(10);
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnFeaturedItemAsNullWhenNoItems() {
+        // Create group buy and delete its items
+        Long gbId = createPublishedGroupBuyWithTitle("无商品团购");
+        groupBuyItemMapper.delete(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<GroupBuyItem>()
+                        .eq(GroupBuyItem::getGroupBuyId, gbId));
+
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(gbId, null);
+        assertThat(detail.getFeaturedItem()).isNull();
+    }
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnProductInItems() {
+        Long gbId = createPublishedGroupBuyWithTitle("含商品详情");
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(gbId, null);
+
+        assertThat(detail.getItems()).isNotEmpty();
+        assertThat(detail.getItems().get(0).getProduct()).isNotNull();
+        assertThat(detail.getItems().get(0).getProduct().getName()).isEqualTo("商品");
+        assertThat(detail.getItems().get(0).getProduct().getDetailImageUrls()).isNotNull();
+    }
+
+    @Test
+    void createGroupBuy_withInlineProductDetailImageUrls() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("内联商品详情图");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("带详情图商品");
+        ip.setBasePriceAmount(2990L);
+        ip.setStock(100);
+        ip.setDetailImageUrls(List.of("https://example.com/detail1.png"));
+        item.setProduct(ip);
+        item.setDisplayName("带详情图商品");
+        item.setGroupPriceAmount(2990L);
+        item.setGroupStock(100);
+        request.setItems(List.of(item));
+
+        GroupBuyResponse response = groupBuyService.createGroupBuy(userId, request);
+        Long productId = response.getItems().get(0).getProductId();
+
+        Product product = productMapper.selectById(productId);
+        assertThat(product.getDetailImageUrls()).isNotNull();
+
+        var publicDetail = groupBuyService.getPublicGroupBuyDetail(
+                response.getGroupBuy().getId(), null);
+        assertThat(publicDetail.getItems().get(0).getProduct().getDetailImageUrls())
+                .contains("https://example.com/detail1.png");
+    }
+
+    @Test
+    void oldGroupBuyData_shouldReturnEmptyContentFields() {
+        Long gbId = createPublishedGroupBuyWithTitle("旧数据团购");
+        GroupBuyDetailResponse detail = groupBuyService.getPublicGroupBuyDetail(gbId, null);
+
+        // Old data without content should return empty lists
+        assertThat(detail.getGroupBuy().getGalleryImageUrls()).isEmpty();
+        assertThat(detail.getGroupBuy().getContentBlocks()).isEmpty();
+    }
+
+    @Test
+    void createGroupBuy_shouldRejectInvalidContentBlockType() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("非法内容块类型");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(100);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1990L);
+        item.setGroupStock(100);
+        request.setItems(List.of(item));
+
+        com.example.groupshop.common.dto.ContentBlockRequest block =
+                new com.example.groupshop.common.dto.ContentBlockRequest();
+        block.setType("video");
+        block.setText("非法类型");
+        request.setContentBlocks(List.of(block));
+
+        assertThatThrownBy(() -> groupBuyService.createGroupBuy(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("类型");
+    }
+
+    @Test
+    void createGroupBuy_shouldRejectHtmlInContentBlocks() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("HTML 注入");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(100);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1990L);
+        item.setGroupStock(100);
+        request.setItems(List.of(item));
+
+        com.example.groupshop.common.dto.ContentBlockRequest block =
+                new com.example.groupshop.common.dto.ContentBlockRequest();
+        block.setType("paragraph");
+        block.setText("<script>alert('xss')</script>");
+        request.setContentBlocks(List.of(block));
+
+        assertThatThrownBy(() -> groupBuyService.createGroupBuy(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("HTML");
+    }
+
+    @Test
+    void createGroupBuy_shouldRejectNonHttpGalleryUrls() {
+        CreateGroupBuyRequest request = new CreateGroupBuyRequest();
+        request.setTitle("非法URL");
+        request.setDeliveryType(DeliveryType.EXPRESS);
+        CreateGroupBuyRequest.ItemEntry item = new CreateGroupBuyRequest.ItemEntry();
+        CreateGroupBuyRequest.InlineProduct ip = new CreateGroupBuyRequest.InlineProduct();
+        ip.setName("商品");
+        ip.setBasePriceAmount(1000L);
+        ip.setStock(100);
+        item.setProduct(ip);
+        item.setDisplayName("商品");
+        item.setGroupPriceAmount(1990L);
+        item.setGroupStock(100);
+        request.setItems(List.of(item));
+        request.setGalleryImageUrls(List.of("javascript:alert(1)"));
+
+        assertThatThrownBy(() -> groupBuyService.createGroupBuy(userId, request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("URL");
     }
 
     // ── Distance / Location ──────────────────────────────────────────────

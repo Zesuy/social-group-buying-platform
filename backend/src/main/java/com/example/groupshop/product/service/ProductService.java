@@ -6,6 +6,7 @@ import com.example.groupshop.category.service.CategoryService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
+import com.example.groupshop.common.util.ContentValidationUtil;
 import com.example.groupshop.common.util.CurrentStoreHelper;
 import com.example.groupshop.model.entity.GroupBuy;
 import com.example.groupshop.model.entity.GroupBuyItem;
@@ -37,6 +38,7 @@ public class ProductService {
     private final GroupBuyMapper groupBuyMapper;
     private final CurrentStoreHelper currentStoreHelper;
     private final CategoryService categoryService;
+    private final ContentValidationUtil contentValidationUtil;
 
     /**
      * Create a product for the current user's store.
@@ -56,6 +58,8 @@ public class ProductService {
         product.setName(request.getName());
         product.setDescription(request.getDescription());
         product.setCoverImageUrl(request.getCoverImageUrl());
+        contentValidationUtil.validateImageUrls(request.getDetailImageUrls(), 9, "detailImageUrls");
+        product.setDetailImageUrls(contentValidationUtil.serializeImageUrls(request.getDetailImageUrls()));
         product.setBasePriceAmount(request.getBasePriceAmount());
         product.setStock(request.getStock());
         product.setCategoryId(request.getCategoryId());
@@ -136,6 +140,10 @@ public class ProductService {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "商品分类不存在或已失效");
             }
             product.setCategoryId(request.getCategoryId());
+        }
+        if (request.getDetailImageUrls() != null) {
+            contentValidationUtil.validateImageUrls(request.getDetailImageUrls(), 9, "detailImageUrls");
+            product.setDetailImageUrls(contentValidationUtil.serializeImageUrls(request.getDetailImageUrls()));
         }
 
         productMapper.updateById(product);
@@ -231,6 +239,7 @@ public class ProductService {
                 .stock(product.getStock())
                 .categoryId(product.getCategoryId())
                 .status(product.getStatus())
+                .detailImageUrls(contentValidationUtil.deserializeImageUrls(product.getDetailImageUrls()))
                 .build();
     }
 }

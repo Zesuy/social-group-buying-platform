@@ -1,5 +1,6 @@
 package com.example.groupshop.groupbuy.dto;
 
+import com.example.groupshop.common.dto.ContentBlockRequest;
 import com.example.groupshop.common.enums.DeliveryType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -41,6 +42,13 @@ public class CreateGroupBuyRequest {
     /** default "public" if not set */
     private String visibility;
 
+    /** 团购活动多图，最多 9 张 */
+    private List<String> galleryImageUrls;
+
+    /** 团购活动结构化正文块，最多 20 块 */
+    @Valid
+    private List<ContentBlockRequest> contentBlocks;
+
     @NotEmpty
     @Size(min = 1)
     @Valid
@@ -81,6 +89,9 @@ public class CreateGroupBuyRequest {
         private String description;
 
         private String coverImageUrl;
+
+        /** 商品详情图片，最多 9 张 */
+        private List<String> detailImageUrls;
 
         @NotNull
         @Min(0)

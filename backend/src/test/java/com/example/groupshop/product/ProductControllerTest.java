@@ -435,4 +435,51 @@ class ProductControllerTest extends MockMvcTestBase {
                 .andExpect(jsonPath("$.data.items.length()").value(1))
                 .andExpect(jsonPath("$.data.items[0].title").value("关联团购"));
     }
+
+    // ── Detail image URLs ──────────────────────────────────────────────
+
+    @Test
+    void createProduct_shouldSucceedWithDetailImageUrls() throws Exception {
+        mockMvc.perform(post(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "带详情图商品",
+                                    "basePriceAmount": 2990,
+                                    "stock": 100,
+                                    "categoryId": 1,
+                                    "detailImageUrls": ["https://example.com/detail1.png"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.detailImageUrls[0]").value("https://example.com/detail1.png"));
+    }
+
+    @Test
+    void getProduct_shouldReturnDetailImageUrls() throws Exception {
+        String createResp = mockMvc.perform(post(PRODUCTS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "name": "查询详情图商品",
+                                    "basePriceAmount": 2990,
+                                    "stock": 100,
+                                    "categoryId": 1,
+                                    "detailImageUrls": ["https://example.com/detail2.png"]
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        Long productId = Long.parseLong(createResp.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(get(PRODUCTS_URL + "/" + productId)
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.detailImageUrls[0]").value("https://example.com/detail2.png"));
+    }
 }

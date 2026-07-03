@@ -2561,6 +2561,12 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        detailImageUrls:
+          type: array
+          items:
+            type: string
+          maxItems: 9
+          description: 商品详情图片，最多 9 张
         basePriceAmount:
           type: integer
           minimum: 0
@@ -2583,6 +2589,12 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        detailImageUrls:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: 传非空数组整体替换，传 [] 清空，不传不改
         basePriceAmount:
           type: integer
           minimum: 0
@@ -2619,6 +2631,11 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        detailImageUrls:
+          type: array
+          items:
+            type: string
+          description: 商品详情图片
         basePriceAmount:
           type: integer
           minimum: 0
@@ -2725,11 +2742,47 @@ components:
           type: string
           default: public
           description: public / hidden
+        galleryImageUrls:
+          type: array
+          items:
+            type: string
+          maxItems: 9
+          description: 团购活动多图，最多 9 张
+        contentBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentBlockEntry'
+          maxItems: 20
+          description: 团购活动结构化正文块，最多 20 块
         items:
           type: array
           minItems: 1
           items:
             $ref: '#/components/schemas/CreateGroupBuyItemEntry'
+      additionalProperties: false
+    ContentBlockEntry:
+      type: object
+      properties:
+        type:
+          type: string
+          description: paragraph / section / image / list / deliveryNote
+        text:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        caption:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            type: string
+          nullable: true
       additionalProperties: false
     CreateGroupBuyItemEntry:
       type: object
@@ -2772,6 +2825,12 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        detailImageUrls:
+          type: array
+          items:
+            type: string
+          maxItems: 9
+          description: 商品详情图片，最多 9 张
         basePriceAmount:
           type: integer
           minimum: 0
@@ -2806,6 +2865,18 @@ components:
         visibility:
           type: string
           description: public / hidden — for drafts and published; ended/removed rejected
+        galleryImageUrls:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: 传非空数组整体替换，传 [] 清空，不传不改
+        contentBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentBlockEntry'
+          nullable: true
+          description: 传数组整体替换，传 [] 清空，不传不改
         items:
           type: array
           items:
@@ -2875,6 +2946,16 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        galleryImageUrls:
+          type: array
+          items:
+            type: string
+          description: 团购活动多图
+        contentBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentBlockEntry'
+          description: 团购活动结构化正文块
         groupType:
           type: string
           minLength: 1
@@ -3034,6 +3115,18 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        galleryImageUrls:
+          type: array
+          items:
+            type: string
+          maxItems: 9
+          description: 团购活动多图，最多 9 张
+        contentBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentBlockEntry'
+          maxItems: 20
+          description: 团购活动结构化正文块，最多 20 块
         deliveryType:
           type: string
           description: express / pickup / local_delivery
@@ -3098,6 +3191,12 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        detailImageUrls:
+          type: array
+          items:
+            type: string
+          maxItems: 9
+          description: 商品详情图片，最多 9 张
         basePriceAmount:
           type: integer
           minimum: 0
@@ -3204,6 +3303,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PublicGroupBuyDetailItem'
+        featuredItem:
+          $ref: '#/components/schemas/PublicGroupBuyDetailItem'
+          description: 热销商品；soldCount 降序、sortOrder 升序、id 升序；无 item 为 null
+          nullable: true
         viewer:
           $ref: '#/components/schemas/ViewerInfo'
       additionalProperties: false
@@ -3287,6 +3390,35 @@ components:
         coverImageUrl:
           type: string
           nullable: true
+        product:
+          $ref: '#/components/schemas/ProductSummaryData'
+          description: 嵌套商品信息，包含商品自己的描述和详情图
+          nullable: true
+      additionalProperties: false
+    ProductSummaryData:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        detailImageUrls:
+          type: array
+          items:
+            type: string
+          description: 商品详情图片
+        basePriceAmount:
+          type: integer
+          minimum: 0
+        status:
+          type: string
       additionalProperties: false
     ViewerInfo:
       type: object

@@ -1,5 +1,6 @@
 package com.example.groupshop.publicbrowsing.dto;
 
+import com.example.groupshop.common.dto.ProductSummaryData;
 import com.example.groupshop.groupbuy.dto.GroupBuyResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,8 @@ public class GroupBuyDetailResponse {
     private LeaderDetail leader;
     private StoreDetail store;
     private List<GroupBuyDetailItemData> items;
+    /** 热销商品，按 soldCount 降序、sortOrder 升序、id 升序选出 */
+    private GroupBuyDetailItemData featuredItem;
     private ViewerInfo viewer;
 
     @Data
@@ -66,5 +69,7 @@ public class GroupBuyDetailResponse {
         private Integer sortOrder;
         /** 商品封面，取自 products.coverImageUrl，符合 API 设计文档口径 */
         private String coverImageUrl;
+        /** 嵌套商品信息，包含商品自己的描述和详情图 */
+        private ProductSummaryData product;
     }
 }
