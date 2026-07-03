@@ -171,7 +171,7 @@ public class NotificationService {
                 .body("新的订阅关系已建立，后续开团通知可触达该用户。")
                 .targetType("leader")
                 .targetId(subscription.getLeaderId())
-                .actionUrl("/leaders/" + subscription.getLeaderId())
+                .actionUrl("/leader/subscribers?subscriptionId=" + subscription.getId())
                 .dedupeKey("subscription_created:" + subscription.getId() + ":" + leader.getUserId())
                 .build());
     }

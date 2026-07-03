@@ -131,4 +131,89 @@ describe('Router guards', () => {
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.redirect).toBe('/leader/dashboard')
   })
+
+  it('should redirect /leader/subscribers to /login when not authenticated', async () => {
+    const router = await setupRouter()
+    await router.push('/leader/subscribers')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/leader/subscribers')
+  })
+
+  it('should allow leader to access subscriber list page', async () => {
+    const store = useAuthStore()
+    store.accessToken = 'valid_token'
+    store.user = {
+      id: 2,
+      nickname: '团长用户',
+      avatarUrl: null,
+      phone: '13700000000',
+      hasLeader: true,
+      leaderId: 10,
+      storeId: 20,
+    }
+    store.leader = {
+      id: 10,
+      displayName: '王姐鲜果团',
+      avatarUrl: null,
+      bio: null,
+    }
+    store.store = {
+      id: 20,
+      leaderId: 10,
+      name: '王姐社区鲜果店',
+      logoUrl: null,
+      description: null,
+      defaultDeliveryType: 'local_delivery',
+      distributionEnabled: false,
+      status: 'active',
+    }
+    store.isBootstrapped = true
+
+    const router = await setupRouter()
+    await router.push('/leader/subscribers')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('leaderSubscribers')
+  })
+
+  it('should redirect legacy product detail path to product edit page', async () => {
+    const store = useAuthStore()
+    store.accessToken = 'valid_token'
+    store.user = {
+      id: 2,
+      nickname: '团长用户',
+      avatarUrl: null,
+      phone: '13700000000',
+      hasLeader: true,
+      leaderId: 10,
+      storeId: 20,
+    }
+    store.leader = {
+      id: 10,
+      displayName: '王姐鲜果团',
+      avatarUrl: null,
+      bio: null,
+    }
+    store.store = {
+      id: 20,
+      leaderId: 10,
+      name: '王姐社区鲜果店',
+      logoUrl: null,
+      description: null,
+      defaultDeliveryType: 'local_delivery',
+      distributionEnabled: false,
+      status: 'active',
+    }
+    store.isBootstrapped = true
+
+    const router = await setupRouter()
+    await router.push('/leader/products/2')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('leaderProductEdit')
+    expect(router.currentRoute.value.params.id).toBe('2')
+    expect(router.currentRoute.value.fullPath).toBe('/leader/products/2/edit')
+  })
 })

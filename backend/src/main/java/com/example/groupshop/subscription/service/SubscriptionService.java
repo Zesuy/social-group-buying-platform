@@ -3,13 +3,18 @@ package com.example.groupshop.subscription.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
+import com.example.groupshop.common.util.CurrentStoreHelper;
 import com.example.groupshop.model.entity.Leader;
 import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.entity.Subscription;
+import com.example.groupshop.model.entity.User;
 import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.SubscriptionMapper;
+import com.example.groupshop.model.mapper.UserMapper;
 import com.example.groupshop.notification.service.NotificationService;
+import com.example.groupshop.subscription.dto.LeaderSubscriberListResponse;
+import com.example.groupshop.subscription.dto.LeaderSubscriberResponse;
 import com.example.groupshop.subscription.dto.SubscriptionListResponse;
 import com.example.groupshop.subscription.dto.SubscriptionRequest;
 import com.example.groupshop.subscription.dto.SubscriptionResponse;
@@ -33,6 +38,8 @@ public class SubscriptionService {
     private final SubscriptionMapper subscriptionMapper;
     private final LeaderMapper leaderMapper;
     private final StoreMapper storeMapper;
+    private final UserMapper userMapper;
+    private final CurrentStoreHelper currentStoreHelper;
     private final NotificationService notificationService;
 
     /**
@@ -138,6 +145,29 @@ public class SubscriptionService {
     }
 
     /**
+     * List active subscribers for the current leader.
+     */
+    public LeaderSubscriberListResponse listMySubscribers(Long userId) {
+        CurrentStoreHelper.LeaderAndStore leaderAndStore = currentStoreHelper.getLeaderAndStore(userId);
+        Long leaderId = leaderAndStore.getLeader().getId();
+
+        List<Subscription> subscriptions = subscriptionMapper.selectList(
+                new LambdaQueryWrapper<Subscription>()
+                        .eq(Subscription::getLeaderId, leaderId)
+                        .eq(Subscription::getStatus, "active")
+                        .orderByDesc(Subscription::getSubscribedAt));
+
+        List<LeaderSubscriberResponse> items = subscriptions.stream()
+                .map(this::toSubscriberResponse)
+                .collect(Collectors.toList());
+
+        return LeaderSubscriberListResponse.builder()
+                .items(items)
+                .total(items.size())
+                .build();
+    }
+
+    /**
      * Check if a user has an active subscription to a leader.
      */
     public boolean isSubscribed(Long userId, Long leaderId) {
@@ -164,6 +194,20 @@ public class SubscriptionService {
                         ? subscription.getSubscribedAt().toString() : null)
                 .canceledAt(subscription.getCanceledAt() != null
                         ? subscription.getCanceledAt().toString() : null)
+                .build();
+    }
+
+    private LeaderSubscriberResponse toSubscriberResponse(Subscription subscription) {
+        User user = userMapper.selectById(subscription.getUserId());
+        return LeaderSubscriberResponse.builder()
+                .subscriptionId(subscription.getId())
+                .userId(subscription.getUserId())
+                .nickname(user != null ? user.getNickname() : null)
+                .avatarUrl(user != null ? user.getAvatarUrl() : null)
+                .phone(user != null ? user.getPhone() : null)
+                .source(subscription.getSource())
+                .subscribedAt(subscription.getSubscribedAt() != null
+                        ? subscription.getSubscribedAt().toString() : null)
                 .build();
     }
 }

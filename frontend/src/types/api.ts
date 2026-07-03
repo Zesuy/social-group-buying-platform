@@ -313,6 +313,10 @@ export interface OrderData {
   groupBuyId: string
   storeId: string
   leaderId: string
+  userCouponId?: string | null
+  couponId?: string | null
+  couponName?: string | null
+  couponType?: string | null
   totalAmount: number
   discountAmount: number
   payAmount: number
@@ -415,6 +419,23 @@ export interface OrderPreviewData {
   totalAmount: number
   discountAmount: number
   payAmount: number
+  availableCoupons?: AvailableCouponData[]
+  unavailableCoupons?: AvailableCouponData[]
+  selectedCoupon?: AvailableCouponData | null
+}
+
+export interface AvailableCouponData {
+  id: string
+  name: string
+  couponType: string
+  amount: number
+  thresholdAmount: number
+  startTime: string
+  endTime: string
+  totalQuantity: number
+  claimedQuantity: number
+  perUserLimit: number
+  unavailableReason?: string | null
 }
 
 export interface OrderPreviewAddress {
@@ -460,6 +481,7 @@ export interface CreateOrderRequest {
   items?: OrderItemEntry[]
   cartItemIds?: string[]
   shareToken?: string | null
+  userCouponId?: string | null
 }
 
 export interface CartItemData {
@@ -520,6 +542,7 @@ export interface ProductData {
   name: string
   description: string | null
   coverImageUrl: string | null
+  detailImageUrls: string[]
   basePriceAmount: number
   stock: number
   status: string
@@ -531,6 +554,7 @@ export interface CreateProductRequest {
   name: string
   description?: string | null
   coverImageUrl?: string | null
+  detailImageUrls?: string[]
   basePriceAmount: number
   stock: number
 }
@@ -539,6 +563,7 @@ export interface UpdateProductRequest {
   name?: string
   description?: string | null
   coverImageUrl?: string | null
+  detailImageUrls?: string[]
   basePriceAmount?: number
   stock?: number
   status?: string
@@ -683,6 +708,21 @@ export interface SubscriptionListItem {
 
 export interface SubscriptionListResponse {
   items: SubscriptionListItem[]
+}
+
+export interface LeaderSubscriberData {
+  subscriptionId: string
+  userId: string
+  nickname: string | null
+  avatarUrl: string | null
+  phone: string | null
+  source: string | null
+  subscribedAt: string | null
+}
+
+export interface LeaderSubscriberListResponse {
+  items: LeaderSubscriberData[]
+  total: number
 }
 
 // ── 会员卡 ──

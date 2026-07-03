@@ -127,6 +127,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '团长订单' },
       },
       {
+        path: 'subscribers',
+        name: 'leaderSubscribers',
+        component: () => import('@/views/leader/LeaderSubscribersView.vue'),
+        meta: { title: '订阅用户' },
+      },
+      {
         path: 'orders/:id',
         name: 'leaderOrderDetail',
         component: () => import('@/views/leader/LeaderOrderDetailView.vue'),
@@ -143,6 +149,14 @@ const routes: RouteRecordRaw[] = [
         name: 'leaderProductNew',
         component: () => import('@/views/leader/LeaderProductNewView.vue'),
         meta: { title: '新建商品' },
+      },
+      {
+        path: 'products/:id',
+        name: 'leaderProductDetailRedirect',
+        redirect: (to) => ({
+          name: 'leaderProductEdit',
+          params: { id: to.params.id },
+        }),
       },
       {
         path: 'products/:id/edit',

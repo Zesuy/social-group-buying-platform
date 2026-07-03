@@ -7,6 +7,7 @@
 import request from './request'
 import type {
   ApiResponse,
+  LeaderSubscriberListResponse,
   SubscriptionListResponse,
 } from '@/types'
 
@@ -15,6 +16,14 @@ import type {
  */
 export async function listMySubscriptions(): Promise<SubscriptionListResponse> {
   const res = await request.get('/my/subscriptions') as ApiResponse<SubscriptionListResponse>
+  return res.data
+}
+
+/**
+ * 获取当前团长的订阅用户列表
+ */
+export async function listMySubscribers(): Promise<LeaderSubscriberListResponse> {
+  const res = await request.get('/my/store/subscribers') as ApiResponse<LeaderSubscriberListResponse>
   return res.data
 }
 

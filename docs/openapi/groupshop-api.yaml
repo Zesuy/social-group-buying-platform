@@ -1739,6 +1739,25 @@ paths:
                 $ref: '#/components/schemas/SubscriptionListSuccessResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/store/subscribers:
+    get:
+      tags:
+        - Subscription
+      summary: List current leader's active subscribers.
+      operationId: listMyStoreSubscribers
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of active subscribers for current leader.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderSubscriberListSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
   /api/v1/my/member-cards:
     get:
       tags:
@@ -4444,6 +4463,8 @@ components:
           nullable: true
           enum:
             - homepage
+            - groupBuyDetail
+            - indexFeed
             - product_detail
             - invitation
       additionalProperties: false
@@ -4519,6 +4540,63 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SubscriptionData'
+      additionalProperties: false
+    LeaderSubscriberListSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/LeaderSubscriberListData'
+        traceId:
+          type: string
+      additionalProperties: false
+    LeaderSubscriberListData:
+      type: object
+      required:
+        - items
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderSubscriberData'
+        total:
+          type: integer
+          format: int64
+      additionalProperties: false
+    LeaderSubscriberData:
+      type: object
+      required:
+        - subscriptionId
+        - userId
+      properties:
+        subscriptionId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        userId:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        nickname:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+        subscribedAt:
+          type: string
+          nullable: true
       additionalProperties: false
     # ── Member Card ────────────────────────────────────────────────────
     MemberCardListSuccessResponse:

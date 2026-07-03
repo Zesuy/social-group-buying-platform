@@ -40,6 +40,7 @@ export type {
   OrderItemData,
   OrderActionResult,
   OrderPreviewData,
+  AvailableCouponData,
   OrderPreviewAddress,
   OrderPreviewItem,
   OrderPreviewRequest,
@@ -75,6 +76,8 @@ export type {
   ShipResponse,
   SubscriptionListItem,
   SubscriptionListResponse,
+  LeaderSubscriberData,
+  LeaderSubscriberListResponse,
   MemberCardData,
   MemberCardListResponse,
 } from './api'
