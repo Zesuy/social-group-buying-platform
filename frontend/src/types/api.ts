@@ -135,6 +135,8 @@ export interface GroupBuyDetail {
   endTime: string | null
   visibility: string
   status: string
+  galleryImageUrls?: string[]
+  contentBlocks?: ContentBlockData[]
 }
 
 export interface GroupBuyDetailData {
@@ -142,7 +144,17 @@ export interface GroupBuyDetailData {
   leader: LeaderDetail
   store: StoreDetail
   items: PublicGroupBuyDetailItem[]
+  featuredItem?: PublicGroupBuyDetailItem | null
   viewer: ViewerInfo
+}
+
+export interface ContentBlockData {
+  type: 'paragraph' | 'section' | 'image' | 'list' | 'deliveryNote' | string
+  text?: string | null
+  title?: string | null
+  url?: string | null
+  caption?: string | null
+  items?: string[] | null
 }
 
 export interface LeaderDetail {
@@ -171,6 +183,17 @@ export interface PublicGroupBuyDetailItem {
   soldCount: number
   sortOrder: number
   coverImageUrl: string | null
+  product?: ProductSummaryData | null
+}
+
+export interface ProductSummaryData {
+  id: string
+  name: string
+  description: string | null
+  coverImageUrl: string | null
+  detailImageUrls: string[]
+  basePriceAmount: number | null
+  status: string
 }
 
 export interface ViewerInfo {

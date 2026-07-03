@@ -21,6 +21,7 @@
 |---|---|
 | `docs/dev/backend-tech-stack.md` | 后端技术栈、包结构、响应、错误码、认证、金额、状态、迁移约定 |
 | `docs/dev/h5-style-guide.md` | H5 移动端风格和 Vant 使用口径 |
+| `docs/dev/frontend-ai-workflow.md` | 前端页面级 AI 工作流：需求澄清、技术方案、实现验收 |
 | `docs/dev/testing-rules.md` | MockMvc、Service、事务、异常、权限、快照、库存等测试规则 |
 | `docs/dev/integration-maintenance.md` | 每个 batch 完成后如何更新联调文档 |
 
