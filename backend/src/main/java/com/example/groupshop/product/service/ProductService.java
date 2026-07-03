@@ -19,10 +19,12 @@ import com.example.groupshop.product.dto.CreateProductRequest;
 import com.example.groupshop.product.dto.ProductResponse;
 import com.example.groupshop.product.dto.ProductUsageResponse;
 import com.example.groupshop.product.dto.UpdateProductRequest;
+import com.example.groupshop.upload.service.UploadAssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,6 +41,7 @@ public class ProductService {
     private final CurrentStoreHelper currentStoreHelper;
     private final CategoryService categoryService;
     private final ContentValidationUtil contentValidationUtil;
+    private final UploadAssetService uploadAssetService;
 
     /**
      * Create a product for the current user's store.
@@ -65,6 +68,7 @@ public class ProductService {
         product.setCategoryId(request.getCategoryId());
         product.setStatus("active");
         productMapper.insert(product);
+        registerProductImageReferences(product);
 
         return toProductResponse(product);
     }
@@ -147,6 +151,14 @@ public class ProductService {
         }
 
         productMapper.updateById(product);
+        if (request.getCoverImageUrl() != null) {
+            uploadAssetService.replaceReferences("product", product.getId(), "coverImageUrl",
+                    Collections.singletonList(product.getCoverImageUrl()));
+        }
+        if (request.getDetailImageUrls() != null) {
+            uploadAssetService.replaceReferences("product", product.getId(), "detailImageUrls",
+                    contentValidationUtil.deserializeImageUrls(product.getDetailImageUrls()));
+        }
         return toProductResponse(product);
     }
 
@@ -241,5 +253,12 @@ public class ProductService {
                 .status(product.getStatus())
                 .detailImageUrls(contentValidationUtil.deserializeImageUrls(product.getDetailImageUrls()))
                 .build();
+    }
+
+    private void registerProductImageReferences(Product product) {
+        uploadAssetService.registerReferences("product", product.getId(), "coverImageUrl",
+                Collections.singletonList(product.getCoverImageUrl()));
+        uploadAssetService.registerReferences("product", product.getId(), "detailImageUrls",
+                contentValidationUtil.deserializeImageUrls(product.getDetailImageUrls()));
     }
 }

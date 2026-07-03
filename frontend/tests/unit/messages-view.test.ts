@@ -1,54 +1,138 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import MessagesView from '@/views/MessagesView.vue'
+import {
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '@/api/notifications'
+import type { NotificationData } from '@/types'
 
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes: [
-    { path: '/messages', name: 'messages', component: { template: '<div>消息</div>' }, meta: { showTabBar: true } },
-  ],
+vi.mock('@/api/notifications', () => ({
+  listNotifications: vi.fn(),
+  getUnreadCount: vi.fn().mockResolvedValue({ unreadCount: 2 }),
+  markNotificationRead: vi.fn(),
+  markAllNotificationsRead: vi.fn(),
+}))
+
+vi.mock('vant', async () => {
+  const actual = await vi.importActual<typeof import('vant')>('vant')
+  return {
+    ...actual,
+    showToast: vi.fn(),
+  }
 })
+
+const unreadNotification: NotificationData = {
+  id: '9001',
+  type: 'order_shipped',
+  title: '发货通知',
+  summary: '团长已填写物流：顺丰速运 SF1234567890。',
+  body: null,
+  targetType: 'order',
+  targetId: '3001',
+  actionUrl: '/orders/3001',
+  readStatus: 'unread',
+  readAt: null,
+  createdAt: '2026-07-03T10:00:00',
+}
+
+function createTestRouter() {
+  return createRouter({
+    history: createWebHashHistory(),
+    routes: [
+      { path: '/', name: 'index', component: { template: '<div>首页</div>' } },
+      { path: '/messages', name: 'messages', component: MessagesView, meta: { showTabBar: true } },
+      { path: '/orders/:id', name: 'orderDetail', component: { template: '<div>订单详情</div>' } },
+    ],
+  })
+}
 
 describe('MessagesView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.mocked(listNotifications).mockReset()
+    vi.mocked(markNotificationRead).mockReset()
+    vi.mocked(markAllNotificationsRead).mockReset()
+    vi.mocked(listNotifications).mockResolvedValue({
+      items: [unreadNotification],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      hasMore: false,
+    })
   })
 
-  it('should render placeholder messages', () => {
+  it('loads notifications from API', async () => {
+    const router = createTestRouter()
     const wrapper = mount(MessagesView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
 
-    expect(wrapper.text()).toContain('订单待发货提醒')
-    expect(wrapper.text()).toContain('物流更新')
+    await flushPromises()
+
+    expect(listNotifications).toHaveBeenCalledWith({ page: 1, pageSize: 20 })
+    expect(wrapper.text()).toContain('发货通知')
+    expect(wrapper.text()).toContain('团长已填写物流')
   })
 
-  it('should show reminder banner', () => {
+  it('filters unread notifications from tab', async () => {
+    const router = createTestRouter()
     const wrapper = mount(MessagesView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
+    await flushPromises()
 
-    expect(wrapper.text()).toContain('不请求消息或推送接口')
+    await wrapper.findAll('.app-tabs__item')[1].trigger('click')
+    await flushPromises()
+
+    expect(listNotifications).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, unreadOnly: true })
   })
 
-  it('should not invoke any API', () => {
-    // 通过检查没有外部 API 调用来验证消息页不请求接口
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+  it('marks unread notification as read before opening action url', async () => {
+    const router = createTestRouter()
+    await router.push('/messages')
+    vi.mocked(markNotificationRead).mockResolvedValue({
+      ...unreadNotification,
+      readStatus: 'read',
+      readAt: '2026-07-03T10:01:00',
+    })
 
-    mount(MessagesView, {
+    const wrapper = mount(MessagesView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
+    await flushPromises()
 
-    // 消息页自身不应发起任何 fetch 请求
-    expect(fetchSpy).not.toHaveBeenCalled()
-    fetchSpy.mockRestore()
+    await wrapper.findComponent({ name: 'NotificationListItem' }).vm.$emit('open', unreadNotification)
+    await flushPromises()
+
+    expect(markNotificationRead).toHaveBeenCalledWith('9001')
+    expect(router.currentRoute.value.fullPath).toBe('/orders/3001')
+  })
+
+  it('marks all visible notifications as read', async () => {
+    const router = createTestRouter()
+    vi.mocked(markAllNotificationsRead).mockResolvedValue()
+
+    const wrapper = mount(MessagesView, {
+      global: {
+        plugins: [router, createPinia()],
+      },
+    })
+    await flushPromises()
+
+    await wrapper.find('.messages-toolbar__read-all').trigger('click')
+    await flushPromises()
+
+    expect(markAllNotificationsRead).toHaveBeenCalled()
+    expect(wrapper.find('.notification-item__dot').exists()).toBe(false)
   })
 })

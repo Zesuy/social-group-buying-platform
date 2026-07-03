@@ -12,6 +12,7 @@
       :key="tab.to"
       :to="tab.to"
       :icon="tab.icon"
+      :badge="getTabBadge(tab)"
     >
       {{ tab.label }}
     </van-tabbar-item>
@@ -23,6 +24,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores'
+import { useNotificationPolling } from '@/composables'
 
 interface TabItem {
   to: string
@@ -35,12 +37,13 @@ const tabs: TabItem[] = [
   { to: '/', icon: 'home-o', label: '首页' },
   { to: '/orders', icon: 'orders-o', label: '订单', requiresAuth: true },
   { to: '/open-group', icon: 'add-square', label: '开团', requiresAuth: true },
-  { to: '/messages', icon: 'chat-o', label: '消息' },
+  { to: '/messages', icon: 'chat-o', label: '消息', requiresAuth: true },
   { to: '/profile', icon: 'contact-o', label: '我的', requiresAuth: true },
 ]
 
 const route = useRoute()
 const authStore = useAuthStore()
+const { unreadCount } = useNotificationPolling()
 
 const active = computed(() => {
   const idx = tabs.findIndex((t) => t.to === route.path)
@@ -53,5 +56,10 @@ function onChange(index: number) {
   if (tab.requiresAuth && !authStore.isLoggedIn) {
     showToast('请先登录')
   }
+}
+
+function getTabBadge(tab: TabItem) {
+  if (tab.to !== '/messages' || unreadCount.value <= 0) return undefined
+  return unreadCount.value > 99 ? '99+' : String(unreadCount.value)
 }
 </script>

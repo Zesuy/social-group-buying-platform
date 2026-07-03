@@ -2,6 +2,7 @@ package com.example.groupshop.upload.service;
 
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
+import com.example.groupshop.model.entity.UploadAsset;
 import com.example.groupshop.upload.config.UploadProperties;
 import com.example.groupshop.upload.dto.ImageUploadResponse;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +32,9 @@ public class ImageUploadService {
     );
 
     private final UploadProperties uploadProperties;
+    private final UploadAssetService uploadAssetService;
 
-    public ImageUploadResponse uploadImage(MultipartFile file) {
+    public ImageUploadResponse uploadImage(Long userId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "上传图片不能为空");
         }
@@ -65,12 +67,24 @@ public class ImageUploadService {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "图片保存失败");
         }
 
+        String publicUrl = buildPublicUrl(objectKey);
+        UploadAsset asset = uploadAssetService.recordUpload(
+                userId,
+                objectKey,
+                publicUrl,
+                normalizeOriginalFilename(file.getOriginalFilename()),
+                contentType,
+                file.getSize(),
+                bytes);
+
         return ImageUploadResponse.builder()
-                .url(buildPublicUrl(objectKey))
+                .assetId(asset.getId())
+                .url(publicUrl)
                 .objectKey(objectKey)
-                .originalFilename(normalizeOriginalFilename(file.getOriginalFilename()))
+                .originalFilename(asset.getOriginalFilename())
                 .contentType(contentType)
                 .size(file.getSize())
+                .status(asset.getStatus())
                 .build();
     }
 

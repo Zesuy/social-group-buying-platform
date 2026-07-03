@@ -36,17 +36,44 @@ export interface EmptySuccessResponse {
 
 /** 图片上传响应数据 */
 export interface ImageUploadData {
+  assetId?: string
   url: string
   objectKey: string
   originalFilename: string
   contentType: 'image/jpeg' | 'image/png' | 'image/webp'
   size: number
+  status?: 'temporary' | 'in_use' | 'deleted'
 }
 
 /** 分页查询参数 */
 export interface PaginationParams {
   page?: number
   pageSize?: number
+}
+
+// ── 站内通知 ──
+
+export interface NotificationData {
+  id: string
+  type: 'order_paid' | 'order_shipped' | 'order_completed' | 'group_buy_published' | 'subscription_created' | string
+  title: string
+  summary: string
+  body?: string | null
+  targetType: 'order' | 'group_buy' | 'leader' | 'store' | string
+  targetId: string
+  actionUrl: string
+  readStatus: 'unread' | 'read'
+  readAt?: string | null
+  createdAt: string
+}
+
+export interface NotificationListParams extends PaginationParams {
+  type?: string
+  unreadOnly?: boolean
+}
+
+export interface UnreadCountData {
+  unreadCount: number
 }
 
 // ── 认证与用户 ──

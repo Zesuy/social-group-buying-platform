@@ -633,11 +633,13 @@ Content-Type: multipart/form-data
 {
   "success": true,
   "data": {
+    "assetId": "2071642363297644546",
     "url": "http://localhost:8080/uploads/images/2026/07/uuid.png",
     "objectKey": "images/2026/07/uuid.png",
     "originalFilename": "cover.png",
     "contentType": "image/png",
-    "size": 123456
+    "size": 123456,
+    "status": "temporary"
   },
   "traceId": "req_001"
 }
@@ -647,7 +649,9 @@ Content-Type: multipart/form-data
 
 - 第一版使用本地磁盘存储，返回公开可访问 URL。
 - 上传成功后，前端将 `url` 写入现有 `logoUrl` / `coverImageUrl` 字段。
-- 当前不实现视频、素材库、图片删除、私有访问、压缩裁剪。
+- P1 Batch 08 起，上传成功同时登记 `upload_assets`，图片在业务对象保存成功后登记引用。
+- 当前不实现视频、素材库、私有访问、压缩裁剪。
+- 图片清理只删除超期且无引用的本地上传资产，不删除已被店铺、商品、团购内容或通知引用的图片。
 
 端点错误码：
 
@@ -656,6 +660,98 @@ Content-Type: multipart/form-data
 | `UNAUTHORIZED` | 未登录 |
 | `VALIDATION_ERROR` | 空文件、超过 5MB、文件类型不支持或文件内容与类型不匹配 |
 | `INTERNAL_ERROR` | 图片保存失败 |
+
+---
+
+## 6.5 站内通知 API（P1 Batch 08）
+
+站内通知用于消息页轮询展示订单、物流、订阅和开团事件，不等同于公众号推送或微信服务通知。
+
+### 我的通知列表
+
+```http
+GET /api/v1/my/notifications?page=1&pageSize=20&type=order_shipped&unreadOnly=true
+```
+
+登录：需要。
+
+查询参数：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| page | number | 页码，默认 1 |
+| pageSize | number | 每页数量，默认 20 |
+| type | string | 可选，通知类型 |
+| unreadOnly | boolean | 可选，仅看未读 |
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "2071642363297644546",
+        "type": "order_shipped",
+        "title": "发货通知",
+        "summary": "团长已填写物流：顺丰速运 SF1234567890。",
+        "targetType": "order",
+        "targetId": "2071642363297644547",
+        "actionUrl": "/orders/2071642363297644547",
+        "readStatus": "unread",
+        "createdAt": "2026-07-03T12:00:00+08:00"
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "hasMore": false
+  },
+  "traceId": "req_001"
+}
+```
+
+### 未读数
+
+```http
+GET /api/v1/my/notifications/unread-count
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "unreadCount": 3
+  },
+  "traceId": "req_001"
+}
+```
+
+### 通知详情和已读
+
+```http
+GET /api/v1/my/notifications/{notificationId}
+POST /api/v1/my/notifications/{notificationId}/read
+POST /api/v1/my/notifications/read-all
+```
+
+权限：
+
+- 只能查看和标记自己的通知。
+- 非接收人访问返回 `NOTIFICATION_FORBIDDEN` 或通用权限错误。
+
+通知类型：
+
+| 类型 | 触发事件 |
+|---|---|
+| `order_paid` | 买家模拟支付成功 |
+| `order_shipped` | 团长发货成功 |
+| `order_completed` | 买家确认收货 |
+| `subscription_created` | 用户订阅团长 |
+| `group_buy_published` | 团长发布团购，通知活跃订阅用户 |
 
 ---
 
@@ -2470,9 +2566,11 @@ POST /api/v1/my/store/after-sales/{afterSaleId}/complete-refund
 | 售后退款 | P1 | MVP 只预留状态 |
 | 隐私权限细分 | P1 | MVP 默认公开团购 |
 | 分享海报 | P1 | MVP 可使用普通分享链接 |
+| 站内通知 | P1 | 不依赖外部平台，可通过轮询展示通知和未读数 |
 | 帮卖分销 | P2 | 不设计佣金和结算 |
 | 积分商城 | P2 | 不设计积分账户和兑换 |
 | 公众号推送 | P2 | 不设计真实触达 |
+| 商家用户聊天 | P2 | 不在站内通知批次中实现 |
 | 平台管理后台 | P2 | 不设计后台 API |
 
 ---

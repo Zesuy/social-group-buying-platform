@@ -69,6 +69,10 @@ public enum ErrorCode {
     AFTER_SALE_NOT_APPROVABLE(422, "AFTER_SALE_NOT_APPROVABLE", "当前售后单不可审核通过"),
     AFTER_SALE_NOT_REJECTABLE(422, "AFTER_SALE_NOT_REJECTABLE", "当前售后单不可拒绝"),
     AFTER_SALE_NOT_REFUNDABLE(422, "AFTER_SALE_NOT_REFUNDABLE", "当前售后单不可退款"),
+
+    // ── Notification errors ─────────────────────────────────────────────
+    NOTIFICATION_NOT_FOUND(404, "NOTIFICATION_NOT_FOUND", "通知不存在"),
+    NOTIFICATION_FORBIDDEN(403, "NOTIFICATION_FORBIDDEN", "不能操作他人通知"),
     ;
 
     private final int httpStatus;

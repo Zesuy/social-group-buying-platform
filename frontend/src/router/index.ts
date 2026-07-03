@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
     path: '/messages',
     name: 'messages',
     component: () => import('@/views/MessagesView.vue'),
-    meta: { title: '消息', showTabBar: true },
+    meta: { title: '消息', showTabBar: true, requiresAuth: true },
   },
   {
     path: '/profile',

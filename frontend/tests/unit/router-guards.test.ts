@@ -106,12 +106,13 @@ describe('Router guards', () => {
     expect(router.currentRoute.value.name).toBe('orders')
   })
 
-  it('should allow /messages without authentication', async () => {
+  it('should redirect /messages to /login when not authenticated', async () => {
     const router = await setupRouter()
     await router.push('/messages')
     await router.isReady()
 
-    expect(router.currentRoute.value.name).toBe('messages')
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/messages')
   })
 
   it('should allow /profile without authentication (now public)', async () => {
