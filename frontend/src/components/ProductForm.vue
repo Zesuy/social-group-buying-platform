@@ -13,7 +13,13 @@
     </div>
     <div class="field">
       <label>封面图</label>
-      <input v-model="form.coverImageUrl" class="input" placeholder="可选，输入图片 URL" />
+      <ImageUploader
+        v-model="form.coverImageUrl"
+        :disabled="submitting"
+        :preview-alt="form.name || '商品封面'"
+        demo-kind="product"
+        placeholder="可选，输入或上传商品封面"
+      />
       <span></span>
     </div>
     <div class="field">
@@ -38,6 +44,7 @@
 <script setup lang="ts">
 import { reactive, computed, watch } from 'vue'
 import { amountToYuan, getDemoProductImage } from '@/utils'
+import ImageUploader from './ImageUploader.vue'
 import type { ProductData } from '@/types'
 
 const props = withDefaults(defineProps<{

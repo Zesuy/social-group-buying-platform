@@ -167,6 +167,25 @@ async function mockEndpoints(page: Page) {
       })
     }
   })
+
+  // POST /api/v1/my/uploads/images
+  await page.route('**/api/v1/my/uploads/images', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          url: 'http://localhost:8080/uploads/images/e2e-logo.png',
+          objectKey: 'images/e2e-logo.png',
+          originalFilename: 'e2e-logo.png',
+          contentType: 'image/png',
+          size: 9,
+        },
+        traceId: 'e2e_upload',
+      }),
+    })
+  })
 }
 
 test.describe('Profile and store E2E', () => {
@@ -325,5 +344,51 @@ test.describe('Profile and store E2E', () => {
 
     // Should see save button in edit mode
     await expect(page.locator('button:has-text("保存")')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('leader store page uploads logo and saves returned url', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token_leader_store'))
+    await navigateToHash(page, '/leader/store')
+    await page.waitForTimeout(2000)
+
+    let patchedLogoUrl = ''
+    await page.route('**/api/v1/my/store', async (route, request) => {
+      if (request.method() === 'PATCH') {
+        const body = request.postDataJSON()
+        patchedLogoUrl = body.logoUrl
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            data: {
+              leader: { id: 10, displayName: body.name || '王姐鲜果团', avatarUrl: body.logoUrl },
+              store: {
+                id: 20, leaderId: 10, name: body.name || '王姐社区鲜果店',
+                logoUrl: body.logoUrl, description: body.description,
+                defaultDeliveryType: body.defaultDeliveryType || 'local_delivery',
+                distributionEnabled: false, status: 'active',
+              },
+            },
+            traceId: 'e2e_store_patch_upload',
+          }),
+        })
+        return
+      }
+      await route.fallback()
+    })
+
+    await page.locator('button:has-text("编辑资料")').click()
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'e2e-logo.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
+    })
+
+    const logoInput = page.locator('input[placeholder="Logo URL（选填，可上传）"]')
+    await expect(logoInput).toHaveValue('http://localhost:8080/uploads/images/e2e-logo.png')
+
+    await page.locator('button:has-text("保存")').click()
+    await expect.poll(() => patchedLogoUrl).toBe('http://localhost:8080/uploads/images/e2e-logo.png')
   })
 })
