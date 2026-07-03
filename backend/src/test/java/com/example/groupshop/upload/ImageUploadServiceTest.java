@@ -1,9 +1,11 @@
 package com.example.groupshop.upload;
 
 import com.example.groupshop.common.exception.BusinessException;
+import com.example.groupshop.model.entity.UploadAsset;
 import com.example.groupshop.upload.config.UploadProperties;
 import com.example.groupshop.upload.dto.ImageUploadResponse;
 import com.example.groupshop.upload.service.ImageUploadService;
+import com.example.groupshop.upload.service.UploadAssetService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
@@ -13,6 +15,10 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ImageUploadServiceTest {
 
@@ -33,14 +39,16 @@ class ImageUploadServiceTest {
                 PNG_BYTES
         );
 
-        ImageUploadResponse response = service.uploadImage(file);
+        ImageUploadResponse response = service.uploadImage(101L, file);
 
+        assertThat(response.getAssetId()).isEqualTo(9001L);
         assertThat(response.getUrl()).startsWith("http://localhost:8080/uploads/images/");
         assertThat(response.getObjectKey()).startsWith("images/");
         assertThat(response.getObjectKey()).endsWith(".png");
         assertThat(response.getOriginalFilename()).isEqualTo("avatar.png");
         assertThat(response.getContentType()).isEqualTo("image/png");
         assertThat(response.getSize()).isEqualTo(PNG_BYTES.length);
+        assertThat(response.getStatus()).isEqualTo("temporary");
         assertThat(Files.exists(tempDir.resolve(response.getObjectKey()))).isTrue();
     }
 
@@ -49,7 +57,7 @@ class ImageUploadServiceTest {
         ImageUploadService service = newService(tempDir);
         MockMultipartFile file = new MockMultipartFile("file", "empty.png", "image/png", new byte[0]);
 
-        assertThatThrownBy(() -> service.uploadImage(file))
+        assertThatThrownBy(() -> service.uploadImage(101L, file))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("上传图片不能为空");
     }
@@ -59,7 +67,7 @@ class ImageUploadServiceTest {
         ImageUploadService service = newService(tempDir);
         MockMultipartFile file = new MockMultipartFile("file", "file.txt", "text/plain", "hello".getBytes());
 
-        assertThatThrownBy(() -> service.uploadImage(file))
+        assertThatThrownBy(() -> service.uploadImage(101L, file))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("仅支持");
     }
@@ -69,7 +77,7 @@ class ImageUploadServiceTest {
         ImageUploadService service = newService(tempDir);
         MockMultipartFile file = new MockMultipartFile("file", "bad.png", "image/png", "not-a-png".getBytes());
 
-        assertThatThrownBy(() -> service.uploadImage(file))
+        assertThatThrownBy(() -> service.uploadImage(101L, file))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("内容与类型不匹配");
     }
@@ -84,7 +92,7 @@ class ImageUploadServiceTest {
                 new byte[(int) ImageUploadService.MAX_IMAGE_SIZE_BYTES + 1]
         );
 
-        assertThatThrownBy(() -> service.uploadImage(file))
+        assertThatThrownBy(() -> service.uploadImage(101L, file))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("图片大小不能超过 5MB");
     }
@@ -96,7 +104,7 @@ class ImageUploadServiceTest {
         ImageUploadService service = newService(fileAsDir);
         MockMultipartFile file = new MockMultipartFile("file", "ok.png", "image/png", PNG_BYTES);
 
-        assertThatThrownBy(() -> service.uploadImage(file))
+        assertThatThrownBy(() -> service.uploadImage(101L, file))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("图片保存失败");
     }
@@ -105,6 +113,19 @@ class ImageUploadServiceTest {
         UploadProperties properties = new UploadProperties();
         properties.setLocalDir(localDir);
         properties.setPublicBaseUrl("http://localhost:8080/uploads");
-        return new ImageUploadService(properties);
+        UploadAssetService uploadAssetService = mock(UploadAssetService.class);
+        when(uploadAssetService.recordUpload(anyLong(), any(), any(), any(), any(), anyLong(), any()))
+                .thenAnswer(invocation -> {
+                    UploadAsset asset = new UploadAsset();
+                    asset.setId(9001L);
+                    asset.setObjectKey(invocation.getArgument(1));
+                    asset.setUrl(invocation.getArgument(2));
+                    asset.setOriginalFilename(invocation.getArgument(3));
+                    asset.setContentType(invocation.getArgument(4));
+                    asset.setSizeBytes(invocation.getArgument(5));
+                    asset.setStatus("temporary");
+                    return asset;
+                });
+        return new ImageUploadService(properties, uploadAssetService);
     }
 }

@@ -7,6 +7,8 @@ import lombok.Data;
 @Builder
 public class ImageUploadResponse {
 
+    private Long assetId;
+
     private String url;
 
     private String objectKey;
@@ -16,4 +18,6 @@ public class ImageUploadResponse {
     private String contentType;
 
     private long size;
+
+    private String status;
 }

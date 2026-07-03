@@ -31,6 +31,7 @@ import com.example.groupshop.model.mapper.MemberRelationMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.OrderMapper;
 import com.example.groupshop.model.mapper.ProductMapper;
+import com.example.groupshop.notification.service.NotificationService;
 import com.example.groupshop.order.dto.CreateOrderRequest;
 import com.example.groupshop.order.dto.OrderItemEntry;
 import com.example.groupshop.order.dto.OrderPreviewRequest;
@@ -76,6 +77,7 @@ public class OrderService {
     private final CouponService couponService;
     private final MemberLevelRuleService memberLevelRuleService;
     private final AfterSaleMapper afterSaleMapper;
+    private final NotificationService notificationService;
 
     private static final String DB_STATUS_PENDING_PAY = "pending_pay";
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
@@ -537,6 +539,7 @@ public class OrderService {
 
         // Create or update member relation with payAmount
         upsertMemberRelation(order, now);
+        notificationService.notifyOrderPaid(order, userId);
 
         return toOrderResponseWithItems(order);
     }
@@ -594,6 +597,7 @@ public class OrderService {
         }
         order.setOrderStatus("completed");
         order.setCompletedAt(now);
+        notificationService.notifyOrderCompleted(order, userId);
 
         return toOrderResponseWithItems(order);
     }

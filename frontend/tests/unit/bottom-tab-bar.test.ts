@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import BottomTabBar from '@/components/BottomTabBar.vue'
 import { useAuthStore } from '@/stores'
 import { showToast } from 'vant'
+import { getUnreadCount } from '@/api/notifications'
 
 vi.mock('vant', async () => {
   const actual = await vi.importActual<typeof import('vant')>('vant')
@@ -13,6 +14,10 @@ vi.mock('vant', async () => {
     showToast: vi.fn(),
   }
 })
+
+vi.mock('@/api/notifications', () => ({
+  getUnreadCount: vi.fn(),
+}))
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -29,6 +34,8 @@ describe('BottomTabBar', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.mocked(showToast).mockClear()
+    vi.mocked(getUnreadCount).mockReset()
+    vi.mocked(getUnreadCount).mockResolvedValue({ unreadCount: 0 })
   })
 
   it('should render 5 tabs', () => {
@@ -83,6 +90,50 @@ describe('BottomTabBar', () => {
     })
 
     await wrapper.findComponent({ name: 'VanTabbar' }).vm.$emit('change', 1)
+    expect(showToast).toHaveBeenCalledWith('请先登录')
+  })
+
+  it('should show unread badge on messages tab when authenticated', async () => {
+    vi.mocked(getUnreadCount).mockResolvedValue({ unreadCount: 7 })
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const authStore = useAuthStore()
+    authStore.accessToken = 'valid_token'
+    authStore.user = {
+      id: '1',
+      nickname: '买家用户',
+      avatarUrl: null,
+      phone: '13800000000',
+      hasLeader: false,
+      leaderId: null,
+      storeId: null,
+    }
+
+    const wrapper = mount(BottomTabBar, {
+      global: {
+        plugins: [router, pinia],
+      },
+    })
+
+    await flushPromises()
+
+    const items = wrapper.findAllComponents({ name: 'VanTabbarItem' })
+    expect(items[3].props('badge')).toBe('7')
+  })
+
+  it('should show login toast when unauthenticated messages tab is selected', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const authStore = useAuthStore()
+    authStore.logout()
+
+    const wrapper = mount(BottomTabBar, {
+      global: {
+        plugins: [router, pinia],
+      },
+    })
+
+    await wrapper.findComponent({ name: 'VanTabbar' }).vm.$emit('change', 3)
     expect(showToast).toHaveBeenCalledWith('请先登录')
   })
 })

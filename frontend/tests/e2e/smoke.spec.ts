@@ -69,6 +69,59 @@ async function mockAuthEndpoints(page: Page) {
     }
   })
 
+  await page.route('**/api/v1/my/notifications/unread-count', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: { unreadCount: 1 },
+        traceId: 'e2e_notifications_count',
+      }),
+    })
+  })
+
+  await page.route('**/api/v1/my/notifications**', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: null, traceId: 'e2e_notifications_write' }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          items: [
+            {
+              id: 9001,
+              type: 'order_shipped',
+              title: '发货通知',
+              summary: '团长已填写物流：顺丰速运 SF1234567890。',
+              body: null,
+              targetType: 'order',
+              targetId: 3001,
+              actionUrl: '/orders/3001',
+              readStatus: 'unread',
+              readAt: null,
+              createdAt: '2026-07-03T10:00:00',
+            },
+          ],
+          page: 1,
+          pageSize: 20,
+          total: 1,
+          hasMore: false,
+        },
+        traceId: 'e2e_notifications_list',
+      }),
+    })
+  })
+
   // Mock POST /api/v1/auth/mock-login
   await page.route('**/api/v1/auth/mock-login', async (route) => {
     const body = route.request().postDataJSON()
@@ -187,10 +240,15 @@ test.describe('App smoke test', () => {
     await expect(page).toHaveURL(/#\/profile/, { timeout: 8000 })
   })
 
-  test('should show messages tab with placeholder messages', async ({ page }) => {
+  test('should show authenticated notification messages', async ({ page }) => {
+    await page.goto('/')
+    await page.evaluate(() => {
+      localStorage.setItem('accessToken', 'mock_token_e2e_test')
+    })
+    await page.reload()
     await navigateToHash(page, '/messages')
 
-    // Check placeholder messages are shown
-    await expect(page.locator('text=订单待发货提醒')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=发货通知')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=团长已填写物流')).toBeVisible()
   })
 })

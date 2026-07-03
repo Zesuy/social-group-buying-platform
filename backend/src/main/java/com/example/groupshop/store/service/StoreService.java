@@ -10,6 +10,7 @@ import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.store.dto.CreateStoreRequest;
 import com.example.groupshop.store.dto.StoreResponse;
 import com.example.groupshop.store.dto.UpdateStoreRequest;
+import com.example.groupshop.upload.service.UploadAssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class StoreService {
 
     private final LeaderMapper leaderMapper;
     private final StoreMapper storeMapper;
+    private final UploadAssetService uploadAssetService;
 
     /**
      * Create a store for the current user.
@@ -96,6 +98,7 @@ public class StoreService {
         store.setLatitude(request.getLatitude());
         store.setLongitude(request.getLongitude());
         storeMapper.insert(store);
+        registerStoreImageReferences(leader, store);
 
         return buildStoreResponse(leader, store);
     }
@@ -187,6 +190,10 @@ public class StoreService {
         if (leaderChanged) {
             leaderMapper.updateById(leader);
         }
+        if (request.getLogoUrl() != null) {
+            uploadAssetService.replaceReferences("store", store.getId(), "logoUrl", java.util.Collections.singletonList(store.getLogoUrl()));
+            uploadAssetService.replaceReferences("leader", leader.getId(), "avatarUrl", java.util.Collections.singletonList(leader.getAvatarUrl()));
+        }
 
         return buildStoreResponse(leader, store);
     }
@@ -215,5 +222,10 @@ public class StoreService {
                 .latitude(store.getLatitude())
                 .longitude(store.getLongitude())
                 .build();
+    }
+
+    private void registerStoreImageReferences(Leader leader, Store store) {
+        uploadAssetService.registerReferences("store", store.getId(), "logoUrl", java.util.Collections.singletonList(store.getLogoUrl()));
+        uploadAssetService.registerReferences("leader", leader.getId(), "avatarUrl", java.util.Collections.singletonList(leader.getAvatarUrl()));
     }
 }

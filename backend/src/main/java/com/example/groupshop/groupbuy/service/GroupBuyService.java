@@ -24,6 +24,7 @@ import com.example.groupshop.groupbuy.dto.ShareCardResponse;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyPermissionRequest;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyRequest.UpdateItemEntry;
+import com.example.groupshop.notification.service.NotificationService;
 import com.example.groupshop.model.entity.GroupBuy;
 import com.example.groupshop.model.entity.GroupBuyItem;
 import com.example.groupshop.model.entity.Leader;
@@ -47,6 +48,7 @@ import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem.LeaderLite;
 import com.example.groupshop.publicbrowsing.dto.PublicGroupBuyItem.StoreLite;
 import com.example.groupshop.publicbrowsing.dto.ViewerInfo;
 import com.example.groupshop.subscription.service.SubscriptionService;
+import com.example.groupshop.upload.service.UploadAssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +58,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -81,6 +84,8 @@ public class GroupBuyService {
     private final BrowsingHistoryService browsingHistoryService;
     private final GroupBuyShareTokenMapper groupBuyShareTokenMapper;
     private final ContentValidationUtil contentValidationUtil;
+    private final UploadAssetService uploadAssetService;
+    private final NotificationService notificationService;
 
     // ── Create ────────────────────────────────────────────────────────
 
@@ -154,6 +159,7 @@ public class GroupBuyService {
         groupBuy.setEndTime(endTime);
         groupBuy.setStatus("published");
         groupBuyMapper.insert(groupBuy);
+        registerGroupBuyImageReferences(groupBuy);
 
         List<GroupBuyItemData> itemResponses = new ArrayList<>();
         for (int i = 0; i < request.getItems().size(); i++) {
@@ -175,10 +181,12 @@ public class GroupBuyService {
             itemResponses.add(toItemData(item));
         }
 
-        return GroupBuyResponse.builder()
+        GroupBuyResponse response = GroupBuyResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
                 .items(itemResponses)
                 .build();
+        notificationService.notifyGroupBuyPublished(groupBuy, userId);
+        return response;
     }
 
     // ── List (my store) ───────────────────────────────────────────────
@@ -309,6 +317,18 @@ public class GroupBuyService {
             validateEndTimeAfterStart(start, end);
         }
         groupBuyMapper.updateById(groupBuy);
+        if (request.getCoverImageUrl() != null) {
+            uploadAssetService.replaceReferences("group_buy", groupBuy.getId(), "coverImageUrl",
+                    Collections.singletonList(groupBuy.getCoverImageUrl()));
+        }
+        if (request.getGalleryImageUrls() != null) {
+            uploadAssetService.replaceReferences("group_buy", groupBuy.getId(), "galleryImageUrls",
+                    contentValidationUtil.deserializeImageUrls(groupBuy.getGalleryImageUrls()));
+        }
+        if (request.getContentBlocks() != null) {
+            uploadAssetService.replaceReferences("group_buy_content", groupBuy.getId(), "contentBlocks",
+                    extractContentBlockImageUrls(groupBuy));
+        }
 
         // ── Item updates ────────────────────────────────────────────
         if (request.getItems() != null && !request.getItems().isEmpty()) {
@@ -500,6 +520,7 @@ public class GroupBuyService {
         groupBuy.setEndTime(parseIsoDateTime(request.getEndTime()));
         groupBuy.setStatus("draft");
         groupBuyMapper.insert(groupBuy);
+        registerGroupBuyImageReferences(groupBuy);
 
         List<GroupBuyItemData> itemResponses = new ArrayList<>();
         for (int i = 0; i < request.getItems().size(); i++) {
@@ -590,6 +611,7 @@ public class GroupBuyService {
 
         groupBuy.setStatus("published");
         groupBuyMapper.updateById(groupBuy);
+        notificationService.notifyGroupBuyPublished(groupBuy, userId);
 
         return GroupBuyResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
@@ -676,6 +698,7 @@ public class GroupBuyService {
         draft.setVisibility(source.getVisibility());
         draft.setStatus("draft");
         groupBuyMapper.insert(draft);
+        registerGroupBuyImageReferences(draft);
 
         // Copy items with new IDs and reset soldCount
         List<GroupBuyItem> sourceItems = groupBuyItemMapper.selectList(
@@ -1130,6 +1153,7 @@ public class GroupBuyService {
             product.setStock(inlineProduct.getStock());
             product.setStatus("active");
             productMapper.insert(product);
+            registerInlineProductImageReferences(product);
             return product.getId();
         } else {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "每个团购商品必须指定 productId 或 product");
@@ -1314,6 +1338,30 @@ public class GroupBuyService {
         return builder.build();
     }
 
+    private void registerGroupBuyImageReferences(GroupBuy groupBuy) {
+        uploadAssetService.registerReferences("group_buy", groupBuy.getId(), "coverImageUrl",
+                Collections.singletonList(groupBuy.getCoverImageUrl()));
+        uploadAssetService.registerReferences("group_buy", groupBuy.getId(), "galleryImageUrls",
+                contentValidationUtil.deserializeImageUrls(groupBuy.getGalleryImageUrls()));
+        uploadAssetService.registerReferences("group_buy_content", groupBuy.getId(), "contentBlocks",
+                extractContentBlockImageUrls(groupBuy));
+    }
+
+    private List<String> extractContentBlockImageUrls(GroupBuy groupBuy) {
+        return contentValidationUtil.deserializeContentBlocks(groupBuy.getContentBlocks()).stream()
+                .filter(block -> "image".equals(block.getType()))
+                .map(ContentBlockData::getUrl)
+                .filter(url -> url != null && !url.isBlank())
+                .collect(Collectors.toList());
+    }
+
+    private void registerInlineProductImageReferences(Product product) {
+        uploadAssetService.registerReferences("product", product.getId(), "coverImageUrl",
+                Collections.singletonList(product.getCoverImageUrl()));
+        uploadAssetService.registerReferences("product", product.getId(), "detailImageUrls",
+                contentValidationUtil.deserializeImageUrls(product.getDetailImageUrls()));
+    }
+
     // ── Share card helper ───────────────────────────────────────────
 
     private ShareCardResponse buildShareCardResponse(GroupBuy gb, String shareToken) {
@@ -1379,6 +1427,7 @@ public class GroupBuyService {
             product.setStock(inlineProduct.getStock() != null ? inlineProduct.getStock() : 0);
             product.setStatus("active");
             productMapper.insert(product);
+            registerInlineProductImageReferences(product);
             return product.getId();
         } else {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "每个团购商品必须指定 productId 或 product");

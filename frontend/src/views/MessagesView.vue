@@ -1,240 +1,213 @@
 <template>
   <PageLayout show-tab-bar>
     <div class="app-topbar">
-      消息 <span class="badge-num">3</span>
+      消息
+      <span v-if="unreadCount > 0" class="badge-num">{{ unreadCountText }}</span>
     </div>
 
     <AppNoticeStrip
-      text="关注公众号，收到活动和订单、物流通知"
+      text="关注公众号，后续可收到活动、订单和物流通知"
       action-label="关注"
       variant="warning"
       @action="onWechatNoticeClick"
     />
 
-    <div class="msg-tabs">
-      <button
-        v-for="tab in tabs"
-        :key="tab"
-        type="button"
-        :class="['msg-tab', { active: tab === activeTab }]"
-        @click="activeTab = tab"
+    <div class="messages-toolbar">
+      <AppTabs :tabs="tabs" :active="activeTab" scrollable @change="onTabChange" />
+      <AppButton
+        v-if="hasVisibleUnread"
+        class="messages-toolbar__read-all"
+        variant="ghost"
+        icon="passed"
+        :loading="markAllLoading"
+        @click="onMarkAllRead"
       >
-        {{ tab }}
-      </button>
+        全部已读
+      </AppButton>
     </div>
 
-    <AppPageNote icon="info-o" variant="warning" class="page-note-msg">
-      订单、物流、售后通知仅保留视觉样式，不请求消息或推送接口。
-    </AppPageNote>
+    <LoadingView v-if="loading && notifications.length === 0" text="正在加载消息..." />
+    <ErrorView v-else-if="error" :message="error" @retry="loadNotifications" />
 
-    <div class="messages-placeholder">
-      <AppCard
-        v-for="message in visibleMessages"
-        :key="message.title"
-        :class="{ 'msg-card--dim': message.dim }"
-        :flush="true"
-      >
-        <div class="msg-card-layout">
-          <div :class="['msg-icon', `msg-icon--${message.tone}`]">
-            <span class="msg-emoji">{{ message.icon }}</span>
-            <span v-if="message.unread" class="unread-dot" />
-          </div>
-          <div class="msg-card__info">
-            <div class="msg-title">{{ message.title }}</div>
-            <div class="msg-snippet">{{ message.snippet }}</div>
-          </div>
-          <span class="msg-time">{{ message.time }}</span>
-        </div>
-      </AppCard>
-    </div>
+    <template v-else>
+      <div v-if="notifications.length > 0" class="messages-list">
+        <NotificationListItem
+          v-for="notification in notifications"
+          :key="notification.id"
+          :notification="notification"
+          @open="onOpenNotification"
+        />
+      </div>
 
-    <EmptyState v-if="visibleMessages.length === 0" description="暂无消息" />
+      <EmptyState
+        v-else
+        image="chat-o"
+        :description="emptyDescription"
+      />
+    </template>
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-// 消息页 — 只展示空态和占位卡片，不请求任何消息 API
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
+import LoadingView from '@/components/LoadingView.vue'
+import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppNoticeStrip from '@/components/AppNoticeStrip.vue'
-import AppPageNote from '@/components/AppPageNote.vue'
-import AppCard from '@/components/AppCard.vue'
+import AppTabs from '@/components/AppTabs.vue'
+import AppButton from '@/components/AppButton.vue'
+import NotificationListItem from '@/components/NotificationListItem.vue'
+import { listNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/notifications'
+import { useNotificationPolling } from '@/composables'
 import { isFeatureDisabled } from '@/utils/non-mvp'
+import type { NotificationData, NotificationListParams } from '@/types'
 
-interface Message {
-  type: string
-  tone: string
-  icon: string
-  title: string
-  snippet: string
-  time: string
-  unread: boolean
-  dim?: boolean
+const router = useRouter()
+const { unreadCount, refreshUnreadCount } = useNotificationPolling()
+
+type TabKey = 'all' | 'unread' | 'order_paid' | 'order_shipped' | 'group_buy_published'
+
+interface MessageTab {
+  key: TabKey
+  label: string
 }
 
-const tabs = ['全部', '未读(3)', '订单', '售后']
-const activeTab = ref('全部')
-
-const placeholderMessages: Message[] = [
-  {
-    type: '订单',
-    tone: 'orange',
-    icon: '💰',
-    title: '订单待发货提醒',
-    snippet: '微信支付 ¥19.9 成功，订单已进入待发货。',
-    time: '5分钟前',
-    unread: true,
-  },
-  {
-    type: '订单',
-    tone: 'orange',
-    icon: '💰',
-    title: '支付成功',
-    snippet: '你购买的团购商品已支付成功，等待团长发货。',
-    time: '刚刚',
-    unread: true,
-  },
-  {
-    type: '订单',
-    tone: 'blue',
-    icon: '🚚',
-    title: '发货通知',
-    snippet: '团长已填写物流：顺丰速运 SF1234567890。',
-    time: '1小时前',
-    unread: true,
-  },
-  {
-    type: '订单',
-    tone: 'blue',
-    icon: '🚚',
-    title: '物流更新',
-    snippet: '快递已揽收，后续物流轨迹将在订单详情展示。',
-    time: '12:20',
-    unread: false,
-  },
-  {
-    type: '订单',
-    tone: 'green',
-    icon: '👑',
-    title: '会员权益提醒',
-    snippet: '你已成为「重庆好评第一团」会员，下单可享最高 9 折。',
-    time: '昨天',
-    unread: false,
-  },
-  {
-    type: '售后',
-    tone: 'gray',
-    icon: '🧾',
-    title: '售后进度',
-    snippet: '退款申请已提交，等待团长审核。',
-    time: '周一',
-    unread: false,
-  },
+const tabs: MessageTab[] = [
+  { key: 'all', label: '全部' },
+  { key: 'unread', label: '未读' },
+  { key: 'order_paid', label: '支付' },
+  { key: 'order_shipped', label: '发货' },
+  { key: 'group_buy_published', label: '活动' },
 ]
 
-const visibleMessages = computed(() => {
-  const tab = activeTab.value
-  if (tab === '全部') return placeholderMessages
-  if (tab === '未读(3)') return placeholderMessages.filter((m) => m.unread)
-  return placeholderMessages.filter((m) => m.type === tab)
+const activeTab = ref<TabKey>('all')
+const notifications = ref<NotificationData[]>([])
+const loading = ref(false)
+const error = ref('')
+const markAllLoading = ref(false)
+
+const unreadCountText = computed(() => unreadCount.value > 99 ? '99+' : String(unreadCount.value))
+const hasVisibleUnread = computed(() => notifications.value.some((item) => item.readStatus === 'unread'))
+
+const emptyDescription = computed(() => {
+  if (activeTab.value === 'unread') return '暂无未读消息'
+  if (activeTab.value === 'order_paid') return '暂无支付消息'
+  if (activeTab.value === 'order_shipped') return '暂无发货消息'
+  if (activeTab.value === 'group_buy_published') return '暂无活动消息'
+  return '暂无消息'
 })
+
+function buildParams(): NotificationListParams {
+  const params: NotificationListParams = { page: 1, pageSize: 20 }
+  if (activeTab.value === 'unread') {
+    params.unreadOnly = true
+  } else if (activeTab.value !== 'all') {
+    params.type = activeTab.value
+  }
+  return params
+}
+
+async function loadNotifications() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await listNotifications(buildParams())
+    notifications.value = data.items
+  } catch (err) {
+    error.value = (err as { message?: string }).message || '消息加载失败，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function onTabChange(key: string) {
+  activeTab.value = key as TabKey
+  await loadNotifications()
+}
+
+async function onOpenNotification(notification: NotificationData) {
+  if (notification.readStatus === 'unread') {
+    try {
+      const updated = await markNotificationRead(notification.id)
+      notifications.value = notifications.value.map((item) => item.id === updated.id ? updated : item)
+      await refreshUnreadCount()
+    } catch (err) {
+      showToast((err as { message?: string }).message || '标记已读失败')
+      return
+    }
+  }
+
+  if (notification.actionUrl?.startsWith('/')) {
+    await router.push(notification.actionUrl)
+  }
+}
+
+async function onMarkAllRead() {
+  markAllLoading.value = true
+  try {
+    await markAllNotificationsRead()
+    notifications.value = notifications.value.map((item) => ({
+      ...item,
+      readStatus: 'read',
+      readAt: item.readAt || new Date().toISOString(),
+    }))
+    await refreshUnreadCount()
+    showToast('已全部标为已读')
+  } catch (err) {
+    showToast((err as { message?: string }).message || '操作失败，请稍后重试')
+  } finally {
+    markAllLoading.value = false
+  }
+}
 
 function onWechatNoticeClick() {
   if (isFeatureDisabled('wechatPush')) {
     showToast('公众号推送将在后续开放')
   }
 }
+
+onMounted(() => {
+  void loadNotifications()
+})
 </script>
 
 <style scoped>
-.messages-placeholder {
-  padding: 12px 14px 0;
+.messages-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.page-note-msg {
-  margin: 0 14px;
+.messages-toolbar :deep(.app-tabs) {
+  border-bottom: 0;
 }
 
-.msg-card-layout {
-  display: grid;
-  grid-template-columns: 48px 1fr auto;
-  gap: 10px;
-  align-items: start;
-  padding: 14px;
-}
-
-.msg-card--dim {
-  opacity: 0.72;
-}
-
-.msg-card__info {
-  min-width: 0;
-}
-
-.msg-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.msg-emoji {
-  line-height: 1;
-}
-
-.msg-icon--green {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.msg-icon--orange {
-  background: #fff2e8;
-  color: #ff7a2f;
-}
-
-.msg-icon--blue {
-  background: #edf5ff;
-  color: #3c85e8;
-}
-
-.msg-icon--gray {
-  background: #f2f4f5;
-  color: #6b7280;
-}
-
-.unread-dot {
+.messages-toolbar__read-all {
   position: absolute;
-  right: -2px;
-  top: -2px;
-  width: 10px;
-  height: 10px;
-  background: #f25541;
-  border: 2px solid var(--color-bg-card);
-  border-radius: 50%;
+  right: 10px;
+  top: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: var(--font-size-sm);
 }
 
-.msg-title {
-  font-weight: 900;
-  font-size: 16px;
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 18px;
 }
 
-.msg-snippet {
-  color: #7a808a;
-  font-size: 13px;
-  line-height: 1.45;
-  margin-top: 4px;
-}
-
-.msg-time {
-  color: #a8adb5;
-  font-size: 11px;
-  white-space: nowrap;
+@media (max-width: 360px) {
+  .messages-toolbar__read-all {
+    position: static;
+    width: calc(100% - 28px);
+    margin: 0 14px 10px;
+  }
 }
 </style>

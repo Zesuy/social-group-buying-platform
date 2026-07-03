@@ -9,6 +9,7 @@ import com.example.groupshop.model.entity.Subscription;
 import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.SubscriptionMapper;
+import com.example.groupshop.notification.service.NotificationService;
 import com.example.groupshop.subscription.dto.SubscriptionListResponse;
 import com.example.groupshop.subscription.dto.SubscriptionRequest;
 import com.example.groupshop.subscription.dto.SubscriptionResponse;
@@ -32,6 +33,7 @@ public class SubscriptionService {
     private final SubscriptionMapper subscriptionMapper;
     private final LeaderMapper leaderMapper;
     private final StoreMapper storeMapper;
+    private final NotificationService notificationService;
 
     /**
      * Subscribe to a leader.
@@ -76,6 +78,7 @@ public class SubscriptionService {
                 existing.setSource(request.getSource());
             }
             subscriptionMapper.updateById(existing);
+            notificationService.notifySubscriptionCreated(existing, userId);
             return toResponse(existing);
         }
 
@@ -89,6 +92,7 @@ public class SubscriptionService {
         subscription.setSubscribedAt(now);
         subscription.setCanceledAt(null);
         subscriptionMapper.insert(subscription);
+        notificationService.notifySubscriptionCreated(subscription, userId);
 
         return toResponse(subscription);
     }

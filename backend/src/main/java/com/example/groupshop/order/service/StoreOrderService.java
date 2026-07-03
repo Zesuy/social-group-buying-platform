@@ -19,6 +19,7 @@ import com.example.groupshop.order.dto.OrderResponse;
 import com.example.groupshop.order.dto.OrderResponse.OrderItemData;
 import com.example.groupshop.order.dto.ShipOrderRequest;
 import com.example.groupshop.order.dto.ShipOrderResponse;
+import com.example.groupshop.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class StoreOrderService {
     private final ShipmentMapper shipmentMapper;
     private final CurrentStoreHelper currentStoreHelper;
     private final AfterSaleMapper afterSaleMapper;
+    private final NotificationService notificationService;
 
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
 
@@ -136,6 +138,7 @@ public class StoreOrderService {
         shipment.setShippedBy(userId);
         shipment.setShippedAt(now);
         shipmentMapper.insert(shipment);
+        notificationService.notifyOrderShipped(order, shipment.getLogisticsCompany(), shipment.getTrackingNo(), userId);
 
         OrderResponse orderResponse = toOrderResponseWithItems(order);
         ShipOrderResponse.ShipmentData shipmentData = toShipmentData(shipment);
