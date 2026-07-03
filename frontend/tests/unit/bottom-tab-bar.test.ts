@@ -121,6 +121,34 @@ describe('BottomTabBar', () => {
     expect(items[3].props('badge')).toBe('7')
   })
 
+  it('should hide unread badge when unread count response is malformed', async () => {
+    vi.mocked(getUnreadCount).mockResolvedValue({ unreadCount: undefined as unknown as number })
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const authStore = useAuthStore()
+    authStore.accessToken = 'valid_token'
+    authStore.user = {
+      id: '1',
+      nickname: '买家用户',
+      avatarUrl: null,
+      phone: '13800000000',
+      hasLeader: false,
+      leaderId: null,
+      storeId: null,
+    }
+
+    const wrapper = mount(BottomTabBar, {
+      global: {
+        plugins: [router, pinia],
+      },
+    })
+
+    await flushPromises()
+
+    const items = wrapper.findAllComponents({ name: 'VanTabbarItem' })
+    expect(items[3].props('badge')).toBeUndefined()
+  })
+
   it('should show login toast when unauthenticated messages tab is selected', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
