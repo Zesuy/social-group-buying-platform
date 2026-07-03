@@ -18,7 +18,8 @@
             :key="c.key"
             class="chip"
             :class="{ active: selectedChip === c.key }"
-            @click="selectedChip = c.key"
+            role="button"
+            @click="selectChip(c.key)"
           >{{ c.label }}</span>
         </div>
       </div>
@@ -40,7 +41,7 @@
           @load="loadMore"
         >
           <ProductListItem
-            v-for="product in items"
+            v-for="product in filteredItems"
             :key="product.id"
             :item="product"
             @click="goToDetail(product.id)"
@@ -52,8 +53,8 @@
           </ProductListItem>
 
           <EmptyState
-            v-if="isEmpty"
-            description="暂无商品"
+            v-if="filteredIsEmpty"
+            :description="emptyDescription"
           />
         </van-list>
       </van-pull-refresh>
@@ -91,7 +92,6 @@ const {
   refreshing,
   error,
   hasMore,
-  isEmpty,
   initialized,
   load,
   refresh,
@@ -100,14 +100,28 @@ const {
 
 const firstLoading = computed(() => !initialized.value && loading.value)
 const showError = computed(() => !!error.value && items.value.length === 0)
+const filteredItems = computed(() => {
+  if (selectedChip.value === 'all') return items.value
+  return items.value.filter((product) => product.status === selectedChip.value)
+})
+const filteredIsEmpty = computed(() => initialized.value && filteredItems.value.length === 0)
+const emptyDescription = computed(() => {
+  if (selectedChip.value === 'active') return '暂无上架商品'
+  if (selectedChip.value === 'inactive') return '暂无下架商品'
+  return '暂无商品'
+})
 
 function goBack() { router.back() }
 
-function goToDetail(id: string) { router.push(`/leader/products/${id}`) }
+function goToDetail(id: string) { router.push(`/leader/products/${id}/edit`) }
 
 function goToNew() { router.push('/leader/products/new') }
 
 function handleEdit(product: ProductData) { router.push(`/leader/products/${product.id}/edit`) }
+
+function selectChip(key: string) {
+  selectedChip.value = key
+}
 
 async function handleDelete(product: ProductData) {
   try {
