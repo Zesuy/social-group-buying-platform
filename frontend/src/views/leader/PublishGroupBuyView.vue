@@ -1,17 +1,20 @@
 <template>
   <PageLayout title="发布团购" show-back @back="goBack">
     <div class="publish-content">
-      <!-- 通告条（demo notice） -->
-      <AppPageNote variant="warning" class="notice">
-        类似功能的产品相关的团购。对于任何违禁行为，邻鲜团将处理
-        <span class="close">×</span>
-      </AppPageNote>
+      <section class="publish-hero">
+        <h2>发布普通团购</h2>
+        <p>选择店铺商品，设置团购价和库存，明确配送时间后再发到社群。</p>
+        <div class="publish-hero__meta">
+          <span>{{ form.items.length }} 个商品</span>
+          <span>{{ deliveryText }}</span>
+        </div>
+      </section>
 
-      <!-- Segmented control（demo .seg） -->
-      <div class="seg">
+      <div class="seg" role="tablist" aria-label="发布团购步骤">
         <button
           v-for="(tab, idx) in segTabs"
-          :key="idx"
+          :key="tab"
+          type="button"
           :class="{ active: activeTab === idx }"
           @click="activeTab = idx"
         >
@@ -19,143 +22,257 @@
         </button>
       </div>
 
-      <!-- Tab 0: 介绍 -->
-      <div v-show="activeTab === 0">
-        <AppFormCard>
-          <template #title>
-            <div class="flex items-center justify-between">
-              <span>团购介绍</span>
-              <AppButton variant="plain" disabled>复制已有团购</AppButton>
-            </div>
-          </template>
-          <div class="p14">
-            <input v-model="form.title" class="input mb10" placeholder="团购标题，例如：山东蒙阴白玉蜜桃，新鲜清甜" />
-            <textarea v-model="form.introduction" class="textarea h150" placeholder="活动介绍、产品说明、发货信息等"></textarea>
-            <div class="toolbar">
-              <div class="tool"><span class="ti">▧</span>大图</div>
-              <div class="tool"><span class="ti">▦</span>小图</div>
-              <div class="tool"><span class="ti">▶</span>视频</div>
-              <div class="tool"><span class="ti">✎</span>文字</div>
-              <div class="tool"><span class="ti">🏷</span>标签</div>
-              <div class="tool"><span class="ti">👥</span>加粉</div>
-            </div>
+      <div v-show="activeTab === 0" class="tab-panel">
+        <AppFormCard title="团购信息">
+          <div class="form-section">
+            <label class="form-field">
+              <span>标题</span>
+              <input v-model="form.title" class="input" placeholder="团购标题，例如：周末阳山水蜜桃社区团" />
+            </label>
+            <label class="form-field">
+              <span>介绍</span>
+              <textarea
+                v-model="form.introduction"
+                class="textarea"
+                placeholder="说明规格、口感、截单时间、发货方式和售后口径"
+              />
+            </label>
           </div>
         </AppFormCard>
 
-        <AppFormCard title="封面图片 URL">
-          <div class="p14">
+        <AppFormCard title="团购封面">
+          <div class="form-section">
             <ImageUploader
               v-model="form.coverImageUrl"
               :disabled="submitting"
               :preview-alt="form.title || '团购封面'"
               demo-kind="cover"
-              placeholder="可选，输入或上传团购封面"
+              :show-url-input="false"
+              :show-hint="false"
+              button-label="更换封面"
             />
           </div>
         </AppFormCard>
       </div>
 
-      <!-- Tab 1: 商品 -->
-      <div v-show="activeTab === 1">
+      <div v-show="activeTab === 1" class="tab-panel">
         <AppFormCard>
           <template #title>
-            <div class="flex items-center justify-between">
-              <span>团购商品</span>
-              <AppButton variant="plain" disabled>从商品库导入</AppButton>
+            <div class="card-title-row">
+              <h3>选择商品</h3>
+              <button type="button" class="text-action" @click="goToProducts">商品库</button>
             </div>
           </template>
-          <div class="search" style="margin:12px">⌕ 搜索商品名称、规格</div>
 
-          <div v-for="(item, index) in form.items" :key="index">
-            <AppFormRow label="名称">
-              <input v-model="item.displayName" class="input" placeholder="商品名称" />
-            </AppFormRow>
-            <AppFormRow label="团购价">
-              <input v-model="item.priceText" class="input" placeholder="0.00" type="digit" @input="onItemPriceInput(index, ($event.target as HTMLInputElement).value)" />
-            </AppFormRow>
-            <AppFormRow label="团购库存">
-              <input v-model.number="item.groupStock" class="input" placeholder="库存数量" type="number" />
-            </AppFormRow>
-            <AppFormRow v-if="form.items.length > 1">
-              <AppButton variant="danger" @click="removeItem(index)">删除此商品</AppButton>
-            </AppFormRow>
+          <div class="product-picker">
+            <label class="search-field">
+              <van-icon name="search" />
+              <input v-model="productKeyword" placeholder="搜索商品名称" />
+            </label>
+
+            <div v-if="productsLoading" class="picker-state">商品库加载中...</div>
+            <div v-else-if="productsError" class="picker-state">{{ productsError }}</div>
+            <div v-else-if="availableProducts.length === 0" class="picker-state">暂无可选上架商品</div>
+            <div v-else class="library-list">
+              <button
+                v-for="product in availableProducts"
+                :key="product.id"
+                type="button"
+                class="library-item"
+                :class="{ selected: selectedProductIds.has(product.id) }"
+                @click="addProductFromLibrary(product)"
+              >
+                <ImageWithFallback
+                  :src="product.coverImageUrl"
+                  :alt="product.name"
+                  demo-kind="product"
+                  width="56px"
+                  height="56px"
+                  radius="8px"
+                />
+                <span class="library-item__main">
+                  <strong>{{ product.name }}</strong>
+                  <small>{{ formatAmount(product.basePriceAmount) }} · 库存 {{ product.stock }}</small>
+                </span>
+                <van-icon :name="selectedProductIds.has(product.id) ? 'success' : 'plus'" />
+              </button>
+            </div>
           </div>
+        </AppFormCard>
 
-          <div class="p14">
-            <AppButton block @click="addItem">+ 添加商品</AppButton>
+        <AppFormCard title="本次团购商品">
+          <div class="selected-list">
+            <div v-if="form.items.length === 0" class="selected-empty">
+              还没有添加商品
+            </div>
+            <div v-for="(item, index) in form.items" :key="item.localId" class="selected-item">
+              <div class="selected-item__head">
+                <ImageUploader
+                  v-if="!item.productId"
+                  v-model="item.coverImageUrl"
+                  :disabled="submitting"
+                  :preview-alt="item.displayName || '商品封面'"
+                  demo-kind="product"
+                  :show-url-input="false"
+                  :show-hint="false"
+                  variant="tile"
+                  tile-label="上传"
+                />
+                <ImageWithFallback
+                  v-else
+                  :src="item.coverImageUrl"
+                  :alt="item.displayName || '团购商品'"
+                  demo-kind="product"
+                  width="52px"
+                  height="52px"
+                  radius="8px"
+                />
+                <label class="selected-item__name">
+                  <span>商品名称</span>
+                  <input v-model="item.displayName" class="input" placeholder="商品名称" />
+                </label>
+                <button
+                  type="button"
+                  class="icon-action"
+                  :aria-label="`删除商品${index + 1}`"
+                  @click="removeItem(index)"
+                >
+                  <van-icon name="cross" />
+                </button>
+              </div>
+              <div class="selected-item__fields">
+                <label>
+                  <span>团购价</span>
+                  <input
+                    v-model="item.priceText"
+                    class="input"
+                    placeholder="0.00"
+                    type="digit"
+                    @input="onItemPriceInput(index, ($event.target as HTMLInputElement).value)"
+                  />
+                </label>
+                <label>
+                  <span>团购库存</span>
+                  <input v-model.number="item.groupStock" class="input" placeholder="库存数量" type="number" />
+                </label>
+              </div>
+              <label v-if="!item.productId" class="manual-description">
+                <span>商品描述</span>
+                <textarea
+                  v-model="item.description"
+                  class="textarea textarea--compact"
+                  placeholder="规格、产地、保存方式等"
+                />
+              </label>
+            </div>
+            <button type="button" class="add-manual" @click="addManualItem">
+              <van-icon name="plus" />
+              新增商品
+            </button>
           </div>
         </AppFormCard>
       </div>
 
-      <!-- Tab 2: 设置 -->
-      <div v-show="activeTab === 2">
-        <AppFormCard title="团购设置">
-          <AppFormRow label="物流方式">
-            <div class="radio-row">
-              <label class="radio-label" :class="{ active: form.deliveryType === 'express' }">
-                <input type="radio" v-model="form.deliveryType" value="express" /> 快递配送
-              </label>
-              <label class="radio-label" :class="{ active: form.deliveryType === 'pickup' }">
-                <input type="radio" v-model="form.deliveryType" value="pickup" /> 到店自提
-              </label>
-              <label class="radio-label" :class="{ active: form.deliveryType === 'local_delivery' }">
-                <input type="radio" v-model="form.deliveryType" value="local_delivery" /> 同城配送
-              </label>
+      <div v-show="activeTab === 2" class="tab-panel">
+        <AppFormCard title="履约设置">
+          <div class="form-section">
+            <div class="form-field">
+              <span>配送方式</span>
+              <div class="delivery-options">
+                <label
+                  v-for="option in deliveryOptions"
+                  :key="option.value"
+                  class="delivery-option"
+                  :class="{ active: form.deliveryType === option.value }"
+                >
+                  <input v-model="form.deliveryType" type="radio" :value="option.value" />
+                  <span>{{ option.label }}</span>
+                </label>
+              </div>
             </div>
-          </AppFormRow>
-          <AppFormRow label="开始时间">
-            <input v-model="form.startTime" type="datetime-local" class="input" />
-          </AppFormRow>
-          <AppFormRow label="结束时间">
-            <input v-model="form.endTime" type="datetime-local" class="input" />
-          </AppFormRow>
-          <AppFormRow label="开团通知" value="全部订阅用户" arrow />
-          <AppFormRow label="隐私设置" value="所有人均可转发" arrow />
-          <AppFormRow label="帮卖设置" value="未设置" arrow />
+            <label class="form-field">
+              <span>开始时间</span>
+              <input v-model="form.startTime" type="datetime-local" class="input" />
+            </label>
+            <label class="form-field">
+              <span>结束时间</span>
+              <input v-model="form.endTime" type="datetime-local" class="input" />
+            </label>
+            <button type="button" class="agreement" @click="form.agreed = !form.agreed">
+              <span class="checkbox-circle" :class="{ checked: form.agreed }">
+                <van-icon v-if="form.agreed" name="success" />
+              </span>
+              <span>我已确认商品、价格和履约信息真实有效</span>
+            </button>
+          </div>
         </AppFormCard>
-
-        <!-- 协议勾选 -->
-        <div class="flex items-center gap8 c-hint" style="margin:12px 0" @click="form.agreed = !form.agreed">
-          <span class="checkbox-circle" :class="{ checked: form.agreed }">{{ form.agreed ? '✓' : '' }}</span>
-          我已阅读并同意 <span class="c-primary">《用户服务协议》《隐私政策》</span>
-        </div>
       </div>
     </div>
 
     <template #action>
-      <AppFixedActions>
-        <AppButton variant="ghost" disabled>保存并预览</AppButton>
-        <AppButton variant="primary" :loading="submitting" @click="handleSubmit">发布团购</AppButton>
+      <AppFixedActions single>
+        <AppButton variant="primary" :loading="submitting" @click="handleSubmit">
+          {{ submitting ? '发布中...' : '发布团购' }}
+        </AppButton>
       </AppFixedActions>
     </template>
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import AppFormCard from '@/components/AppFormCard.vue'
-import AppFormRow from '@/components/AppFormRow.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
-import AppPageNote from '@/components/AppPageNote.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import { createGroupBuy } from '@/api/leaderGroupBuys'
-import { getDemoProductImage } from '@/utils'
+import { listProducts } from '@/api/products'
+import { amountToYuan, formatAmount, getDemoProductImage } from '@/utils'
+import type { ProductData } from '@/types'
 
 const router = useRouter()
 
 const segTabs = ['介绍', '商品', '设置']
 const activeTab = ref(0)
 const submitting = ref(false)
+const productsLoading = ref(false)
+const productsError = ref('')
+const productKeyword = ref('')
+const products = ref<ProductData[]>([])
+let localItemId = 0
+
+const deliveryOptions = [
+  { value: 'express', label: '快递配送' },
+  { value: 'pickup', label: '到店自提' },
+  { value: 'local_delivery', label: '同城配送' },
+]
 
 interface ItemForm {
+  localId: number
+  productId?: string
   displayName: string
   priceText: string
   groupPriceAmount: number
   groupStock: number
+  coverImageUrl: string
+  description?: string
+}
+
+function createEmptyItem(): ItemForm {
+  localItemId += 1
+  return {
+    localId: localItemId,
+    displayName: '',
+    priceText: '',
+    groupPriceAmount: 0,
+    groupStock: 0,
+    coverImageUrl: '',
+    description: '',
+  }
 }
 
 const form = reactive({
@@ -166,12 +283,18 @@ const form = reactive({
   startTime: '',
   endTime: '',
   agreed: false,
-  items: [{
-    displayName: '',
-    priceText: '',
-    groupPriceAmount: 0,
-    groupStock: 0,
-  }] as ItemForm[],
+  items: [] as ItemForm[],
+})
+
+const selectedProductIds = computed(() => new Set(form.items.map((item) => item.productId).filter(Boolean) as string[]))
+const availableProducts = computed(() => {
+  const keyword = productKeyword.value.trim().toLowerCase()
+  return products.value
+    .filter((product) => product.status === 'active')
+    .filter((product) => !keyword || product.name.toLowerCase().includes(keyword))
+})
+const deliveryText = computed(() => {
+  return deliveryOptions.find((option) => option.value === form.deliveryType)?.label || '快递配送'
 })
 
 function onItemPriceInput(index: number, val: string) {
@@ -180,19 +303,32 @@ function onItemPriceInput(index: number, val: string) {
   form.items[index].priceText = val
 }
 
-function addItem() {
-  form.items.push({
-    displayName: '',
-    priceText: '',
-    groupPriceAmount: 0,
-    groupStock: 0,
-  })
+function addManualItem() {
+  form.items.push(createEmptyItem())
+}
+
+function addProductFromLibrary(product: ProductData) {
+  if (selectedProductIds.value.has(product.id)) {
+    showToast('该商品已在本次团购中')
+    return
+  }
+
+  const item = {
+    localId: ++localItemId,
+    productId: product.id,
+    displayName: product.name,
+    priceText: String(amountToYuan(product.basePriceAmount)),
+    groupPriceAmount: product.basePriceAmount,
+    groupStock: product.stock,
+    coverImageUrl: product.coverImageUrl || '',
+    description: product.description || '',
+  }
+
+  form.items.push(item)
 }
 
 function removeItem(index: number) {
-  if (form.items.length > 1) {
-    form.items.splice(index, 1)
-  }
+  form.items.splice(index, 1)
 }
 
 function toISOWithTZ(dt: string): string | null {
@@ -207,20 +343,36 @@ function validate(): string | null {
   if (form.items.length === 0) return '至少需要添加一个商品'
   for (const item of form.items) {
     if (!item.displayName.trim()) return '请填写所有商品的名称'
-    if (item.groupPriceAmount < 0) return '团购价格不能为负数'
-    if (item.groupStock < 0) return '团购库存不能为负数'
+    if (item.groupPriceAmount <= 0) return '团购价格必须大于 0'
+    if (item.groupStock <= 0) return '团购库存必须大于 0'
   }
-  if (form.startTime && form.endTime) {
-    if (new Date(form.endTime) <= new Date(form.startTime)) {
-      return '结束时间必须晚于开始时间'
-    }
+  if (form.startTime && form.endTime && new Date(form.endTime) <= new Date(form.startTime)) {
+    return '结束时间必须晚于开始时间'
   }
-  if (!form.agreed) return '请阅读并同意协议'
+  if (!form.agreed) return '请确认团购信息真实有效'
   return null
 }
 
 function goBack() {
   router.back()
+}
+
+function goToProducts() {
+  router.push('/leader/products')
+}
+
+async function loadProducts() {
+  productsLoading.value = true
+  productsError.value = ''
+  try {
+    const data = await listProducts(1, 50)
+    products.value = data.items
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    productsError.value = apiErr.message || '商品库加载失败'
+  } finally {
+    productsLoading.value = false
+  }
 }
 
 async function handleSubmit() {
@@ -233,195 +385,430 @@ async function handleSubmit() {
   submitting.value = true
   try {
     await createGroupBuy({
-      title: form.title,
-      introduction: form.introduction || null,
+      title: form.title.trim(),
+      introduction: form.introduction.trim() || null,
       coverImageUrl: form.coverImageUrl || getDemoProductImage(form.title),
       deliveryType: form.deliveryType,
       startTime: toISOWithTZ(form.startTime),
       endTime: toISOWithTZ(form.endTime),
-      items: form.items.map((item) => ({
-        product: {
-          name: item.displayName,
-          coverImageUrl: getDemoProductImage(item.displayName),
-          basePriceAmount: item.groupPriceAmount,
-          stock: item.groupStock,
-        },
-        displayName: item.displayName,
+      items: form.items.map((item, index) => ({
+        ...(item.productId
+          ? { productId: item.productId }
+          : {
+              product: {
+                name: item.displayName.trim(),
+                description: item.description?.trim() || null,
+                coverImageUrl: item.coverImageUrl || getDemoProductImage(item.displayName),
+                basePriceAmount: item.groupPriceAmount,
+                stock: item.groupStock,
+              },
+            }),
+        displayName: item.displayName.trim(),
         groupPriceAmount: item.groupPriceAmount,
         groupStock: item.groupStock,
-        sortOrder: 1,
+        sortOrder: index + 1,
       })),
     })
     showToast('发布成功')
     router.push('/leader/group-buys')
   } catch (err) {
-    const apiErr = err as { message?: string; code?: string }
+    const apiErr = err as { message?: string }
     showToast(apiErr.message || '发布失败')
   } finally {
     submitting.value = false
   }
 }
+
+onMounted(() => {
+  loadProducts()
+})
 </script>
 
 <style scoped>
-/* ===== demo 视觉复刻 ===== */
 .publish-content {
-  padding: 0 14px 80px;
+  padding: 14px 14px calc(var(--actionbar-height) + var(--safe-area-bottom) + 20px);
 }
 
-/* 通告条（使用 AppPageNote warning 变体，保留边缘溢出与关闭） */
-.notice {
-  margin: 0 -14px 12px;
-  border-radius: 0;
-  border: none;
-  justify-content: space-between;
-  align-items: center;
+.publish-hero {
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
 }
-.close { color: #bbb; font-size: 22px; }
 
-/* seg 控件 */
-.seg {
-  display: flex;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-  margin: 0 -14px 12px;
-}
-.seg button {
-  flex: 1;
-  border: 0;
-  background: #fff;
-  padding: 14px 0;
+.publish-hero h2 {
+  margin: 0 0 6px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
   font-weight: 800;
-  font-size: 16px;
-  color: #676d76;
-}
-.seg button.active {
-  color: var(--color-primary);
-  position: relative;
-}
-.seg button.active::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 32%;
-  right: 32%;
-  height: 3px;
-  background: var(--color-primary);
-  border-radius: 4px;
 }
 
-/* 输入框 */
-.input {
-  height: 42px;
-  background: #f7f8fa;
-  border-radius: 8px;
-  border: 1px solid #eef0f3;
-  padding: 0 10px;
-  color: #555;
-  width: 100%;
-  font-size: 14px;
-  outline: none;
+.publish-hero p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.55;
 }
-.input:focus {
-  border-color: var(--color-primary);
+
+.publish-hero__meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.publish-hero__meta span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  background: var(--color-bg-card);
+}
+
+.seg button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.seg button.active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-section,
+.product-picker,
+.selected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+.input,
+.textarea,
+.search-field input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  outline: none;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+}
+
+.input {
+  padding: 0 12px;
 }
 
 .textarea {
-  width: 100%;
-  min-height: 92px;
-  background: #f7f8fa;
-  border-radius: 8px;
-  border: 1px solid #eef0f3;
-  padding: 10px;
-  color: #555;
-  line-height: 1.5;
-  font-size: 14px;
-  font-family: inherit;
+  min-height: 128px;
+  padding: 12px;
+  line-height: 1.55;
   resize: vertical;
-  outline: none;
 }
-.textarea:focus {
+
+.input:focus,
+.textarea:focus,
+.search-field input:focus {
   border-color: var(--color-primary);
 }
 
-/* 工具栏 */
-.toolbar {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
+}
+
+.card-title-row h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.text-action {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-card);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-hint);
+}
+
+.search-field input {
+  min-height: 42px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.picker-state {
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-hint);
+  font-size: var(--font-size-md);
   text-align: center;
-  color: #555;
-  padding: 18px 0 0;
-}
-.tool {
-  font-size: 12px;
-}
-.tool .ti {
-  font-size: 22px;
-  display: block;
-  margin-bottom: 4px;
 }
 
-/* 搜索占位 */
-.search {
-  height: 46px;
-  background: #f2f3f5;
-  border-radius: 12px;
+.library-list {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #aaa;
-  font-size: 18px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-/* 单选行 */
-.radio-row {
-  display: flex;
+.library-item {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
   gap: 10px;
-  flex-wrap: wrap;
-}
-.radio-label {
-  display: flex;
   align-items: center;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  text-align: left;
+}
+
+.library-item.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.library-item__main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
   gap: 4px;
-  font-size: 14px;
-  cursor: pointer;
-}
-.radio-label input { accent-color: var(--color-primary); }
-
-/* 底部固定按钮 */
-.app-fixed-actions .app-button {
-  height: 50px;
-  font-size: 18px;
 }
 
-/* 协议勾选框 */
-.checkbox-circle {
-  width: 18px;
-  height: 18px;
-  border: 1px solid #ccc;
-  border-radius: 50%;
+.library-item__main strong {
+  overflow: hidden;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-item__main small {
+  color: var(--color-text-hint);
+  font-size: var(--font-size-sm);
+}
+
+.selected-item {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-card);
+}
+
+.selected-empty {
+  padding: 18px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-hint);
+  font-size: var(--font-size-md);
+  text-align: center;
+}
+
+.selected-item__head {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.selected-item__head :deep(.image-uploader--tile) {
+  width: 52px;
+  height: 52px;
+}
+
+.selected-item__name,
+.selected-item__fields label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.selected-item__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.manual-description {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.textarea--compact {
+  min-height: 76px;
+  font-size: var(--font-size-md);
+}
+
+.icon-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  background: transparent;
-  color: transparent;
-  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: 14px;
 }
+
+.add-manual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border: 1px dashed var(--color-primary);
+  border-radius: 10px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+}
+
+.delivery-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.delivery-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.delivery-option.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.delivery-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.agreement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  text-align: left;
+}
+
+.checkbox-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-card);
+  color: transparent;
+  font-size: 12px;
+}
+
 .checkbox-circle.checked {
+  border-color: var(--color-primary);
   background: var(--color-primary);
   color: #fff;
 }
 
-/* 布局与间距工具类 */
-.p14 { padding: 14px; }
-.mb10 { margin-bottom: 10px; }
-.h150 { height: 150px; }
-.flex { display: flex; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap8 { gap: 8px; }
-.c-primary { color: var(--color-primary); }
-.c-hint { color: #8a8f98; }
+@media (max-width: 340px) {
+  .delivery-options,
+  .selected-item__fields {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

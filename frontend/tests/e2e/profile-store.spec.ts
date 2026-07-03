@@ -227,9 +227,11 @@ test.describe('Profile and store E2E', () => {
     // Should show leader info
     await expect(page.locator('text=团长用户')).toBeVisible({ timeout: 5000 })
     // Should show leader-specific entries
+    await expect(page.locator('text=发布团购')).toBeVisible()
+    await expect(page.locator('text=团购管理')).toBeVisible()
     await expect(page.locator('text=商品库')).toBeVisible()
     await expect(page.locator('text=订单管理')).toBeVisible()
-    await expect(page.locator('text=团长管理')).toBeVisible()
+    await expect(page.locator('text=我的店铺')).toBeVisible()
   })
 
   test('profile login click goes to login page', async ({ page }) => {

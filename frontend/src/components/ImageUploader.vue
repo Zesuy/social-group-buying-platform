@@ -1,16 +1,33 @@
 <template>
-  <div class="image-uploader">
+  <div
+    class="image-uploader"
+    :class="[
+      `image-uploader--${variant}`,
+      { 'image-uploader--with-url': showUrlInput },
+    ]"
+  >
     <ImageWithFallback
       class="image-uploader__preview"
       :src="modelValue"
-      :alt="previewAlt"
+      :alt="variant === 'tile' ? '' : previewAlt"
       :demo-kind="demoKind"
-      width="76px"
-      height="76px"
-      radius="8px"
+      :width="variant === 'tile' ? '100%' : '72px'"
+      :height="variant === 'tile' ? '100%' : '72px'"
+      :radius="variant === 'tile' ? '10px' : '8px'"
     />
-    <div class="image-uploader__body">
+    <button
+      v-if="variant === 'tile'"
+      type="button"
+      class="image-uploader__tile-action"
+      :aria-label="uploading ? '图片上传中' : `${tileLabel}图片`"
+      :disabled="disabled || uploading"
+      @click="openFilePicker"
+    >
+      <van-icon name="photo-o" />
+    </button>
+    <div v-else class="image-uploader__body">
       <input
+        v-if="showUrlInput"
         class="image-uploader__input"
         :value="modelValue"
         :placeholder="placeholder"
@@ -25,19 +42,19 @@
           :disabled="disabled"
           @click="openFilePicker"
         >
-          选择图片
+          {{ buttonLabel }}
         </AppButton>
-        <span class="image-uploader__hint">jpg / png / webp，5MB 内</span>
+        <span v-if="showHint" class="image-uploader__hint">jpg / png / webp，5MB 内</span>
       </div>
-      <input
-        ref="fileInputRef"
-        class="image-uploader__file"
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        :disabled="disabled || uploading"
-        @change="onFileChange"
-      />
     </div>
+    <input
+      ref="fileInputRef"
+      class="image-uploader__file"
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      :disabled="disabled || uploading"
+      @change="onFileChange"
+    />
   </div>
 </template>
 
@@ -55,12 +72,22 @@ const props = withDefaults(defineProps<{
   previewAlt?: string
   demoKind?: 'product' | 'cover' | 'avatar' | 'store'
   disabled?: boolean
+  showUrlInput?: boolean
+  showHint?: boolean
+  variant?: 'row' | 'tile'
+  buttonLabel?: string
+  tileLabel?: string
 }>(), {
   modelValue: '',
   placeholder: '可选，输入图片 URL',
   previewAlt: '图片预览',
   demoKind: 'cover',
   disabled: false,
+  showUrlInput: true,
+  showHint: true,
+  variant: 'row',
+  buttonLabel: '选择图片',
+  tileLabel: '更换',
 })
 
 const emit = defineEmits<{
@@ -104,15 +131,30 @@ async function onFileChange(event: Event) {
 <style scoped>
 .image-uploader {
   display: grid;
-  grid-template-columns: 76px 1fr;
+  grid-template-columns: 72px 1fr;
   gap: 10px;
   align-items: center;
   width: 100%;
   min-width: 0;
 }
 
+.image-uploader--tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+
 .image-uploader__preview {
   background: var(--color-bg-surface);
+}
+
+.image-uploader--tile .image-uploader__preview {
+  width: 100%;
+  height: 100%;
 }
 
 .image-uploader__body {
@@ -150,6 +192,36 @@ async function onFileChange(event: Event) {
   min-width: 0;
 }
 
+.image-uploader__tile-action {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  appearance: none;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.image-uploader__tile-action:disabled {
+  opacity: 0.6;
+}
+
 .image-uploader__hint {
   min-width: 0;
   color: var(--color-text-hint);
@@ -167,8 +239,7 @@ async function onFileChange(event: Event) {
   }
 
   .image-uploader__actions {
-    align-items: flex-start;
-    flex-direction: column;
+    flex-wrap: wrap;
   }
 }
 </style>
