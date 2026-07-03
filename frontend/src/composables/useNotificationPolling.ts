@@ -23,7 +23,7 @@ export function useNotificationPolling(intervalMs = 30000) {
     loading.value = true
     try {
       const data = await getUnreadCount()
-      unreadCount.value = data.unreadCount
+      unreadCount.value = Number.isFinite(data.unreadCount) ? data.unreadCount : 0
     } catch {
       // 轮询失败保持静默，避免打扰主流程。
     } finally {

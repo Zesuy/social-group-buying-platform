@@ -59,7 +59,8 @@ function onChange(index: number) {
 }
 
 function getTabBadge(tab: TabItem) {
-  if (tab.to !== '/messages' || unreadCount.value <= 0) return undefined
-  return unreadCount.value > 99 ? '99+' : String(unreadCount.value)
+  const count = Number.isFinite(unreadCount.value) ? unreadCount.value : 0
+  if (tab.to !== '/messages' || count <= 0) return undefined
+  return count > 99 ? '99+' : String(count)
 }
 </script>

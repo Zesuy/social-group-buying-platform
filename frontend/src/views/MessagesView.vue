@@ -5,12 +5,18 @@
       <span v-if="unreadCount > 0" class="badge-num">{{ unreadCountText }}</span>
     </div>
 
-    <AppNoticeStrip
-      text="关注公众号，后续可收到活动、订单和物流通知"
-      action-label="关注"
-      variant="warning"
-      @action="onWechatNoticeClick"
-    />
+    <section class="messages-hero">
+      <div>
+        <h1>站内通知</h1>
+        <p>订单支付、团长发货、订阅和新团购活动都会在这里更新。</p>
+      </div>
+      <span v-if="unreadCount > 0" class="messages-hero__badge">
+        {{ unreadCountText }} 未读
+      </span>
+      <span v-else class="messages-hero__badge messages-hero__badge--muted">
+        已读完
+      </span>
+    </section>
 
     <div class="messages-toolbar">
       <AppTabs :tabs="tabs" :active="activeTab" scrollable @change="onTabChange" />
@@ -56,13 +62,11 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import AppNoticeStrip from '@/components/AppNoticeStrip.vue'
 import AppTabs from '@/components/AppTabs.vue'
 import AppButton from '@/components/AppButton.vue'
 import NotificationListItem from '@/components/NotificationListItem.vue'
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/notifications'
 import { useNotificationPolling } from '@/composables'
-import { isFeatureDisabled } from '@/utils/non-mvp'
 import type { NotificationData, NotificationListParams } from '@/types'
 
 const router = useRouter()
@@ -163,18 +167,58 @@ async function onMarkAllRead() {
   }
 }
 
-function onWechatNoticeClick() {
-  if (isFeatureDisabled('wechatPush')) {
-    showToast('公众号推送将在后续开放')
-  }
-}
-
 onMounted(() => {
   void loadNotifications()
 })
 </script>
 
 <style scoped>
+.messages-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 14px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.messages-hero h1 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.messages-hero p {
+  margin: 5px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+
+.messages-hero__badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.messages-hero__badge--muted {
+  background: var(--color-bg-surface);
+  color: var(--color-text-hint);
+}
+
 .messages-toolbar {
   position: sticky;
   top: 0;
@@ -194,6 +238,7 @@ onMounted(() => {
   min-height: 36px;
   padding: 0 12px;
   font-size: var(--font-size-sm);
+  background: var(--color-bg-card);
 }
 
 .messages-list {
@@ -204,6 +249,10 @@ onMounted(() => {
 }
 
 @media (max-width: 360px) {
+  .messages-hero {
+    flex-direction: column;
+  }
+
   .messages-toolbar__read-all {
     position: static;
     width: calc(100% - 28px);
