@@ -44,7 +44,13 @@
 
         <AppFormCard title="封面图片 URL">
           <div class="p14">
-            <input v-model="form.coverImageUrl" class="input" placeholder="可选，输入封面图片链接" />
+            <ImageUploader
+              v-model="form.coverImageUrl"
+              :disabled="submitting"
+              :preview-alt="form.title || '团购封面'"
+              demo-kind="cover"
+              placeholder="可选，输入或上传团购封面"
+            />
           </div>
         </AppFormCard>
       </div>
@@ -135,6 +141,7 @@ import AppFormRow from '@/components/AppFormRow.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppPageNote from '@/components/AppPageNote.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 import { createGroupBuy } from '@/api/leaderGroupBuys'
 import { getDemoProductImage } from '@/utils'
 

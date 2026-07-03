@@ -4,6 +4,7 @@ export type {
   ApiError,
   ErrorResponse,
   EmptySuccessResponse,
+  ImageUploadData,
   PaginationParams,
   MockLoginRequest,
   MockLoginData,

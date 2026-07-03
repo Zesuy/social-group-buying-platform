@@ -30,8 +30,8 @@
           <div class="leader-store-card__main">
             <div class="leader-store-card__identity">
               <img
-                v-if="leaderData.avatarUrl"
-                :src="leaderData.avatarUrl"
+                v-if="leaderAvatarUrl"
+                :src="leaderAvatarUrl"
                 class="leader-store-card__avatar"
                 :alt="`${leaderData.displayName}头像`"
               />
@@ -180,6 +180,7 @@ const avatarText = computed(() => {
   const name = storeData.value?.name || leaderData.value?.displayName || '团'
   return name.slice(0, 1)
 })
+const leaderAvatarUrl = computed(() => leaderData.value?.avatarUrl || storeData.value?.logoUrl || null)
 const isOwnLeader = computed(() => authStore.leader?.id === leaderData.value?.id)
 
 async function fetchData() {

@@ -129,12 +129,17 @@ import { isFeatureDisabled, type NonMvpFeature } from '@/utils/non-mvp'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { isLoggedIn, isLeader, user, leader } = storeToRefs(authStore)
-const profileAvatarUrl = computed(() => resolveDisplayImageUrl(
-  user.value?.avatarUrl,
-  user.value?.nickname || '',
-  'avatar',
-))
+const { isLoggedIn, isLeader, user, leader, store } = storeToRefs(authStore)
+const profileAvatarUrl = computed(() => {
+  const avatarUrl = isLeader.value
+    ? (leader.value?.avatarUrl || store.value?.logoUrl || user.value?.avatarUrl)
+    : user.value?.avatarUrl
+  const avatarSeed = isLeader.value
+    ? (leader.value?.displayName || store.value?.name || user.value?.nickname || '')
+    : (user.value?.nickname || '')
+
+  return resolveDisplayImageUrl(avatarUrl, avatarSeed, 'avatar')
+})
 
 interface ProfileFeatureEntry extends ProfileGridEntry {
   disabledFeature?: NonMvpFeature

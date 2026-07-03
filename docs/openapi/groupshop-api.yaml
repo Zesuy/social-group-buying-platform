@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: GroupShop MVP API
-  version: 0.10.0
+  version: 0.10.1
   description: Machine-checkable API contract for implemented MVP batches.
 servers:
   - url: /
@@ -23,6 +23,7 @@ tags:
   - name: Favorite
   - name: BrowsingHistory
   - name: Cart
+  - name: Upload
 paths:
   /api/v1/health:
     get:
@@ -145,6 +146,38 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/uploads/images:
+    post:
+      tags:
+        - Upload
+      summary: Upload a public image for store, product, or group buy display.
+      operationId: uploadImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+              additionalProperties: false
+      responses:
+        '200':
+          description: Image uploaded successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   # ── Product endpoints ──────────────────────────────────────────────
   /api/v1/my/store/products:
     get:
@@ -2060,6 +2093,50 @@ components:
         traceId:
           type: string
           minLength: 1
+      additionalProperties: false
+    ImageUploadSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/ImageUploadData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ImageUploadData:
+      type: object
+      required:
+        - url
+        - objectKey
+        - originalFilename
+        - contentType
+        - size
+      properties:
+        url:
+          type: string
+          format: uri
+        objectKey:
+          type: string
+          minLength: 1
+        originalFilename:
+          type: string
+        contentType:
+          type: string
+          enum:
+            - image/jpeg
+            - image/png
+            - image/webp
+        size:
+          type: integer
+          minimum: 1
       additionalProperties: false
     # ── Error ─────────────────────────────────────────────────────
     ErrorResponse:

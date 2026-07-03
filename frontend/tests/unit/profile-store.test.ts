@@ -41,6 +41,40 @@ describe('Profile view logic', () => {
     expect(state.showLoginCTA).toBe(false)
     expect(state.role).toBe('leader')
   })
+
+  it('should prefer leader/store image over user avatar for leader profile header', () => {
+    function selectProfileAvatarUrl(params: {
+      isLeader: boolean
+      userAvatarUrl?: string | null
+      leaderAvatarUrl?: string | null
+      storeLogoUrl?: string | null
+    }) {
+      return params.isLeader
+        ? (params.leaderAvatarUrl || params.storeLogoUrl || params.userAvatarUrl || null)
+        : (params.userAvatarUrl || null)
+    }
+
+    expect(selectProfileAvatarUrl({
+      isLeader: true,
+      userAvatarUrl: 'https://example.com/user-avatar.png',
+      leaderAvatarUrl: 'http://localhost:8080/uploads/images/2026/07/logo.jpg',
+      storeLogoUrl: 'http://localhost:8080/uploads/images/2026/07/logo.jpg',
+    })).toBe('http://localhost:8080/uploads/images/2026/07/logo.jpg')
+
+    expect(selectProfileAvatarUrl({
+      isLeader: true,
+      userAvatarUrl: 'https://example.com/user-avatar.png',
+      leaderAvatarUrl: null,
+      storeLogoUrl: 'http://localhost:8080/uploads/images/2026/07/logo.jpg',
+    })).toBe('http://localhost:8080/uploads/images/2026/07/logo.jpg')
+
+    expect(selectProfileAvatarUrl({
+      isLeader: false,
+      userAvatarUrl: 'https://example.com/user-avatar.png',
+      leaderAvatarUrl: 'http://localhost:8080/uploads/images/2026/07/logo.jpg',
+      storeLogoUrl: 'http://localhost:8080/uploads/images/2026/07/logo.jpg',
+    })).toBe('https://example.com/user-avatar.png')
+  })
 })
 
 describe('Open group click logic', () => {

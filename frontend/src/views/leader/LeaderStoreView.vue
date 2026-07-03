@@ -23,7 +23,13 @@
             <van-field v-model="editForm.name" placeholder="请输入店铺名称" :rules="nameRules" />
           </AppFormRow>
           <AppFormRow label="Logo 链接">
-            <van-field v-model="editForm.logoUrl" placeholder="Logo URL（选填）" />
+            <ImageUploader
+              v-model="editForm.logoUrl"
+              :disabled="submitting"
+              :preview-alt="editForm.name || '店铺 Logo'"
+              demo-kind="store"
+              placeholder="Logo URL（选填，可上传）"
+            />
           </AppFormRow>
           <AppFormRow label="店铺简介">
             <van-field v-model="editForm.description" placeholder="可选，介绍你的店铺" type="textarea" :maxlength="200" show-word-limit />
@@ -73,6 +79,7 @@ import AppFormRow from '@/components/AppFormRow.vue'
 import AppPageNote from '@/components/AppPageNote.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppButton from '@/components/AppButton.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 import type { StoreResponseData } from '@/types'
 
 const router = useRouter()

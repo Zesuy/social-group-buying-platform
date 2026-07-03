@@ -34,6 +34,15 @@ export interface EmptySuccessResponse {
   traceId: string
 }
 
+/** 图片上传响应数据 */
+export interface ImageUploadData {
+  url: string
+  objectKey: string
+  originalFilename: string
+  contentType: 'image/jpeg' | 'image/png' | 'image/webp'
+  size: number
+}
+
 /** 分页查询参数 */
 export interface PaginationParams {
   page?: number

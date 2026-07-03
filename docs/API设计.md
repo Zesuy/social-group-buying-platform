@@ -612,6 +612,51 @@ PATCH /api/v1/my/store
 
 响应：返回更新后的店铺。
 
+### 6.4 上传公开图片
+
+```http
+POST /api/v1/my/uploads/images
+Content-Type: multipart/form-data
+```
+
+登录：需要。
+
+请求字段：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| file | binary | 图片文件，支持 jpg / png / webp，最大 5MB |
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "url": "http://localhost:8080/uploads/images/2026/07/uuid.png",
+    "objectKey": "images/2026/07/uuid.png",
+    "originalFilename": "cover.png",
+    "contentType": "image/png",
+    "size": 123456
+  },
+  "traceId": "req_001"
+}
+```
+
+说明：
+
+- 第一版使用本地磁盘存储，返回公开可访问 URL。
+- 上传成功后，前端将 `url` 写入现有 `logoUrl` / `coverImageUrl` 字段。
+- 当前不实现视频、素材库、图片删除、私有访问、压缩裁剪。
+
+端点错误码：
+
+| 错误码 | 场景 |
+|---|---|
+| `UNAUTHORIZED` | 未登录 |
+| `VALIDATION_ERROR` | 空文件、超过 5MB、文件类型不支持或文件内容与类型不匹配 |
+| `INTERNAL_ERROR` | 图片保存失败 |
+
 ---
 
 ## 7. 商品 API
