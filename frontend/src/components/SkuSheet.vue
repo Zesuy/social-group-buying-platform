@@ -2,13 +2,13 @@
   <van-action-sheet
     v-model:show="visible"
     closeable
-    title="选择规格"
+    title="确认商品"
     class="sku-sheet-action"
     :close-on-click-action="false"
   >
     <div class="sku-top">
       <ImageWithFallback
-        :src="item?.coverImageUrl"
+        :src="item?.coverImageUrl || item?.product?.coverImageUrl"
         width="64px"
         height="64px"
         radius="8px"
@@ -20,6 +20,27 @@
           库存 {{ item?.groupStock ?? 0 }}｜已团 {{ item?.soldCount ?? 0 }} 件
         </p>
         <p class="sku-name van-multi-ellipsis--l2">{{ item?.displayName ?? '' }}</p>
+      </div>
+    </div>
+
+    <div v-if="item" class="sku-product-detail">
+      <div class="sku-product-detail__head">
+        <span>商品详情</span>
+        <small>下单前确认</small>
+      </div>
+      <p v-if="productDescription">{{ productDescription }}</p>
+      <p v-else class="sku-muted">该商品暂未配置独立图文说明，请以团购介绍和团长说明为准。</p>
+      <div v-if="detailImages.length > 0" class="sku-product-detail__images">
+        <ImageWithFallback
+          v-for="url in detailImages"
+          :key="url"
+          :src="url"
+          width="100%"
+          height="180px"
+          fit="cover"
+          radius="8px"
+          :alt="item.displayName"
+        />
       </div>
     </div>
 
@@ -80,6 +101,7 @@ import PriceText from './PriceText.vue'
 const props = defineProps<{
   modelValue: boolean
   item: PublicGroupBuyDetailItem | null
+  defaultDeliveryType?: string
   showCartAction?: boolean
 }>()
 
@@ -99,6 +121,8 @@ const selectedDelivery = ref('express')
 const quantity = ref(1)
 
 const specOptions = ref(['默认规格'])
+const productDescription = computed(() => props.item?.product?.description?.trim() ?? '')
+const detailImages = computed(() => props.item?.product?.detailImageUrls ?? [])
 
 const deliveryOptions = [
   { value: 'express', label: '全国包邮' },
@@ -117,19 +141,25 @@ const confirmData = computed(() => ({
 }))
 
 function increment() {
-  quantity.value++
+  const max = props.item?.groupStock ?? 0
+  if (max <= 0 || quantity.value < max) quantity.value++
 }
 
 watch(() => props.modelValue, (val) => {
   if (val) {
     quantity.value = 1
     selectedSpec.value = specOptions.value[0] || ''
-    selectedDelivery.value = 'express'
+    selectedDelivery.value = props.defaultDeliveryType || 'express'
   }
 })
 </script>
 
 <style scoped>
+.sku-sheet-action :deep(.van-action-sheet__content) {
+  max-height: calc(90vh - 56px);
+  overflow-y: auto;
+}
+
 .sku-top {
   display: grid;
   grid-template-columns: 64px 1fr;
@@ -166,6 +196,46 @@ watch(() => props.modelValue, (val) => {
 
 .sku-section {
   padding: 14px 16px 0;
+}
+
+.sku-product-detail {
+  margin: 14px 16px 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f7fbf8;
+}
+
+.sku-product-detail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sku-product-detail__head span {
+  color: #16181d;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.sku-product-detail__head small,
+.sku-muted {
+  color: #7c858f;
+}
+
+.sku-product-detail p {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.sku-product-detail__images {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .sku-section:last-of-type {
@@ -265,6 +335,11 @@ watch(() => props.modelValue, (val) => {
   grid-template-columns: 1fr;
   gap: 10px;
   padding: 16px 16px 20px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: #fff;
+  box-shadow: 0 -8px 20px rgba(18, 34, 25, 0.06);
 }
 
 .sku-bottom--dual {

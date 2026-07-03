@@ -36,18 +36,18 @@ describe('AddressForm', () => {
       props: {
         address: {
           id: '1',
-          receiverName: '张三',
+          receiverName: '陈小满',
           receiverPhone: '13800000000',
           province: '浙江省',
           city: '杭州市',
           district: '西湖区',
-          fullAddress: '浙江省杭州市西湖区某某路 1 号',
-          detail: '某某路 1 号',
+          fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
+          detail: '桂花城 3 幢 1 单元门口',
           isDefault: true,
         },
       },
     })
-    expect(wrapper.text()).toContain('张三')
+    expect(wrapper.text()).toContain('陈小满')
     expect(wrapper.text()).toContain('13800000000')
     expect(wrapper.text()).toContain('浙江省')
   })
@@ -90,7 +90,7 @@ describe('AddressForm', () => {
     })
 
     await wrapper.findAll('.field')[3].trigger('click')
-    await wrapper.find('textarea[name="detail"]').setValue('某某路 88 号')
+    await wrapper.find('textarea[name="detail"]').setValue('天河社区服务站')
     await wrapper.find('textarea[name="detail"]').trigger('blur')
 
     wrapper.vm.submit()
@@ -101,7 +101,7 @@ describe('AddressForm', () => {
       province: '广东省',
       city: '广州市',
       district: '天河区',
-      detail: '某某路 88 号',
+      detail: '天河社区服务站',
       isDefault: false,
     })
   })

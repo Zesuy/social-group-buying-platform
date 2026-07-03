@@ -94,29 +94,29 @@ async function mockOrderEndpoints(page: Page) {
           id: 9001, orderNo: '20260629001', groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 2990, discountAmount: 0, payAmount: 2990,
           payStatus: 'unpaid', orderStatus: 'pendingPay',
-          receiverName: '张三', receiverPhone: '13800000000',
+          receiverName: '陈小满', receiverPhone: '13800000000',
           province: '浙江省', city: '杭州市', district: '西湖区',
-          detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号',
-          items: [{ id: 1, groupBuyItemId: 1001, productId: 501, productName: '蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
+          detail: '桂花城 3 幢 1 单元门口', fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
+          items: [{ id: 1, groupBuyItemId: 1001, productId: 501, productName: '阳山水蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
         },
         {
           id: 9002, orderNo: '20260629002', groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 1990, discountAmount: 0, payAmount: 1990,
           payStatus: 'unpaid', orderStatus: 'pendingPay',
-          receiverName: '张三', receiverPhone: '13800000000',
+          receiverName: '陈小满', receiverPhone: '13800000000',
           province: '浙江省', city: '杭州市', district: '西湖区',
-          detail: '某某路 2 号', fullAddress: '浙江省杭州市西湖区某某路 2 号',
-          items: [{ id: 2, groupBuyItemId: 1002, productId: 502, productName: '苹果 5 斤装', unitPriceAmount: 1990, quantity: 1, totalAmount: 1990 }],
+          detail: '桂花城南门自提点', fullAddress: '浙江省杭州市西湖区桂花城南门自提点',
+          items: [{ id: 2, groupBuyItemId: 1002, productId: 502, productName: '阳山水蜜桃 10 斤家庭装', unitPriceAmount: 1990, quantity: 1, totalAmount: 1990 }],
         },
         // 用于正向取消/支付成功的订单（不被异常 handler 覆盖）
         {
           id: 9010, orderNo: '20260629010', groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 3990, discountAmount: 0, payAmount: 3990,
           payStatus: 'unpaid', orderStatus: 'pendingPay',
-          receiverName: '李四', receiverPhone: '13900000000',
+          receiverName: '周晨', receiverPhone: '13900000000',
           province: '广东省', city: '广州市', district: '天河区',
-          detail: '某某路 10 号', fullAddress: '广东省广州市天河区某某路 10 号',
-          items: [{ id: 10, groupBuyItemId: 1010, productId: 510, productName: '哈密瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
+          detail: '天河社区服务站', fullAddress: '广东省广州市天河区天河社区服务站',
+          items: [{ id: 10, groupBuyItemId: 1010, productId: 510, productName: '海南玫珑瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
         },
       ]
     } else if (status === 'shipped') {
@@ -126,11 +126,11 @@ async function mockOrderEndpoints(page: Page) {
           id: 9003, orderNo: '20260628003', groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 3990, discountAmount: 0, payAmount: 3990,
           payStatus: 'paid', orderStatus: 'shipped',
-          receiverName: '张三', receiverPhone: '13800000000',
+          receiverName: '陈小满', receiverPhone: '13800000000',
           province: '浙江省', city: '杭州市', district: '西湖区',
-          detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号',
+          detail: '桂花城 3 幢 1 单元门口', fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
           paidAt: '2026-06-28T12:00:00',
-          items: [{ id: 3, groupBuyItemId: 1003, productId: 503, productName: '草莓 2 斤装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
+          items: [{ id: 3, groupBuyItemId: 1003, productId: 503, productName: '当季草莓 2 斤装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
         },
       ]
     } else if (status === 'completed') {
@@ -139,11 +139,11 @@ async function mockOrderEndpoints(page: Page) {
           id: 9004, orderNo: '20260627004', groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 5990, discountAmount: 0, payAmount: 5990,
           payStatus: 'paid', orderStatus: 'completed',
-          receiverName: '张三', receiverPhone: '13800000000',
+          receiverName: '陈小满', receiverPhone: '13800000000',
           province: '浙江省', city: '杭州市', district: '西湖区',
-          detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号',
+          detail: '桂花城 3 幢 1 单元门口', fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
           paidAt: '2026-06-27T12:00:00', completedAt: '2026-06-29T12:00:00',
-          items: [{ id: 4, groupBuyItemId: 1004, productId: 504, productName: '芒果 3 斤装', unitPriceAmount: 5990, quantity: 1, totalAmount: 5990 }],
+          items: [{ id: 4, groupBuyItemId: 1004, productId: 504, productName: '小台农芒果 3 斤装', unitPriceAmount: 5990, quantity: 1, totalAmount: 5990 }],
         },
       ]
     } else if (status === 'canceled') {
@@ -152,10 +152,10 @@ async function mockOrderEndpoints(page: Page) {
           id: 9005, orderNo: '20260625005', groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 2990, discountAmount: 0, payAmount: 2990,
           payStatus: 'unpaid', orderStatus: 'canceled',
-          receiverName: '张三', receiverPhone: '13800000000',
+          receiverName: '陈小满', receiverPhone: '13800000000',
           province: '浙江省', city: '杭州市', district: '西湖区',
-          detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号',
-          items: [{ id: 5, groupBuyItemId: 1005, productId: 505, productName: '梨 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
+          detail: '桂花城 3 幢 1 单元门口', fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
+          items: [{ id: 5, groupBuyItemId: 1005, productId: 505, productName: '砀山梨 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
         },
       ]
     }
@@ -203,16 +203,16 @@ async function mockOrderEndpoints(page: Page) {
           totalAmount: orderId === 9010 ? 3990 : 2990,
           discountAmount: 0, payAmount: orderId === 9010 ? 3990 : 2990,
           payStatus, orderStatus,
-          receiverName: orderId === 9010 ? '李四' : '张三',
+          receiverName: orderId === 9010 ? '周晨' : '陈小满',
           receiverPhone: orderId === 9010 ? '13900000000' : '13800000000',
           province: orderId === 9010 ? '广东省' : '浙江省',
           city: orderId === 9010 ? '广州市' : '杭州市',
           district: orderId === 9010 ? '天河区' : '西湖区',
-          detail: orderId === 9010 ? '某某路 10 号' : '某某路 1 号',
-          fullAddress: orderId === 9010 ? '广东省广州市天河区某某路 10 号' : '浙江省杭州市西湖区某某路 1 号',
+          detail: orderId === 9010 ? '天河社区服务站' : '桂花城 3 幢 1 单元门口',
+          fullAddress: orderId === 9010 ? '广东省广州市天河区天河社区服务站' : '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
           items: orderId === 9010
-            ? [{ id: 10, groupBuyItemId: 1010, productId: 510, productName: '哈密瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }]
-            : [{ id: 1, groupBuyItemId: 1001, productId: 501, productName: '蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
+            ? [{ id: 10, groupBuyItemId: 1010, productId: 510, productName: '海南玫珑瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }]
+            : [{ id: 1, groupBuyItemId: 1001, productId: 501, productName: '阳山水蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
           paidAt: orderStatus === 'paid' || orderStatus === 'shipped' || orderStatus === 'completed' ? '2026-06-28T12:00:00' : null,
           shippedAt: orderStatus === 'shipped' || orderStatus === 'completed' ? '2026-06-29T10:00:00' : null,
           completedAt: orderStatus === 'completed' ? '2026-06-29T12:00:00' : null,
@@ -237,7 +237,7 @@ async function mockOrderEndpoints(page: Page) {
           payStatus: 'paid', orderStatus: 'paid',
           payAmount: 3990,
           paidAt: '2026-06-29T12:35:00',
-          items: [{ id: 10, groupBuyItemId: 1010, productName: '哈密瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
+          items: [{ id: 10, groupBuyItemId: 1010, productName: '海南玫珑瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
         },
         traceId: 'e2e_pay',
       }),
@@ -269,7 +269,7 @@ async function mockOrderEndpoints(page: Page) {
           payStatus: 'paid', orderStatus: 'completed',
           payAmount: 4990,
           completedAt: '2026-06-29T12:35:00',
-          items: [{ id: 11, groupBuyItemId: 1011, productName: '荔枝 2 斤装', unitPriceAmount: 4990, quantity: 1, totalAmount: 4990 }],
+          items: [{ id: 11, groupBuyItemId: 1011, productName: '妃子笑荔枝 2 斤装', unitPriceAmount: 4990, quantity: 1, totalAmount: 4990 }],
         },
         traceId: 'e2e_complete',
       }),
@@ -336,8 +336,8 @@ test.describe('Orders and payment E2E', () => {
     await navigateToHash(page, '/orders')
     await page.waitForTimeout(2000)
 
-    await expect(page.locator('text=蜜桃 5 斤装')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=苹果 5 斤装')).toBeVisible()
+    await expect(page.locator('text=阳山水蜜桃 5 斤装')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=阳山水蜜桃 10 斤家庭装')).toBeVisible()
     await expect(page.locator('text=¥29.90').first()).toBeVisible()
   })
 
@@ -365,7 +365,7 @@ test.describe('Orders and payment E2E', () => {
     await navigateToHash(page, '/orders')
     await page.waitForTimeout(2000)
 
-    await page.locator('text=蜜桃 5 斤装').first().click()
+    await page.locator('text=阳山水蜜桃 5 斤装').first().click()
     await page.waitForTimeout(1500)
 
     await expect(page).toHaveURL(/#\/orders\/9001/, { timeout: 5000 })
@@ -378,7 +378,7 @@ test.describe('Orders and payment E2E', () => {
     await page.locator('.van-tab', { hasText: '已发货' }).click()
     await page.waitForTimeout(1500)
 
-    await expect(page.locator('text=草莓 2 斤装')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=当季草莓 2 斤装')).toBeVisible({ timeout: 5000 })
   })
 
   test('should show completed tab', async ({ page }) => {
@@ -388,7 +388,7 @@ test.describe('Orders and payment E2E', () => {
     await page.locator('.van-tab', { hasText: '已完成' }).click()
     await page.waitForTimeout(1500)
 
-    await expect(page.locator('text=芒果 3 斤装')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=小台农芒果 3 斤装')).toBeVisible({ timeout: 5000 })
   })
 
   test('should show canceled tab', async ({ page }) => {
@@ -398,7 +398,7 @@ test.describe('Orders and payment E2E', () => {
     await page.locator('.van-tab', { hasText: '已取消' }).click()
     await page.waitForTimeout(1500)
 
-    await expect(page.locator('text=梨 5 斤装')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=砀山梨 5 斤装')).toBeVisible({ timeout: 5000 })
   })
 
   // ── 异常路径：错误提示验证 ──

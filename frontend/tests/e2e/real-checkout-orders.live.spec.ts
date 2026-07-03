@@ -87,11 +87,11 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     await navigateToHash(page, `/group-buys/${groupBuyId}`)
     await page.waitForTimeout(2000)
 
-    // 确认页面加载 — 看到"商品列表"标题
-    await expect(page.locator('text=商品列表').first()).toBeVisible({ timeout: 10000 })
+    // 确认页面加载 — 看到"本团商品"标题
+    await expect(page.locator('text=本团商品').first()).toBeVisible({ timeout: 10000 })
 
-    // 点击"选择"按钮添加商品
-    const selectBtn = page.locator('button:has-text("选择")')
+    // 点击"查看购买"打开商品购买面板
+    const selectBtn = page.locator('button:has-text("查看购买")')
     await expect(selectBtn).toBeVisible({ timeout: 5000 })
     await selectBtn.click()
     await page.waitForTimeout(800)

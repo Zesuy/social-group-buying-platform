@@ -132,7 +132,6 @@
           <button type="button" @click="scrollToSection('section-activity')">团购</button>
           <button type="button" @click="scrollToSection('section-story')">介绍</button>
           <button type="button" @click="scrollToSection('section-items')">商品</button>
-          <button type="button" @click="scrollToSection('section-product-detail')">详情</button>
         </nav>
 
         <section id="section-story" class="detail-section section-card">
@@ -195,7 +194,7 @@
               class="detail-item"
               :class="{ 'detail-item--selected': selectedItemId === item.id }"
             >
-              <button type="button" class="detail-item__main" @click="selectItem(item)">
+              <button type="button" class="detail-item__main" @click="openSkuSheet(item)">
                 <ImageWithFallback
                   :src="item.coverImageUrl || item.product?.coverImageUrl"
                   width="84px"
@@ -221,34 +220,9 @@
                 type="primary"
                 @click="openSkuSheet(item)"
               >
-                {{ selectedItemId === item.id ? '已选' : '选择' }}
+                {{ selectedItemId === item.id ? '已选商品' : '查看购买' }}
               </van-button>
               <van-tag v-if="item.groupStock <= 0" type="danger" size="medium">已售罄</van-tag>
-            </div>
-          </div>
-        </section>
-
-        <section id="section-product-detail" class="detail-section section-card">
-          <div class="section-heading">
-            <div>
-              <div class="section-eyebrow">商品详情</div>
-              <h2>{{ productDetailTitle }}</h2>
-            </div>
-          </div>
-          <div v-if="productDetailItem" class="product-detail">
-            <p v-if="productDetailItem.product?.description">{{ productDetailItem.product.description }}</p>
-            <p v-else class="muted-copy">该商品暂未配置独立图文说明，先以团购活动介绍和商品卡信息为准。</p>
-            <div v-if="productDetailImages.length > 0" class="product-detail__images">
-              <ImageWithFallback
-                v-for="url in productDetailImages"
-                :key="url"
-                :src="url"
-                width="100%"
-                height="220px"
-                fit="cover"
-                radius="8px"
-                :alt="productDetailItem.displayName"
-              />
             </div>
           </div>
         </section>
@@ -299,6 +273,10 @@
           <van-icon :name="subscribed ? 'star' : 'star-o'" size="23" />
           <span>{{ subscribed ? '已订阅' : '订阅' }}</span>
         </button>
+        <button class="mini" type="button" @click="goToCart">
+          <van-icon name="cart-o" size="23" />
+          <span>购物车</span>
+        </button>
         <button
           class="big"
           type="button"
@@ -313,8 +291,14 @@
       <SkuSheet
         v-model="skuSheetVisible"
         :item="skuTargetItem"
-        :show-cart-action="false"
+        :default-delivery-type="groupBuy.deliveryType"
+        :show-cart-action="true"
+        @add-to-cart="onSkuAddToCart"
         @buy-now="onSkuBuyNow"
+      />
+      <CartSheet
+        v-model="cartSheetVisible"
+        :current-group-buy-id="groupBuy.id"
       />
     </template>
   </PageLayout>
@@ -330,9 +314,11 @@ import ErrorView from '@/components/ErrorView.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import PriceText from '@/components/PriceText.vue'
 import SkuSheet from '@/components/SkuSheet.vue'
+import CartSheet from '@/components/CartSheet.vue'
 import { useAuthStore, useCheckoutStore } from '@/stores'
 import { getPublicGroupBuyDetail } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
+import { addCartItem } from '@/api/cart'
 import { getDeliveryTypeText, getGroupBuyStatusText } from '@/utils'
 import type {
   GroupBuyDetail,
@@ -361,6 +347,7 @@ const selectedItemId = ref<string | null>(null)
 const subLoading = ref(false)
 const skuSheetVisible = ref(false)
 const skuTargetItem = ref<PublicGroupBuyDetailItem | null>(null)
+const cartSheetVisible = ref(false)
 
 const hasAnyStock = computed(() => items.value.some(item => item.groupStock > 0))
 const isPurchasable = computed(() => {
@@ -388,10 +375,6 @@ const featuredItem = computed(() => {
   if (featuredItemFromApi.value) return featuredItemFromApi.value
   return [...items.value].sort((a, b) => b.soldCount - a.soldCount || a.sortOrder - b.sortOrder)[0] ?? null
 })
-const selectedItem = computed(() => items.value.find(item => item.id === selectedItemId.value) ?? null)
-const productDetailItem = computed(() => selectedItem.value ?? featuredItem.value ?? items.value[0] ?? null)
-const productDetailTitle = computed(() => productDetailItem.value ? productDetailItem.value.displayName : '商品自己的图文说明')
-const productDetailImages = computed(() => productDetailItem.value?.product?.detailImageUrls ?? [])
 const leaderAvatarText = computed(() => leader.value?.displayName.slice(0, 1) || store.value?.name.slice(0, 1) || '团')
 const introText = computed(() => groupBuy.value?.introduction?.trim() || '团长正在组织这次短周期团购，集中收单后按约定方式履约。')
 const heroImageUrl = computed(() => {
@@ -470,11 +453,11 @@ function productSummary(item: PublicGroupBuyDetailItem) {
   return item.product?.description?.trim() || item.product?.name || '商品说明由团长在本次团购中统一承接'
 }
 
-function selectItem(item: PublicGroupBuyDetailItem) {
-  selectedItemId.value = item.id
-}
-
 function openSkuSheet(item: PublicGroupBuyDetailItem) {
+  if (item.groupStock <= 0) {
+    showToast('该商品已售罄')
+    return
+  }
   selectedItemId.value = item.id
   skuTargetItem.value = item
   skuSheetVisible.value = true
@@ -507,6 +490,24 @@ function onSkuBuyNow(payload: { itemId: string; quantity: number; deliveryType: 
     unitPriceAmount: item.groupPriceAmount,
   })
   router.push('/checkout')
+}
+
+async function onSkuAddToCart(payload: { itemId: string; quantity: number; deliveryType: string }) {
+  if (!authStore.isLoggedIn) {
+    router.push(`/login?redirect=${route.fullPath}`)
+    return
+  }
+  try {
+    await addCartItem({
+      groupBuyItemId: payload.itemId,
+      quantity: payload.quantity,
+    })
+    skuSheetVisible.value = false
+    cartSheetVisible.value = true
+    showToast('已加入购物车')
+  } catch (err) {
+    showToast((err as { message?: string }).message || '加入购物车失败')
+  }
 }
 
 async function toggleSubscribe() {
@@ -552,6 +553,14 @@ function goToLeader() {
   if (leader.value) {
     router.push(`/leaders/${leader.value.id}`)
   }
+}
+
+function goToCart() {
+  if (!authStore.isLoggedIn) {
+    router.push(`/login?redirect=${route.fullPath}`)
+    return
+  }
+  cartSheetVisible.value = true
 }
 
 function goBack() {
@@ -920,7 +929,7 @@ onMounted(() => {
   height: 48px;
   background: #fff;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   border-top: 1px solid var(--color-border-light);
   border-bottom: 1px solid var(--color-border-light);
   position: sticky;
@@ -937,8 +946,7 @@ onMounted(() => {
   font-weight: 800;
 }
 
-.activity-content,
-.product-detail {
+.activity-content {
   color: var(--color-text-primary);
   font-size: 16px;
   line-height: 1.7;
@@ -952,8 +960,7 @@ onMounted(() => {
   margin-top: 0;
 }
 
-.content-block p,
-.product-detail p {
+.content-block p {
   margin: 0;
   white-space: pre-line;
 }
@@ -1041,16 +1048,6 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.muted-copy {
-  color: var(--color-text-secondary);
-}
-
-.product-detail__images {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-}
-
 .promise-list {
   display: grid;
   gap: 12px;
@@ -1084,7 +1081,7 @@ onMounted(() => {
 }
 
 .detail-buybar {
-  grid-template-columns: 64px 64px 64px 1fr;
+  grid-template-columns: 58px 58px 58px 58px 1fr;
 }
 
 .detail-buybar .mini {
@@ -1112,7 +1109,7 @@ onMounted(() => {
   }
 
   .detail-buybar {
-    grid-template-columns: 58px 58px 58px 1fr;
+    grid-template-columns: 50px 50px 50px 50px 1fr;
   }
 }
 </style>

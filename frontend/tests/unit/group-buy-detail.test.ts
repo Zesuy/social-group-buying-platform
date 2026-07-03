@@ -6,14 +6,14 @@ import type { PublicGroupBuyItem } from '@/types'
 
 const baseItem: PublicGroupBuyItem = {
   id: 100,
-  title: '测试团购',
+  title: '周末阳山水蜜桃社区团',
   coverImageUrl: null,
   status: 'published',
   endTime: null,
   minPriceAmount: 1990,
   soldCount: 5,
-  leader: { id: 1, displayName: '团长', avatarUrl: null },
-  store: { id: 1, name: '店铺' },
+  leader: { id: 1, displayName: '王姐鲜果团', avatarUrl: null },
+  store: { id: 1, name: '王姐社区鲜果店' },
 }
 
 describe('GroupBuyFeedCard ended tag', () => {
@@ -48,7 +48,7 @@ describe('PriceText integer fen', () => {
 
 describe('GroupBuyDetail out-of-stock', () => {
   it('feed card renders stock-zero item without buy button — price still visible', () => {
-    // GroupBuyFeedCard doesn't show stock info, but the "选择" disabled state
+    // GroupBuyFeedCard doesn't show stock info, but the purchase disabled state
     // is in the detail view. Verify the card itself still renders for sold-out items.
     const wrapper = mount(GroupBuyFeedCard, {
       props: { item: { ...baseItem, minPriceAmount: 0, soldCount: 100 } },

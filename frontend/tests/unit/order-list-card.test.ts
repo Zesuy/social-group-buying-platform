@@ -12,13 +12,13 @@ const mockOrder: OrderData = {
   payAmount: 2990,
   totalAmount: 2990,
   discountAmount: 0,
-  receiverName: '张三',
+  receiverName: '陈小满',
   receiverPhone: '13800138000',
-  fullAddress: '北京市朝阳区',
+  fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
   items: [
     {
       id: 'item1',
-      productName: '测试商品',
+      productName: '阳山水蜜桃 5 斤装',
       skuName: '标准',
       coverImageUrl: '',
       unitPriceAmount: 2990,
@@ -39,7 +39,7 @@ describe('OrderListCard', () => {
       props: { order: mockOrder },
     })
     expect(wrapper.text()).toContain('ORD-001')
-    expect(wrapper.text()).toContain('测试商品')
+    expect(wrapper.text()).toContain('阳山水蜜桃 5 斤装')
   })
 
   it('renders in buyer mode', () => {

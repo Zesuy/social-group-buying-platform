@@ -2,8 +2,8 @@
   <PageLayout title="确认订单" show-back @back="handleBack">
     <!-- 缺少下单信息 -->
     <ErrorView
-      v-if="!checkoutStore.groupBuyId || !checkoutStore.groupBuyItemId"
-      message="缺少下单信息，请从团购详情重新进入"
+      v-if="!hasCheckoutContext"
+      message="缺少下单信息，请从团购详情或购物车重新进入"
       :show-retry="false"
     />
 
@@ -53,7 +53,7 @@
             </div>
             <!-- 数量调整 -->
             <van-stepper
-              v-if="editingItemId === item.groupBuyItemId"
+              v-if="checkoutStore.mode === 'direct' && editingItemId === item.groupBuyItemId"
               v-model="quantity"
               :min="1"
               :max="item.availableStock"
@@ -63,7 +63,7 @@
               @change="onQuantityChange"
             />
             <van-button
-              v-else
+              v-else-if="checkoutStore.mode === 'direct'"
               size="small"
               round
               plain
@@ -111,7 +111,7 @@
     </template>
 
     <!-- 底部提交栏（仅在有效下单信息时显示） -->
-    <template v-if="checkoutStore.groupBuyId && checkoutStore.groupBuyItemId" #action>
+    <template v-if="hasCheckoutContext" #action>
       <AppFixedActions single>
         <AppButton
           variant="primary"
@@ -160,6 +160,11 @@ const quantity = ref(1)
 const hasAddress = ref(false)
 
 // ── 计算属性 ──
+const hasCheckoutContext = computed(() => {
+  if (!checkoutStore.groupBuyId) return false
+  if (checkoutStore.mode === 'cart') return checkoutStore.cartItemIds.length > 0
+  return !!checkoutStore.groupBuyItemId
+})
 const addressInfo = computed(() => preview.value?.address ?? null)
 const canSubmit = computed(() => {
   if (!preview.value) return false
@@ -171,7 +176,7 @@ const canSubmit = computed(() => {
 
 // ── 初始化：先拉地址列表，再调 preview ──
 async function initCheckout() {
-  if (!checkoutStore.groupBuyId || !checkoutStore.groupBuyItemId) {
+  if (!hasCheckoutContext.value) {
     loading.value = false
     return
   }
@@ -213,7 +218,7 @@ async function initCheckout() {
 
 // ── 调预览（确保有地址时才调） ──
 async function doPreview(): Promise<void> {
-  if (!checkoutStore.groupBuyId || !checkoutStore.groupBuyItemId || !checkoutStore.selectedAddressId) {
+  if (!hasCheckoutContext.value || !checkoutStore.selectedAddressId) {
     return
   }
 
@@ -222,11 +227,16 @@ async function doPreview(): Promise<void> {
   preview.value = null // 清除旧预览，避免 stale 数据残留
 
   try {
-    const data = await previewOrder({
-      groupBuyId: checkoutStore.groupBuyId,
-      addressId: checkoutStore.selectedAddressId,
-      items: [{ groupBuyItemId: checkoutStore.groupBuyItemId, quantity: checkoutStore.quantity }],
-    })
+    const data = checkoutStore.mode === 'cart'
+      ? await previewOrder({
+          cartItemIds: checkoutStore.cartItemIds,
+          addressId: checkoutStore.selectedAddressId,
+        })
+      : await previewOrder({
+          groupBuyId: checkoutStore.groupBuyId!,
+          addressId: checkoutStore.selectedAddressId,
+          items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
+        })
     preview.value = data
   } catch (err) {
     const apiErr = err as { message?: string }
@@ -279,12 +289,18 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
-    const orderData = await createOrder({
-      groupBuyId: checkoutStore.groupBuyId!,
-      addressId: checkoutStore.selectedAddressId,
-      remark: remark.value || null,
-      items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
-    })
+    const orderData = checkoutStore.mode === 'cart'
+      ? await createOrder({
+          cartItemIds: checkoutStore.cartItemIds,
+          addressId: checkoutStore.selectedAddressId,
+          remark: remark.value || null,
+        })
+      : await createOrder({
+          groupBuyId: checkoutStore.groupBuyId!,
+          addressId: checkoutStore.selectedAddressId,
+          remark: remark.value || null,
+          items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
+        })
     const orderId = orderData.id
     showToast('订单提交成功')
     checkoutStore.clearCheckout()

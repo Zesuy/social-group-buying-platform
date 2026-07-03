@@ -15,6 +15,22 @@ async function navigateToHash(page: Page, hashPath: string) {
  * Mock 所有涉及的后端接口
  */
 async function mockAllEndpoints(page: Page) {
+  const cartItems = new Map<number, {
+    cartItemId: number
+    groupBuyId: number
+    groupBuyItemId: number
+    productId: number
+    title: string
+    coverImageUrl: string | null
+    groupPriceAmount: number
+    quantity: number
+    availableStock: number
+    visibility: string
+    status: string
+    startTime: string | null
+    endTime: string | null
+  }>()
+
   // 认证相关
   await page.route('**/api/v1/me', async (route) => {
     const headers = route.request().headers()
@@ -73,10 +89,10 @@ async function mockAllEndpoints(page: Page) {
         data: {
           items: [
             {
-              id: 100, title: '测试团购', coverImageUrl: null, status: 'published',
-              endTime: '2026-07-01T12:00:00', minPriceAmount: 2990, soldCount: 12,
-              leader: { id: 10, displayName: '某某团长', avatarUrl: null },
-              store: { id: 20, name: '某某的小店' },
+              id: 100, title: '周末阳山水蜜桃社区团', coverImageUrl: null, status: 'published',
+              endTime: '2026-07-05T12:00:00', minPriceAmount: 2990, soldCount: 61,
+              leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
+              store: { id: 20, name: '王姐社区鲜果店' },
             },
           ],
           page: 1, pageSize: 20, total: 1, hasMore: false,
@@ -95,42 +111,58 @@ async function mockAllEndpoints(page: Page) {
         success: true,
         data: {
           groupBuy: {
-            id: 100, storeId: 20, leaderId: 10, title: '测试团购', introduction: '好吃不贵',
-            coverImageUrl: null, groupType: 'normal', deliveryType: 'express',
-            shippingTime: '2026-06-30T18:00:00', startTime: '2026-06-24T12:00:00',
-            endTime: '2026-07-01T12:00:00', visibility: 'public', status: 'published',
+            id: 100, storeId: 20, leaderId: 10, title: '周末阳山水蜜桃社区团',
+            introduction: '王姐本周从阳山果园集中收单，适合家庭囤货、办公室拼团和邻里群分享。',
+            coverImageUrl: null, groupType: 'normal', deliveryType: 'local_delivery',
+            shippingTime: '2026-07-05T18:00:00', startTime: '2026-07-03T10:00:00',
+            endTime: '2026-07-05T12:00:00', visibility: 'public', status: 'published',
             galleryImageUrls: [],
             contentBlocks: [
-              { type: 'section', title: '团长推荐', text: '本团主打产地直发，集中收单后统一发货。' },
-              { type: 'deliveryNote', text: '预计 6 月 30 日前后发出。' },
+              { type: 'section', title: '团长推荐', text: '这次团不是长期货架，王姐按微信群订单量向果园集中订货，凑齐后统一配送到社区。' },
+              { type: 'paragraph', text: '桃子是偏软甜口，收到后建议先拆箱通风，软的当天吃，偏硬的常温放 1-2 天。' },
+              { type: 'list', items: ['适合家庭囤货', '适合办公室拼团', '支持同城配送'] },
+              { type: 'deliveryNote', text: '7 月 5 日傍晚前后统一履约，具体到货时间以团长群通知为准。' },
             ],
           },
-          leader: { id: 10, displayName: '某某团长', avatarUrl: null, followerCount: 50 },
-          store: { id: 20, name: '某某的小店', logoUrl: null },
+          leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null, followerCount: 128 },
+          store: { id: 20, name: '王姐社区鲜果店', logoUrl: null, latitude: 30.27, longitude: 120.15, distanceMeters: 860, distanceText: '860m' },
           items: [
             {
-              id: 1001, productId: 501, displayName: '蜜桃 5 斤装', groupPriceAmount: 2990,
-              groupStock: 100, soldCount: 12, sortOrder: 1, coverImageUrl: null,
+              id: 1001, productId: 501, displayName: '阳山水蜜桃 5 斤装', groupPriceAmount: 2990,
+              groupStock: 100, soldCount: 61, sortOrder: 1, coverImageUrl: null,
               product: {
                 id: 501,
-                name: '蜜桃',
-                description: '商品自己的口感、规格和储存说明。',
+                name: '阳山水蜜桃',
+                description: '单份约 5 斤，中大果混装。偏软甜口，适合现吃；运输中轻微压痕不影响食用。',
+                coverImageUrl: null,
+                detailImageUrls: ['https://images.unsplash.com/photo-1629828874514-cf5a3f1fb66f'],
+                basePriceAmount: 3990,
+                status: 'active',
+              },
+            },
+            {
+              id: 1002, productId: 502, displayName: '阳山水蜜桃 10 斤家庭装', groupPriceAmount: 5390,
+              groupStock: 32, soldCount: 18, sortOrder: 2, coverImageUrl: null,
+              product: {
+                id: 502,
+                name: '阳山水蜜桃家庭装',
+                description: '适合家庭多人分享，成熟度不同可分批食用。建议到货后平铺保存。',
                 coverImageUrl: null,
                 detailImageUrls: [],
-                basePriceAmount: 3990,
+                basePriceAmount: 6990,
                 status: 'active',
               },
             },
           ],
           featuredItem: {
-            id: 1001, productId: 501, displayName: '蜜桃 5 斤装', groupPriceAmount: 2990,
-            groupStock: 100, soldCount: 12, sortOrder: 1, coverImageUrl: null,
+            id: 1001, productId: 501, displayName: '阳山水蜜桃 5 斤装', groupPriceAmount: 2990,
+            groupStock: 100, soldCount: 61, sortOrder: 1, coverImageUrl: null,
             product: {
               id: 501,
-              name: '蜜桃',
-              description: '商品自己的口感、规格和储存说明。',
+              name: '阳山水蜜桃',
+              description: '单份约 5 斤，中大果混装。偏软甜口，适合现吃；运输中轻微压痕不影响食用。',
               coverImageUrl: null,
-              detailImageUrls: [],
+              detailImageUrls: ['https://images.unsplash.com/photo-1629828874514-cf5a3f1fb66f'],
               basePriceAmount: 3990,
               status: 'active',
             },
@@ -151,18 +183,18 @@ async function mockAllEndpoints(page: Page) {
         success: true,
         data: {
           groupBuy: {
-            id: 101, storeId: 20, leaderId: 10, title: '售罄团购', introduction: '已卖光',
-            coverImageUrl: null, groupType: 'normal', deliveryType: 'express',
+            id: 101, storeId: 20, leaderId: 10, title: '本周油桃加购团', introduction: '本周加购名额已满，等待团长下次开团。',
+            coverImageUrl: null, groupType: 'normal', deliveryType: 'local_delivery',
             shippingTime: null, startTime: null, endTime: null,
             visibility: 'public', status: 'published',
             galleryImageUrls: [],
             contentBlocks: [],
           },
-          leader: { id: 10, displayName: '某某团长', avatarUrl: null, followerCount: 50 },
-          store: { id: 20, name: '某某的小店', logoUrl: null },
+          leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null, followerCount: 128 },
+          store: { id: 20, name: '王姐社区鲜果店', logoUrl: null },
           items: [
             {
-              id: 2001, productId: 502, displayName: '已售罄商品', groupPriceAmount: 1990,
+              id: 2001, productId: 503, displayName: '当季油桃 3 斤尝鲜装', groupPriceAmount: 1990,
               groupStock: 0, soldCount: 100, sortOrder: 1, coverImageUrl: null,
             },
           ],
@@ -181,16 +213,16 @@ async function mockAllEndpoints(page: Page) {
       body: JSON.stringify({
         success: true,
         data: {
-          leader: { id: 10, displayName: '某某团长', avatarUrl: null, bio: '优质水果团长', memberCount: 30, followerCount: 50 },
-          store: { id: 20, name: '某某的小店', logoUrl: null, description: '新鲜水果直供', defaultDeliveryType: 'express' },
+          leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null, bio: '小区群每周开团，主做当季鲜果和社区自提。', memberCount: 30, followerCount: 128 },
+          store: { id: 20, name: '王姐社区鲜果店', logoUrl: null, description: '当季鲜果集中收单，同城配送到社区。', defaultDeliveryType: 'local_delivery' },
           viewer: { subscribed: false },
           groupBuys: {
             items: [
               {
-                id: 100, title: '测试团购', coverImageUrl: null, status: 'published',
-                endTime: null, minPriceAmount: 2990, soldCount: 12,
-                leader: { id: 10, displayName: '某某团长', avatarUrl: null },
-                store: { id: 20, name: '某某的小店' },
+                id: 100, title: '周末阳山水蜜桃社区团', coverImageUrl: null, status: 'published',
+                endTime: null, minPriceAmount: 2990, soldCount: 61,
+                leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
+                store: { id: 20, name: '王姐社区鲜果店' },
               },
             ],
             page: 1, pageSize: 20, total: 1, hasMore: false,
@@ -238,9 +270,9 @@ async function mockAllEndpoints(page: Page) {
           success: true,
           data: [
             {
-              id: 300, receiverName: '张三', receiverPhone: '13800000000',
+              id: 300, receiverName: '陈小满', receiverPhone: '13800000000',
               province: '浙江省', city: '杭州市', district: '西湖区',
-              detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号', isDefault: true,
+              detail: '桂花城 3 幢 1 单元门口', fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口', isDefault: true,
             },
           ],
           traceId: 'e2e_006',
@@ -273,6 +305,24 @@ async function mockAllEndpoints(page: Page) {
 
   // 订单预览
   await page.route('**/api/v1/orders/preview', async (route) => {
+    const body = route.request().postDataJSON()
+    const isCartMode = Array.isArray(body.cartItemIds) && body.cartItemIds.length > 0
+    const previewItems = isCartMode
+      ? body.cartItemIds.map((id: number | string) => {
+          const cart = cartItems.get(Number(id))
+          return {
+            groupBuyItemId: cart?.groupBuyItemId ?? 1001,
+            productId: cart?.productId ?? 501,
+            productName: cart?.title ?? '阳山水蜜桃 5 斤装',
+            unitPriceAmount: cart?.groupPriceAmount ?? 2990,
+            quantity: cart?.quantity ?? 1,
+            totalAmount: (cart?.groupPriceAmount ?? 2990) * (cart?.quantity ?? 1),
+            availableStock: cart?.availableStock ?? 100,
+            soldCount: 61,
+          }
+        })
+      : [{ groupBuyItemId: 1001, productId: 501, productName: '阳山水蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990, availableStock: 100, soldCount: 61 }]
+    const totalAmount = previewItems.reduce((sum: number, item: { totalAmount: number }) => sum + item.totalAmount, 0)
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -280,9 +330,9 @@ async function mockAllEndpoints(page: Page) {
         success: true,
         data: {
           groupBuyId: 100,
-          address: { id: 300, receiverName: '张三', receiverPhone: '13800000000', province: '浙江省', city: '杭州市', district: '西湖区', detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号' },
-          items: [{ groupBuyItemId: 1001, productId: 501, productName: '蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990, availableStock: 100, soldCount: 12 }],
-          totalAmount: 2990, discountAmount: 0, payAmount: 2990,
+          address: { id: 300, receiverName: '陈小满', receiverPhone: '13800000000', province: '浙江省', city: '杭州市', district: '西湖区', detail: '桂花城 3 幢 1 单元门口', fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口' },
+          items: previewItems,
+          totalAmount, discountAmount: 0, payAmount: totalAmount,
         },
         traceId: 'e2e_008',
       }),
@@ -301,9 +351,9 @@ async function mockAllEndpoints(page: Page) {
           id: 9001, orderNo: '2026062900001', groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 2990, discountAmount: 0, payAmount: 2990,
           payStatus: 'unpaid', orderStatus: 'pendingPay',
-          receiverName: '张三', receiverPhone: '13800000000',
-          fullAddress: '浙江省杭州市西湖区某某路 1 号',
-          items: [{ id: 1, groupBuyItemId: 1001, productName: '蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
+          receiverName: '陈小满', receiverPhone: '13800000000',
+          fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
+          items: [{ id: 1, groupBuyItemId: 1001, productName: '阳山水蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
         },
         traceId: 'e2e_009',
       }),
@@ -322,14 +372,88 @@ async function mockAllEndpoints(page: Page) {
           groupBuyId: 100, storeId: 20, leaderId: 10,
           totalAmount: 2990, discountAmount: 0, payAmount: 2990,
           payStatus: 'unpaid', orderStatus: 'pendingPay',
-          receiverName: '张三', receiverPhone: '13800000000',
+          receiverName: '陈小满', receiverPhone: '13800000000',
           province: '浙江省', city: '杭州市', district: '西湖区',
-          detail: '某某路 1 号', fullAddress: '浙江省杭州市西湖区某某路 1 号',
-          items: [{ id: 1, groupBuyItemId: 1001, productName: '蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
+          detail: '桂花城 3 幢 1 单元门口', fullAddress: '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
+          items: [{ id: 1, groupBuyItemId: 1001, productName: '阳山水蜜桃 5 斤装', unitPriceAmount: 2990, quantity: 1, totalAmount: 2990 }],
         },
         traceId: 'e2e_order_detail',
       }),
     })
+  })
+
+  // 购物车
+  await page.route('**/api/v1/cart/items', async (route, request) => {
+    if (request.method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: Array.from(cartItems.values()), traceId: 'e2e_cart_list' }),
+      })
+      return
+    }
+
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON()
+      const existing = Array.from(cartItems.values()).find(item => item.groupBuyItemId === Number(body.groupBuyItemId))
+      const next = existing ?? {
+        cartItemId: 7001,
+        groupBuyId: 100,
+        groupBuyItemId: Number(body.groupBuyItemId),
+        productId: 501,
+        title: '阳山水蜜桃 5 斤装',
+        coverImageUrl: null,
+        groupPriceAmount: 2990,
+        quantity: 0,
+        availableStock: 100,
+        visibility: 'public',
+        status: 'published',
+        startTime: null,
+        endTime: null,
+      }
+      next.quantity += Number(body.quantity)
+      cartItems.set(next.cartItemId, next)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: next, traceId: 'e2e_cart_add' }),
+      })
+      return
+    }
+
+    if (request.method() === 'DELETE') {
+      cartItems.clear()
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, traceId: 'e2e_cart_clear' }),
+      })
+      return
+    }
+  })
+
+  await page.route('**/api/v1/cart/items/*', async (route, request) => {
+    const id = Number(new URL(request.url()).pathname.split('/').pop())
+    if (request.method() === 'PATCH') {
+      const body = request.postDataJSON()
+      const item = cartItems.get(id)
+      if (item) item.quantity = Number(body.quantity)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: item, traceId: 'e2e_cart_update' }),
+      })
+      return
+    }
+    if (request.method() === 'DELETE') {
+      cartItems.delete(id)
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, traceId: 'e2e_cart_delete' }),
+      })
+      return
+    }
   })
 }
 
@@ -346,23 +470,27 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
 
     // Should see group buy cards
-    await expect(page.getByRole('heading', { name: '测试团购' })).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: '周末阳山水蜜桃社区团' })).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=¥29.90')).toBeVisible()
 
     // Click on group buy card -> detail page
-    await page.getByRole('heading', { name: '测试团购' }).click()
+    await page.getByRole('heading', { name: '周末阳山水蜜桃社区团' }).click()
     await page.waitForTimeout(1000)
-    await expect(page.locator('#section-activity').getByText('好吃不贵')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('#section-activity').getByText('王姐本周从阳山果园集中收单')).toBeVisible({ timeout: 5000 })
     await expect(page.getByText('本团热销商品')).toBeVisible()
-    await expect(page.getByText('本团主打产地直发，集中收单后统一发货。')).toBeVisible()
-    await expect(page.getByText('商品自己的口感、规格和储存说明。').first()).toBeVisible()
-    await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible()
+    await expect(page.getByText('这次团不是长期货架')).toBeVisible()
+    await expect(page.locator('.detail-item__name', { hasText: '阳山水蜜桃 5 斤装' })).toBeVisible()
+    await page.locator('.detail-item', { hasText: '阳山水蜜桃 5 斤装' }).getByRole('button', { name: '查看购买' }).click()
+    await expect(page.getByText('确认商品')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('商品详情')).toBeVisible()
+    await expect(page.getByText('单份约 5 斤，中大果混装').first()).toBeVisible()
+    await page.locator('.van-action-sheet__close').click()
 
     // Click leader trust block -> leader homepage
-    await page.locator('text=某某团长').first().click()
+    await page.locator('text=王姐鲜果团').first().click()
     await page.waitForTimeout(1000)
-    await expect(page.locator('text=优质水果团长')).toBeVisible({ timeout: 5000 })
-    await expect(page.getByRole('heading', { name: '测试团购' })).toBeVisible()
+    await expect(page.locator('text=小区群每周开团')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: '周末阳山水蜜桃社区团' })).toBeVisible()
   })
 
   test('unauthenticated click buy redirects to login, logged in user completes flow', async ({ page }) => {
@@ -371,10 +499,10 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
 
     // Should see detail
-    await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('.detail-item__name', { hasText: '阳山水蜜桃 5 斤装' })).toBeVisible({ timeout: 5000 })
 
-    // Select item first
-    await page.locator('button:has-text("选择")').click()
+    // Open item purchase sheet first
+    await page.locator('.detail-item', { hasText: '阳山水蜜桃 5 斤装' }).getByRole('button', { name: '查看购买' }).click()
     await page.waitForTimeout(500)
 
     // Click buy -> should redirect to login
@@ -394,8 +522,8 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
 
     // Should see address list
-    await expect(page.locator('text=张三')).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=浙江省杭州市西湖区某某路 1 号')).toBeVisible()
+    await expect(page.locator('text=陈小满')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=浙江省杭州市西湖区桂花城 3 幢 1 单元门口')).toBeVisible()
   })
 
   test('logged-in user navigates to address new page', async ({ page }) => {
@@ -419,8 +547,8 @@ test.describe('Public browsing and checkout E2E', () => {
     await navigateToHash(page, '/group-buys/100')
     await page.waitForTimeout(1500)
 
-    // Select item
-    await page.locator('button:has-text("选择")').click()
+    // Open item purchase sheet
+    await page.locator('.detail-item', { hasText: '阳山水蜜桃 5 斤装' }).getByRole('button', { name: '查看购买' }).click()
     await page.waitForTimeout(500)
 
     // Click buy
@@ -429,7 +557,7 @@ test.describe('Public browsing and checkout E2E', () => {
 
     // Should be on checkout page
     await expect(page).toHaveURL(/#\/checkout/, { timeout: 5000 })
-    await expect(page.getByText('蜜桃 5 斤装').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('阳山水蜜桃 5 斤装').first()).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=¥29.90').first()).toBeVisible()
 
     // Check agreement checkbox
@@ -448,12 +576,38 @@ test.describe('Public browsing and checkout E2E', () => {
     await expect(page.locator('text=2026062900001')).toBeVisible()
   })
 
+  test('logged-in user adds item to cart and checks out from cart', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token_e2e_test'))
+    await page.goto('/')
+    await page.waitForSelector('.van-tabbar', { timeout: 10000 })
+
+    await navigateToHash(page, '/group-buys/100')
+    await page.waitForTimeout(1500)
+
+    await page.locator('.detail-item', { hasText: '阳山水蜜桃 5 斤装' }).getByRole('button', { name: '查看购买' }).click()
+    await expect(page.getByText('确认商品')).toBeVisible({ timeout: 5000 })
+    await page.locator('button:has-text("加入购物车")').click()
+    await expect(page.locator('.van-toast__text')).toHaveText('已加入购物车', { timeout: 5000 })
+
+    const cartSheet = page.locator('.cart-sheet')
+    await expect(cartSheet.getByRole('heading', { name: '购物车' })).toBeVisible({ timeout: 5000 })
+    await expect(cartSheet.getByText('阳山水蜜桃 5 斤装').first()).toBeVisible({ timeout: 5000 })
+
+    await cartSheet.locator('button:has-text("去结算")').click()
+    await expect(page).toHaveURL(/#\/checkout/, { timeout: 5000 })
+    await expect(page.getByText('阳山水蜜桃 5 斤装').first()).toBeVisible({ timeout: 5000 })
+
+    await page.locator('.van-checkbox').click()
+    await page.locator('button:has-text("提交订单")').click()
+    await expect(page).toHaveURL(/#\/orders\/9001/, { timeout: 5000 })
+  })
+
   test('unauthenticated subscribe redirects to login', async ({ page }) => {
     await navigateToHash(page, '/group-buys/100')
     await page.waitForTimeout(2000)
 
     // Should see detail
-    await expect(page.locator('.detail-item__name', { hasText: '蜜桃 5 斤装' })).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('.detail-item__name', { hasText: '阳山水蜜桃 5 斤装' })).toBeVisible({ timeout: 5000 })
 
     // Click subscribe button
     await page.getByRole('button', { name: '订阅团长' }).click()
@@ -467,13 +621,13 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(2000)
 
     // Should see detail with out-of-stock item
-    await expect(page.locator('.detail-item__name', { hasText: '已售罄商品' })).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('.detail-item__name', { hasText: '当季油桃 3 斤尝鲜装' })).toBeVisible({ timeout: 5000 })
 
-    // Should show "已售罄" tag instead of "选择" button
+    // Should show "已售罄" tag instead of the purchase entry button
     await expect(page.getByText('已售罄', { exact: true })).toBeVisible()
 
-    // Should NOT show a "选择" button for this item
-    await expect(page.locator('button:has-text("选择")')).not.toBeVisible()
+    // Should NOT show a "查看购买" button for this item
+    await expect(page.locator('.detail-item', { hasText: '当季油桃 3 斤尝鲜装' }).getByRole('button', { name: '查看购买' })).not.toBeVisible()
 
     // The buy button should be disabled, showing "库存不足" or not visible
     // (isPurchasable depends on hasAnyStock which is false)
@@ -485,8 +639,8 @@ test.describe('Public browsing and checkout E2E', () => {
     await navigateToHash(page, '/group-buys/100')
     await page.waitForTimeout(1500)
 
-    // Select item and buy
-    await page.locator('button:has-text("选择")').click()
+    // Open item purchase sheet and buy
+    await page.locator('.detail-item', { hasText: '阳山水蜜桃 5 斤装' }).getByRole('button', { name: '查看购买' }).click()
     await page.waitForTimeout(500)
     await page.locator('button:has-text("立即购买")').click()
     await page.waitForTimeout(2000)
@@ -504,7 +658,7 @@ test.describe('Public browsing and checkout E2E', () => {
     // Start from checkout with no address
     await navigateToHash(page, '/group-buys/100')
     await page.waitForTimeout(1500)
-    await page.locator('button:has-text("选择")').click()
+    await page.locator('.detail-item', { hasText: '阳山水蜜桃 5 斤装' }).getByRole('button', { name: '查看购买' }).click()
     await page.waitForTimeout(500)
     await page.locator('button:has-text("立即购买")').click()
     await page.waitForTimeout(1500)
@@ -526,12 +680,12 @@ test.describe('Public browsing and checkout E2E', () => {
     // Fill in address form and save
     const nameInput = page.locator('input[name="receiverName"]')
     if (await nameInput.isVisible()) {
-      await nameInput.fill('李四')
+      await nameInput.fill('周晨')
       await page.locator('input[name="receiverPhone"]').fill('13900000001')
       await page.locator('input[name="province"]').fill('广东省')
       await page.locator('input[name="city"]').fill('广州市')
       await page.locator('input[name="district"]').fill('天河区')
-      await page.locator('textarea').fill('某某路 88 号')
+      await page.locator('textarea').fill('天河社区服务站')
       await page.locator('button:has-text("保存地址")').click()
       await page.waitForTimeout(2000)
 

@@ -25,17 +25,17 @@ describe('checkoutStore', () => {
       groupBuyId: 100,
       groupBuyItemId: 1001,
       quantity: 2,
-      title: '测试团购',
+      title: '周末阳山水蜜桃社区团',
       coverImageUrl: null,
-      displayName: '蜜桃5斤装',
+      displayName: '阳山水蜜桃 5 斤装',
       unitPriceAmount: 2990,
     })
     expect(store.groupBuyId).toBe(100)
     expect(store.groupBuyItemId).toBe(1001)
     expect(store.quantity).toBe(2)
     expect(store.selectedAddressId).toBeNull() // 从详情进入时清空地址
-    expect(store.snapshot?.title).toBe('测试团购')
-    expect(store.snapshot?.displayName).toBe('蜜桃5斤装')
+    expect(store.snapshot?.title).toBe('周末阳山水蜜桃社区团')
+    expect(store.snapshot?.displayName).toBe('阳山水蜜桃 5 斤装')
   })
 
   it('setAddress updates selected address', () => {

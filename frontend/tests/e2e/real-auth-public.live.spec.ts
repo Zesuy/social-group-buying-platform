@@ -176,8 +176,8 @@ test.describe('Real E2E: Auth + Public Browsing', () => {
       timeout: 5000,
     })
 
-    // 商品列表标题应出现
-    await expect(page.locator('text=商品列表').first()).toBeVisible({ timeout: 5000 })
+    // 本团商品标题应出现
+    await expect(page.locator('text=本团商品').first()).toBeVisible({ timeout: 5000 })
 
     // 价格应显示（以 ¥ 开头）
     await expect(page.locator('text=¥').first()).toBeVisible({ timeout: 5000 })
@@ -206,8 +206,8 @@ test.describe('Real E2E: Auth + Public Browsing', () => {
     await page.waitForTimeout(3000)
 
     // 详情页应正常加载（登录后 viewer.subscribed 由后端决定）
-    // 但至少商品列表和团购标题应出现
+    // 但至少本团商品和团购标题应出现
     await expect(page.locator(`text=${GROUP_BUY_TITLE}`).first()).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('text=商品列表').first()).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=本团商品').first()).toBeVisible({ timeout: 5000 })
   })
 })

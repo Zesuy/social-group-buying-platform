@@ -404,9 +404,12 @@ export interface OrderPreviewItem {
 }
 
 export interface OrderPreviewRequest {
-  groupBuyId: string
+  groupBuyId?: string
   addressId: string
-  items: OrderItemEntry[]
+  items?: OrderItemEntry[]
+  cartItemIds?: string[]
+  shareToken?: string | null
+  userCouponId?: string | null
 }
 
 export interface OrderItemEntry {
@@ -415,10 +418,46 @@ export interface OrderItemEntry {
 }
 
 export interface CreateOrderRequest {
-  groupBuyId: string
+  groupBuyId?: string
   addressId: string
   remark?: string | null
-  items: OrderItemEntry[]
+  items?: OrderItemEntry[]
+  cartItemIds?: string[]
+  shareToken?: string | null
+}
+
+export interface CartItemData {
+  cartItemId: string
+  groupBuyId: string
+  groupBuyItemId: string
+  productId: string | null
+  title: string | null
+  coverImageUrl: string | null
+  groupPriceAmount: number | null
+  quantity: number
+  availableStock: number | null
+  visibility: string | null
+  status: string | null
+  startTime: string | null
+  endTime: string | null
+}
+
+export interface AddCartItemRequest {
+  groupBuyItemId: string
+  quantity: number
+  shareToken?: string | null
+}
+
+export interface UpdateCartItemRequest {
+  quantity: number
+  shareToken?: string | null
+}
+
+export interface CartCheckoutPreviewRequest {
+  addressId: string
+  cartItemIds: string[]
+  shareToken?: string | null
+  userCouponId?: string | null
 }
 
 // ── 订阅 ──
