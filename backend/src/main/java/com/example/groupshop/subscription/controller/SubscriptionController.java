@@ -2,6 +2,7 @@ package com.example.groupshop.subscription.controller;
 
 import com.example.groupshop.auth.AuthInterceptor;
 import com.example.groupshop.common.response.ApiResponse;
+import com.example.groupshop.subscription.dto.LeaderSubscriberListResponse;
 import com.example.groupshop.subscription.dto.SubscriptionListResponse;
 import com.example.groupshop.subscription.dto.SubscriptionRequest;
 import com.example.groupshop.subscription.dto.SubscriptionResponse;
@@ -58,5 +59,14 @@ public class SubscriptionController {
     public ApiResponse<SubscriptionListResponse> listMySubscriptions(
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId) {
         return ApiResponse.success(subscriptionService.listMySubscriptions(userId));
+    }
+
+    /**
+     * List current leader's active subscribers.
+     */
+    @GetMapping("/my/store/subscribers")
+    public ApiResponse<LeaderSubscriberListResponse> listMySubscribers(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId) {
+        return ApiResponse.success(subscriptionService.listMySubscribers(userId));
     }
 }

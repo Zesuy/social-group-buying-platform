@@ -4,6 +4,7 @@ import com.example.groupshop.base.MockMvcTestBase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -63,6 +64,24 @@ class SubscriptionControllerTest extends MockMvcTestBase {
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.status").value("active"))
                 .andExpect(jsonPath("$.data.leaderId").value(String.valueOf(leaderId)));
+    }
+
+    @Test
+    void subscribe_shouldCreateLeaderNotificationPointingToNewSubscriber() throws Exception {
+        mockMvc.perform(post(SUBSCRIPTION_PATH, leaderId)
+                        .header("Authorization", "Bearer " + userToken)
+                        .contentType("application/json")
+                        .content("{\"source\":\"homepage\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/my/notifications")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items[0].type").value("subscription_created"))
+                .andExpect(jsonPath("$.data.items[0].actionUrl")
+                        .value(containsString("/leader/subscribers?subscriptionId=")));
     }
 
     @Test
@@ -163,6 +182,44 @@ class SubscriptionControllerTest extends MockMvcTestBase {
     @Test
     void listMySubscriptions_shouldFailWhenNotAuthenticated() throws Exception {
         mockMvc.perform(get("/api/v1/my/subscriptions"))
+                .andExpect(status().isUnauthorized())
+                .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
+    // ── GET /api/v1/my/store/subscribers ──────────────────────────────────
+
+    @Test
+    void listMySubscribers_shouldReturnActiveSubscribersForLeader() throws Exception {
+        mockMvc.perform(post(SUBSCRIPTION_PATH, leaderId)
+                .header("Authorization", "Bearer " + userToken)
+                .contentType("application/json")
+                .content("{\"source\":\"homepage\"}"));
+
+        mockMvc.perform(get("/api/v1/my/store/subscribers")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items").isArray())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].nickname").exists())
+                .andExpect(jsonPath("$.data.items[0].phone").value("13800011001"))
+                .andExpect(jsonPath("$.data.items[0].source").value("homepage"))
+                .andExpect(jsonPath("$.data.total").value(1));
+    }
+
+    @Test
+    void listMySubscribers_shouldFailWhenNotLeader() throws Exception {
+        mockMvc.perform(get("/api/v1/my/store/subscribers")
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isForbidden())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("LEADER_REQUIRED"));
+    }
+
+    @Test
+    void listMySubscribers_shouldFailWhenNotAuthenticated() throws Exception {
+        mockMvc.perform(get("/api/v1/my/store/subscribers"))
                 .andExpect(status().isUnauthorized())
                 .andExpectAll(errorResult("UNAUTHORIZED"));
     }
