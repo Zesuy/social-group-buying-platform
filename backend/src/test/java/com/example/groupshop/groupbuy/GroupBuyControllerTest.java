@@ -853,4 +853,101 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                 .andExpect(status().isBadRequest())
                 .andExpectAll(errorResult("VALIDATION_ERROR"));
     }
+
+    // ── Content blocks & gallery images ────────────────────────────────────
+
+    @Test
+    void createGroupBuy_shouldSucceedWithContentFields() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "内容团购",
+                                    "deliveryType": "express",
+                                    "galleryImageUrls": ["https://example.com/gallery1.jpg"],
+                                    "contentBlocks": [
+                                        {"type": "paragraph", "text": "欢迎参加团购"}
+                                    ],
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.galleryImageUrls[0]").value("https://example.com/gallery1.jpg"))
+                .andExpect(jsonPath("$.data.groupBuy.contentBlocks[0].type").value("paragraph"))
+                .andExpect(jsonPath("$.data.groupBuy.contentBlocks[0].text").value("欢迎参加团购"));
+    }
+
+    @Test
+    void createGroupBuy_shouldFailWithInvalidContentBlockType() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "非法内容块",
+                                    "deliveryType": "express",
+                                    "contentBlocks": [
+                                        {"type": "video", "text": "不支持的块类型"}
+                                    ],
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void createGroupBuy_shouldFailWithEmptyParagraph() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL)
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "空段落",
+                                    "deliveryType": "express",
+                                    "contentBlocks": [
+                                        {"type": "paragraph"}
+                                    ],
+                                    "items": [
+                                        {
+                                            "product": {
+                                                "name": "商品",
+                                                "basePriceAmount": 1000,
+                                                "stock": 10
+                                            },
+                                            "displayName": "商品",
+                                            "groupPriceAmount": 1000,
+                                            "groupStock": 10
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
 }

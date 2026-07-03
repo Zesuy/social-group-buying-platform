@@ -82,6 +82,7 @@ class FlywayMigrationTest extends ServiceTestBase {
         Set<String> columns = getColumnNames("products");
         assertThat(columns)
                 .contains("id", "store_id", "name", "description", "cover_image_url",
+                        "detail_image_urls",
                         "base_price_amount", "stock", "status", "created_at", "updated_at");
     }
 
@@ -90,7 +91,8 @@ class FlywayMigrationTest extends ServiceTestBase {
         Set<String> columns = getColumnNames("group_buys");
         assertThat(columns)
                 .contains("id", "store_id", "leader_id", "title", "introduction",
-                        "cover_image_url", "group_type", "delivery_type", "shipping_time",
+                        "cover_image_url", "gallery_image_urls", "content_blocks",
+                        "group_type", "delivery_type", "shipping_time",
                         "start_time", "end_time", "visibility", "status", "created_at", "updated_at");
     }
 

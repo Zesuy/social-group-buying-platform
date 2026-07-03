@@ -35,6 +35,9 @@ public class Product {
     /** P1 类目，关联 product_categories.id */
     private Long categoryId;
 
+    /** 商品详情图片，JSON 字符串数组；实体层用 String 存 JSON */
+    private String detailImageUrls;
+
     /** active / inactive / deleted */
     private String status;
 

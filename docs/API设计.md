@@ -120,6 +120,17 @@ MVP 统一约定：
   "title": "山东蜜桃团购",
   "introduction": "产地直发，香甜多汁",
   "coverImageUrl": "https://example.com/cover.png",
+  "galleryImageUrls": [
+    "https://example.com/group-1.png",
+    "https://example.com/group-2.png"
+  ],
+  "contentBlocks": [
+    {
+      "type": "section",
+      "title": "为什么开这个团",
+      "text": "这批蜜桃来自固定合作果园。"
+    }
+  ],
   "groupType": "normal",
   "deliveryType": "express",
   "shippingTime": "2026-06-30T18:00:00+08:00",
@@ -129,6 +140,9 @@ MVP 统一约定：
   "status": "published"
 }
 ```
+
+`galleryImageUrls`：团购活动多图，最多 9 张。  
+`contentBlocks`：团购活动结构化正文块，保持原始顺序，最多 20 块。类型：`paragraph` / `section` / `image` / `list` / `deliveryNote`。旧数据无内容块时返回空数组 `[]`。
 
 ### 3.5 GroupBuyItem
 
@@ -356,6 +370,12 @@ GET /api/v1/group-buys/{groupBuyId}
       "title": "山东蜜桃团购",
       "introduction": "产地直发，香甜多汁",
       "coverImageUrl": "https://example.com/cover.png",
+      "galleryImageUrls": [
+        "https://example.com/group-1.png"
+      ],
+      "contentBlocks": [
+        {"type": "paragraph", "text": "本团产地直发，适合囤货。"}
+      ],
       "groupType": "normal",
       "deliveryType": "express",
       "shippingTime": "2026-06-30T18:00:00+08:00",
@@ -386,9 +406,38 @@ GET /api/v1/group-buys/{groupBuyId}
         "groupPriceAmount": 2990,
         "groupStock": 100,
         "soldCount": 12,
-        "coverImageUrl": "https://example.com/product.png"
+        "coverImageUrl": "https://example.com/product.png",
+        "product": {
+          "id": 501,
+          "name": "白玉蜜桃",
+          "description": "商品自己的口感、规格说明。",
+          "coverImageUrl": "https://example.com/product.png",
+          "detailImageUrls": [
+            "https://example.com/product-detail-1.png"
+          ],
+          "basePriceAmount": 3990,
+          "status": "active"
+        }
       }
     ],
+    "featuredItem": {
+      "id": 1001,
+      "productId": 501,
+      "displayName": "白玉蜜桃 5 斤装",
+      "groupPriceAmount": 2990,
+      "groupStock": 100,
+      "soldCount": 12,
+      "coverImageUrl": "https://example.com/product.png",
+      "product": {
+        "id": 501,
+        "name": "白玉蜜桃",
+        "description": "商品自己的口感、规格说明。",
+        "coverImageUrl": "https://example.com/product.png",
+        "detailImageUrls": [],
+        "basePriceAmount": 3990,
+        "status": "active"
+      }
+    },
     "viewer": {
       "subscribed": false,
       "favorited": false
@@ -602,13 +651,17 @@ POST /api/v1/my/store/products
   "name": "白玉蜜桃",
   "description": "山东蒙阴产地直发",
   "coverImageUrl": "https://example.com/product.png",
+  "detailImageUrls": [
+    "https://example.com/product-detail-1.png"
+  ],
   "basePriceAmount": 2990,
   "stock": 100,
   "categoryId": 1
 }
 ```
 
-说明：`categoryId` 为必填（standalone 创建），用于将商品关联到分类。发布团购时内联创建商品则 `categoryId` 为可选。
+说明：`categoryId` 为必填（standalone 创建），用于将商品关联到分类。发布团购时内联创建商品则 `categoryId` 为可选。  
+`detailImageUrls`：商品详情图片，最多 9 张。
 
 响应：
 
@@ -621,6 +674,9 @@ POST /api/v1/my/store/products
     "name": "白玉蜜桃",
     "description": "山东蒙阴产地直发",
     "coverImageUrl": "https://example.com/product.png",
+    "detailImageUrls": [
+      "https://example.com/product-detail-1.png"
+    ],
     "basePriceAmount": 2990,
     "stock": 100,
     "categoryId": 1,
@@ -757,6 +813,17 @@ POST /api/v1/my/store/group-buys
   "title": "山东蜜桃团购",
   "introduction": "产地直发，香甜多汁",
   "coverImageUrl": "https://example.com/cover.png",
+  "galleryImageUrls": [
+    "https://example.com/group-1.png",
+    "https://example.com/group-2.png"
+  ],
+  "contentBlocks": [
+    {
+      "type": "section",
+      "title": "为什么开这个团",
+      "text": "这批蜜桃来自固定合作果园，成熟度更稳定。"
+    }
+  ],
   "deliveryType": "express",
   "shippingTime": "2026-06-30T18:00:00+08:00",
   "startTime": "2026-06-24T12:00:00+08:00",
@@ -767,6 +834,9 @@ POST /api/v1/my/store/group-buys
         "name": "白玉蜜桃",
         "description": "山东蒙阴产地直发",
         "coverImageUrl": "https://example.com/product.png",
+        "detailImageUrls": [
+          "https://example.com/product-detail-1.png"
+        ],
         "basePriceAmount": 2990,
         "stock": 100
       },
@@ -774,14 +844,23 @@ POST /api/v1/my/store/group-buys
       "groupPriceAmount": 2990,
       "groupStock": 100,
       "sortOrder": 1
+    },
+    {
+      "productId": 502,
+      "displayName": "白玉蜜桃 10 斤家庭装",
+      "groupPriceAmount": 5590,
+      "groupStock": 50,
+      "sortOrder": 2
     }
   ]
 }
 ```
 
-响应：返回团购和团购商品列表。
+说明：`galleryImageUrls` 最多 9 张，仅 http/https。`contentBlocks` 最多 20 块，类型白名单 `paragraph/section/image/list/deliveryNote`。`items` 支持多商品，每个商品可内联创建（`product`）或引用已有商品（`productId`）。详情见 `docs/团购活动内容块设计.md`。
 
-复用已有商品时的请求项：
+响应：返回团购和团购商品列表（含团购活动内容字段和内联商品详情图）。
+
+复用已有商品时的请求项（可作为多商品数组中的一项）：
 
 ```json
 {

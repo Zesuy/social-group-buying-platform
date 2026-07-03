@@ -27,6 +27,12 @@ public class GroupBuy {
     private String introduction;
     private String coverImageUrl;
 
+    /** 团购活动多图，JSON 字符串数组；实体层用 String 存 JSON */
+    private String galleryImageUrls;
+
+    /** 团购活动结构化正文块，JSON 字符串数组；实体层用 String 存 JSON */
+    private String contentBlocks;
+
     /** normal / presale / coupon / signup — MVP only normal */
     private String groupType;
 

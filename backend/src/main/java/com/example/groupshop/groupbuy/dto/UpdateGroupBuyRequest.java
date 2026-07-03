@@ -1,5 +1,6 @@
 package com.example.groupshop.groupbuy.dto;
 
+import com.example.groupshop.common.dto.ContentBlockRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -33,6 +34,13 @@ public class UpdateGroupBuyRequest {
 
     /** Update visibility (use permission endpoint instead for clarity, but supported here too) */
     private String visibility;
+
+    /** 团购活动多图，传入非空数组时整体替换；传 [] 表示清空；不传表示不改 */
+    private List<String> galleryImageUrls;
+
+    /** 团购活动结构化正文块，传入数组时整体替换；传 [] 表示清空；不传表示不改 */
+    @Valid
+    private List<ContentBlockRequest> contentBlocks;
 
     /** Optional list of item-level updates. Each must reference an existing item by id. */
     @Valid

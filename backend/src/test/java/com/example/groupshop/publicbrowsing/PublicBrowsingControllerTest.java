@@ -437,4 +437,23 @@ class PublicBrowsingControllerTest extends MockMvcTestBase {
                 .andExpect(jsonPath("$.data.store.distanceMeters").doesNotExist())
                 .andExpect(jsonPath("$.data.store.distanceText").doesNotExist());
     }
+
+    // ── Content fields & featuredItem ──────────────────────────────────
+
+    @Test
+    void getPublicGroupBuyDetail_shouldReturnContentFieldsAndFeaturedItem() throws Exception {
+        Long gbId = createPublishedGroupBuy("内容团购测试");
+
+        mockMvc.perform(get(PUBLIC_GROUP_BUYS_URL + "/" + gbId))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.groupBuy.galleryImageUrls").exists())
+                .andExpect(jsonPath("$.data.groupBuy.contentBlocks").exists())
+                .andExpect(jsonPath("$.data.featuredItem").exists())
+                .andExpect(jsonPath("$.data.items[0].product").exists())
+                .andExpect(jsonPath("$.data.items[0].product.id").isString())
+                .andExpect(jsonPath("$.data.items[0].product.name").isString())
+                .andExpect(jsonPath("$.data.items[0].product.detailImageUrls").exists());
+    }
 }

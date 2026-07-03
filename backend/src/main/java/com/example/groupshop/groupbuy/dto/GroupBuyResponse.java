@@ -1,5 +1,6 @@
 package com.example.groupshop.groupbuy.dto;
 
+import com.example.groupshop.common.dto.ContentBlockData;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -37,6 +38,10 @@ public class GroupBuyResponse {
         private String endTime;
         private String visibility;
         private String status;
+        /** 团购活动多图 */
+        private List<String> galleryImageUrls;
+        /** 团购活动结构化正文块 */
+        private List<ContentBlockData> contentBlocks;
     }
 
     @Data

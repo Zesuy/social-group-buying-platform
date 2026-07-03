@@ -1,4 +1,4 @@
-package com.example.groupshop.product.dto;
+package com.example.groupshop.common.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,23 +8,22 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * Response DTO for a single product.
+ * Summary of a Product for nested display inside a group buy detail item.
+ *
+ * <p>Contains the product's own description and detail images, separate from
+ * the group buy activity content.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductResponse {
+public class ProductSummaryData {
 
     private Long id;
-    private Long storeId;
     private String name;
     private String description;
     private String coverImageUrl;
-    private Long basePriceAmount;
-    private Integer stock;
-    private Long categoryId;
-    private String status;
-    /** 商品详情图片 */
     private List<String> detailImageUrls;
+    private Long basePriceAmount;
+    private String status;
 }

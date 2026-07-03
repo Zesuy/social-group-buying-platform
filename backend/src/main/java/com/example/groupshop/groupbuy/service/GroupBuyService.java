@@ -6,6 +6,10 @@ import com.example.groupshop.browsing.service.BrowsingHistoryService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
+import com.example.groupshop.common.dto.ContentBlockData;
+import com.example.groupshop.common.dto.ContentBlockRequest;
+import com.example.groupshop.common.dto.ProductSummaryData;
+import com.example.groupshop.common.util.ContentValidationUtil;
 import com.example.groupshop.common.util.CurrentStoreHelper;
 import com.example.groupshop.common.util.DistanceCalculator;
 import com.example.groupshop.favorite.service.FavoriteService;
@@ -76,6 +80,7 @@ public class GroupBuyService {
     private final FavoriteService favoriteService;
     private final BrowsingHistoryService browsingHistoryService;
     private final GroupBuyShareTokenMapper groupBuyShareTokenMapper;
+    private final ContentValidationUtil contentValidationUtil;
 
     // ── Create ────────────────────────────────────────────────────────
 
@@ -132,6 +137,16 @@ public class GroupBuyService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购可见性只允许 public 或 hidden");
         }
         groupBuy.setVisibility(visibility);
+
+        // Validate and save gallery image URLs
+        contentValidationUtil.validateImageUrls(request.getGalleryImageUrls(),
+                ContentValidationUtil.MAX_GALLERY_URLS, "galleryImageUrls");
+        groupBuy.setGalleryImageUrls(contentValidationUtil.serializeImageUrls(request.getGalleryImageUrls()));
+
+        // Validate and save content blocks
+        contentValidationUtil.validateContentBlocks(request.getContentBlocks());
+        List<ContentBlockData> blockDataList = contentValidationUtil.toContentBlockData(request.getContentBlocks());
+        groupBuy.setContentBlocks(contentValidationUtil.serializeContentBlocks(blockDataList));
 
         groupBuy.setDeliveryType(request.getDeliveryType().getValue());
         groupBuy.setShippingTime(shippingTime);
@@ -260,6 +275,19 @@ public class GroupBuyService {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "团购可见性只允许 public 或 hidden");
             }
             groupBuy.setVisibility(request.getVisibility());
+        }
+
+        // Update galleryImageUrls
+        if (request.getGalleryImageUrls() != null) {
+            contentValidationUtil.validateImageUrls(request.getGalleryImageUrls(), 9, "galleryImageUrls");
+            groupBuy.setGalleryImageUrls(contentValidationUtil.serializeImageUrls(request.getGalleryImageUrls()));
+        }
+
+        // Update contentBlocks
+        if (request.getContentBlocks() != null) {
+            contentValidationUtil.validateContentBlocks(request.getContentBlocks());
+            List<ContentBlockData> blockDataList = contentValidationUtil.toContentBlockData(request.getContentBlocks());
+            groupBuy.setContentBlocks(contentValidationUtil.serializeContentBlocks(blockDataList));
         }
 
         // Validate time constraints (including presale rules)
@@ -454,6 +482,16 @@ public class GroupBuyService {
         groupBuy.setTitle(request.getTitle());
         groupBuy.setIntroduction(request.getIntroduction());
         groupBuy.setCoverImageUrl(request.getCoverImageUrl());
+
+        // Validate and save gallery image URLs
+        contentValidationUtil.validateImageUrls(request.getGalleryImageUrls(), 9, "galleryImageUrls");
+        groupBuy.setGalleryImageUrls(contentValidationUtil.serializeImageUrls(request.getGalleryImageUrls()));
+
+        // Validate and save content blocks
+        contentValidationUtil.validateContentBlocks(request.getContentBlocks());
+        List<ContentBlockData> blockDataList = contentValidationUtil.toContentBlockData(request.getContentBlocks());
+        groupBuy.setContentBlocks(contentValidationUtil.serializeContentBlocks(blockDataList));
+
         groupBuy.setGroupType(groupType);
         groupBuy.setVisibility(visibility);
         groupBuy.setDeliveryType(deliveryType);
@@ -579,20 +617,27 @@ public class GroupBuyService {
         Leader leader = leaderMapper.selectById(groupBuy.getLeaderId());
         Store storeDetail = storeMapper.selectById(groupBuy.getStoreId());
 
+        List<GroupBuyDetailItemData> detailItems = items.stream()
+                .map(this::toGroupBuyDetailItemData)
+                .collect(Collectors.toList());
+
+        LeaderDetail ld = LeaderDetail.builder()
+                .id(leader.getId())
+                .displayName(leader.getDisplayName())
+                .avatarUrl(leader.getAvatarUrl())
+                .followerCount(leader.getFollowerCount())
+                .build();
+
         return GroupBuyDetailResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
-                .leader(LeaderDetail.builder()
-                        .id(leader.getId())
-                        .displayName(leader.getDisplayName())
-                        .avatarUrl(leader.getAvatarUrl())
-                        .followerCount(leader.getFollowerCount())
-                        .build())
+                .leader(ld)
                 .store(StoreDetail.builder()
                         .id(storeDetail.getId())
                         .name(storeDetail.getName())
                         .logoUrl(storeDetail.getLogoUrl())
                         .build())
-                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .items(detailItems)
+                .featuredItem(selectFeaturedItem(detailItems))
                 .viewer(new ViewerInfo(false, false))
                 .build();
     }
@@ -601,8 +646,8 @@ public class GroupBuyService {
 
     /**
      * Copy a group buy as a new draft.
-     * Copies title, introduction, coverImageUrl, groupType, deliveryType,
-     * visibility, and all item configurations.
+     * Copies title, introduction, coverImageUrl, galleryImageUrls, contentBlocks,
+     * groupType, deliveryType, visibility, and all item configurations.
      * New item IDs are generated; soldCount is reset to 0.
      * The original group buy is not affected.
      */
@@ -621,6 +666,8 @@ public class GroupBuyService {
         draft.setTitle(source.getTitle());
         draft.setIntroduction(source.getIntroduction());
         draft.setCoverImageUrl(source.getCoverImageUrl());
+        draft.setGalleryImageUrls(source.getGalleryImageUrls());
+        draft.setContentBlocks(source.getContentBlocks());
         draft.setGroupType(source.getGroupType());
         draft.setDeliveryType(source.getDeliveryType());
         draft.setShippingTime(null);        // Don't copy times — buyer must set fresh
@@ -796,6 +843,9 @@ public class GroupBuyService {
         boolean subscribed = viewerUserId != null
                 && subscriptionService.isSubscribed(viewerUserId, groupBuy.getLeaderId());
         boolean favorited = favoriteService.isFavorited(viewerUserId, groupBuy.getId());
+        List<GroupBuyDetailItemData> detailItems = items.stream()
+                .map(this::toGroupBuyDetailItemData)
+                .collect(Collectors.toList());
 
         return GroupBuyDetailResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
@@ -806,7 +856,8 @@ public class GroupBuyService {
                         .followerCount(leader.getFollowerCount())
                         .build())
                 .store(buildStoreDetailWithDistance(storeDetail, null, null))
-                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .items(detailItems)
+                .featuredItem(selectFeaturedItem(detailItems))
                 .viewer(new ViewerInfo(subscribed, favorited))
                 .build();
     }
@@ -834,6 +885,9 @@ public class GroupBuyService {
         boolean subscribed = viewerUserId != null
                 && subscriptionService.isSubscribed(viewerUserId, groupBuy.getLeaderId());
         boolean favorited = favoriteService.isFavorited(viewerUserId, groupBuy.getId());
+        List<GroupBuyDetailItemData> detailItems = items.stream()
+                .map(this::toGroupBuyDetailItemData)
+                .collect(Collectors.toList());
 
         return GroupBuyDetailResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
@@ -844,7 +898,8 @@ public class GroupBuyService {
                         .followerCount(leader.getFollowerCount())
                         .build())
                 .store(buildStoreDetailWithDistance(storeDetail, latitude, longitude))
-                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .items(detailItems)
+                .featuredItem(selectFeaturedItem(detailItems))
                 .viewer(new ViewerInfo(subscribed, favorited))
                 .build();
     }
@@ -1029,11 +1084,16 @@ public class GroupBuyService {
 
         boolean favorited = favoriteService.isFavorited(viewerUserId, groupBuyId);
 
+        List<GroupBuyDetailItemData> detailItems = items.stream()
+                .map(this::toGroupBuyDetailItemData)
+                .collect(Collectors.toList());
+
         return GroupBuyDetailResponse.builder()
                 .groupBuy(toGroupBuyData(groupBuy))
                 .leader(leaderDetail)
                 .store(storeDetail)
-                .items(items.stream().map(this::toGroupBuyDetailItemData).collect(Collectors.toList()))
+                .items(detailItems)
+                .featuredItem(selectFeaturedItem(detailItems))
                 .viewer(new ViewerInfo(subscribed, favorited))
                 .build();
     }
@@ -1064,6 +1124,8 @@ public class GroupBuyService {
             product.setName(inlineProduct.getName());
             product.setDescription(inlineProduct.getDescription());
             product.setCoverImageUrl(inlineProduct.getCoverImageUrl());
+            contentValidationUtil.validateImageUrls(inlineProduct.getDetailImageUrls(), 9, "inlineProduct.detailImageUrls");
+            product.setDetailImageUrls(contentValidationUtil.serializeImageUrls(inlineProduct.getDetailImageUrls()));
             product.setBasePriceAmount(inlineProduct.getBasePriceAmount());
             product.setStock(inlineProduct.getStock());
             product.setStatus("active");
@@ -1111,7 +1173,7 @@ public class GroupBuyService {
 
     private GroupBuyDetailItemData toGroupBuyDetailItemData(GroupBuyItem item) {
         Product product = productMapper.selectById(item.getProductId());
-        return GroupBuyDetailItemData.builder()
+        GroupBuyDetailItemData.GroupBuyDetailItemDataBuilder builder = GroupBuyDetailItemData.builder()
                 .id(item.getId())
                 .productId(item.getProductId())
                 .displayName(item.getDisplayName())
@@ -1119,8 +1181,11 @@ public class GroupBuyService {
                 .groupStock(item.getGroupStock())
                 .soldCount(item.getSoldCount())
                 .sortOrder(item.getSortOrder())
-                .coverImageUrl(product != null ? product.getCoverImageUrl() : null)
-                .build();
+                .coverImageUrl(product != null ? product.getCoverImageUrl() : null);
+        if (product != null) {
+            builder.product(toProductSummary(product));
+        }
+        return builder.build();
     }
 
     // ── Converters ────────────────────────────────────────────────────
@@ -1222,6 +1287,8 @@ public class GroupBuyService {
                 .endTime(gb.getEndTime() != null ? gb.getEndTime().toString() : null)
                 .visibility(gb.getVisibility())
                 .status(gb.getStatus())
+                .galleryImageUrls(contentValidationUtil.deserializeImageUrls(gb.getGalleryImageUrls()))
+                .contentBlocks(contentValidationUtil.deserializeContentBlocks(gb.getContentBlocks()))
                 .build();
     }
 
@@ -1306,6 +1373,8 @@ public class GroupBuyService {
             product.setName(inlineProduct.getName());
             product.setDescription(inlineProduct.getDescription());
             product.setCoverImageUrl(inlineProduct.getCoverImageUrl());
+            contentValidationUtil.validateImageUrls(inlineProduct.getDetailImageUrls(), 9, "inlineProduct.detailImageUrls");
+            product.setDetailImageUrls(contentValidationUtil.serializeImageUrls(inlineProduct.getDetailImageUrls()));
             product.setBasePriceAmount(inlineProduct.getBasePriceAmount() != null ? inlineProduct.getBasePriceAmount() : 0);
             product.setStock(inlineProduct.getStock() != null ? inlineProduct.getStock() : 0);
             product.setStatus("active");
@@ -1314,6 +1383,47 @@ public class GroupBuyService {
         } else {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "每个团购商品必须指定 productId 或 product");
         }
+    }
+
+    // ── Featured item selection ──────────────────────────────────────
+
+    /**
+     * Select the featured (热销) item from detail items.
+     * Rules: soldCount desc, sortOrder asc, id asc.
+     * Returns null if the list is empty.
+     */
+    private GroupBuyDetailItemData selectFeaturedItem(List<GroupBuyDetailItemData> items) {
+        if (items == null || items.isEmpty()) return null;
+        return items.stream()
+                .min((a, b) -> {
+                    // soldCount desc
+                    int cmp = Long.compare(b.getSoldCount() != null ? b.getSoldCount() : 0,
+                            a.getSoldCount() != null ? a.getSoldCount() : 0);
+                    if (cmp != 0) return cmp;
+                    // sortOrder asc
+                    cmp = Integer.compare(a.getSortOrder() != null ? a.getSortOrder() : Integer.MAX_VALUE,
+                            b.getSortOrder() != null ? b.getSortOrder() : Integer.MAX_VALUE);
+                    if (cmp != 0) return cmp;
+                    // id asc
+                    return Long.compare(a.getId() != null ? a.getId() : Long.MAX_VALUE,
+                            b.getId() != null ? b.getId() : Long.MAX_VALUE);
+                })
+                .orElse(null);
+    }
+
+    // ── Product summary ──────────────────────────────────────────────
+
+    private ProductSummaryData toProductSummary(Product product) {
+        if (product == null) return null;
+        return ProductSummaryData.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .description(product.getDescription())
+                .coverImageUrl(product.getCoverImageUrl())
+                .detailImageUrls(contentValidationUtil.deserializeImageUrls(product.getDetailImageUrls()))
+                .basePriceAmount(product.getBasePriceAmount())
+                .status(product.getStatus())
+                .build();
     }
 
     // ── DeliveryType validation ──────────────────────────────────────
