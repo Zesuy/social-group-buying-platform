@@ -1,5 +1,5 @@
 <template>
-  <AppCard>
+  <AppCard :clickable="clickable" @click="$emit('click')">
     <template #header>
       <slot name="header">
         <span>{{ title }}</span>
@@ -16,8 +16,15 @@
 <script setup lang="ts">
 import AppCard from './AppCard.vue'
 
-defineProps<{
+withDefaults(defineProps<{
   title?: string
+  clickable?: boolean
+}>(), {
+  clickable: false,
+})
+
+defineEmits<{
+  click: []
 }>()
 </script>
 

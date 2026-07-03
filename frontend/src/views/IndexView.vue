@@ -82,12 +82,14 @@
               v-for="item in visibleItems"
               :key="item.id"
               :item="item"
+              :subscribed="subscribedLeaderIds.has(item.leader.id)"
+              :subscribe-loading="subscribingLeaderId === item.leader.id"
               @click="goToDetail(item.id)"
               @share="onShareClick"
-              @subscribe="onSubscribeClick"
+              @subscribe="onSubscribeClick(item)"
               @leader="goToLeader(item.leader.id)"
             />
-            <EmptyState v-if="isEmpty" description="暂无正在进行的团购，可先去一键开团" />
+            <EmptyState v-if="isEmpty" :description="emptyDescription" />
           </van-list>
         </van-pull-refresh>
 
@@ -106,6 +108,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { useAuthStore } from '@/stores'
 import PageLayout from '@/components/PageLayout.vue'
 import CategoryChips from '@/components/CategoryChips.vue'
 import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
@@ -113,11 +116,14 @@ import EmptyState from '@/components/EmptyState.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import { listPublicGroupBuys } from '@/api/groupBuys'
+import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
+import { listMySubscriptions } from '@/api/subscriptions'
 import type { PublicGroupBuyItem } from '@/types'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
-// ── 活动筛选：MVP 阶段只做本地高亮，不额外请求后端 ──
+// ── 活动筛选：本地筛选已加载团购，不改变后端列表参数 ──
 const categories = [
   { key: 'all', label: '全部团购' },
   { key: 'nearby', label: '本地履约' },
@@ -128,17 +134,10 @@ const categories = [
 const activeCategory = ref('all')
 function onCategoryChange(key: string) {
   activeCategory.value = key
-  if (key !== 'all') {
-    showToast('当前仅高亮活动标签，真实筛选后续开放')
-  }
 }
 
 function onShareClick() {
   showToast('分享能力仅作占位展示')
-}
-
-function onSubscribeClick() {
-  showToast('请进入团长主页完成订阅')
 }
 
 // ── 分页 ──
@@ -149,14 +148,86 @@ const refreshing = ref(false)
 const hasMore = ref(true)
 const error = ref<string | null>(null)
 const initialized = ref(false)
+const subscribedLeaderIds = ref(new Set<string>())
+const subscribingLeaderId = ref<string | null>(null)
 
 const firstLoading = computed(() => !initialized.value && loading.value)
-const isEmpty = computed(() => initialized.value && !error.value && items.value.length === 0)
+const isEmpty = computed(() => initialized.value && !error.value && visibleItems.value.length === 0)
 const showError = computed(() => error.value && items.value.length === 0)
-const visibleItems = computed(() => items.value)
+const visibleItems = computed(() => items.value.filter(matchesActiveCategory))
 const activeGroupBuyCount = computed(() => items.value.filter(item => item.status !== 'ended').length)
 const totalSoldCount = computed(() => items.value.reduce((total, item) => total + item.soldCount, 0))
 const leaderCount = computed(() => new Set(items.value.map(item => item.leader.id)).size)
+const emptyDescription = computed(() => {
+  const label = categories.find(category => category.key === activeCategory.value)?.label ?? '团购'
+  return activeCategory.value === 'all' ? '暂无正在进行的团购，可先去一键开团' : `暂无${label}团购`
+})
+
+const categoryKeywords: Record<string, string[]> = {
+  fresh: ['生鲜', '水果', '鲜', '桃', '瓜', '梨', '莓', '橙', '柑', '苹果', '荔枝'],
+  seasonal: ['节令', '特产', '应季', '当季', '产地', '年货', '端午', '中秋'],
+  repeat: ['复购', '常备', '家庭', '办公室', '每日', '每周', '回购'],
+}
+
+function matchesActiveCategory(item: PublicGroupBuyItem): boolean {
+  if (activeCategory.value === 'all') return true
+  if (activeCategory.value === 'nearby') {
+    return Boolean(item.store.distanceMeters || item.store.distanceText)
+  }
+  const keywords = categoryKeywords[activeCategory.value] ?? []
+  const haystack = `${item.title} ${item.store.name}`.toLowerCase()
+  return keywords.some(keyword => haystack.includes(keyword.toLowerCase()))
+}
+
+async function initSubscriptions(): Promise<void> {
+  if (!authStore.isLoggedIn) return
+  try {
+    const data = await listMySubscriptions()
+    subscribedLeaderIds.value = new Set(
+      data.items
+        .filter(item => item.status !== 'canceled')
+        .map(item => item.leaderId),
+    )
+  } catch {
+    subscribedLeaderIds.value = new Set()
+  }
+}
+
+async function onSubscribeClick(item: PublicGroupBuyItem): Promise<void> {
+  if (!authStore.isLoggedIn) {
+    router.push('/login?redirect=/')
+    return
+  }
+  const leaderId = item.leader.id
+  if (subscribingLeaderId.value) return
+
+  subscribingLeaderId.value = leaderId
+  try {
+    const nextSet = new Set(subscribedLeaderIds.value)
+    if (nextSet.has(leaderId)) {
+      await unsubscribeLeader(leaderId)
+      nextSet.delete(leaderId)
+      showToast('已取消订阅')
+    } else {
+      await subscribeLeader(leaderId, 'indexFeed')
+      nextSet.add(leaderId)
+      showToast('订阅成功')
+    }
+    subscribedLeaderIds.value = nextSet
+  } catch (err) {
+    const apiErr = err as { code?: string; message?: string }
+    if (apiErr.code === 'SUBSCRIPTION_EXISTS') {
+      const nextSet = new Set(subscribedLeaderIds.value)
+      nextSet.add(leaderId)
+      subscribedLeaderIds.value = nextSet
+      showToast('已订阅')
+    } else {
+      showToast(apiErr.message || '操作失败')
+    }
+  } finally {
+    subscribingLeaderId.value = null
+  }
+}
 
 async function fetchList(p: number): Promise<boolean> {
   try {
@@ -218,6 +289,7 @@ function goToOpenGroup() {
 
 onMounted(() => {
   initLoad()
+  initSubscriptions()
 })
 </script>
 

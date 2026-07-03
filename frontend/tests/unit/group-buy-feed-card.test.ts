@@ -49,4 +49,15 @@ describe('GroupBuyFeedCard', () => {
     const wrapper = mount(GroupBuyFeedCard, { props: { item: mockItem } })
     expect(wrapper.text()).not.toContain('已结束')
   })
+
+  it('renders subscribed and loading subscription states', async () => {
+    const wrapper = mount(GroupBuyFeedCard, {
+      props: { item: mockItem, subscribed: true },
+    })
+    expect(wrapper.text()).toContain('已订阅')
+
+    await wrapper.setProps({ subscribed: false, subscribeLoading: true })
+    expect(wrapper.text()).toContain('处理中')
+    expect(wrapper.find('.group-buy-feed-card__subscribe').attributes('disabled')).toBeDefined()
+  })
 })

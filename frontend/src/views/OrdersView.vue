@@ -4,12 +4,6 @@
       我购买的订单
     </div>
 
-    <AppNoticeStrip
-      text="关注公众号，收到活动和订单、物流通知"
-      action-label="关注"
-      @action="onWechatNoticeClick"
-    />
-
     <!-- 搜索占位 -->
     <AppCard class="orders-search" :clickable="true" @click="onSearchClick">
       <van-icon name="search" size="16" />
@@ -38,8 +32,6 @@
 
     <!-- 订单列表 -->
     <div v-else class="orders-content">
-      <AppPageNote text="订单列表主态：顶部搜索 + 状态 Tab；订单卡片露出团长、商品快照、金额、状态和可操作按钮。" />
-
       <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
         <van-list
           :loading="loading"
@@ -81,13 +73,10 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import AppNoticeStrip from '@/components/AppNoticeStrip.vue'
-import AppPageNote from '@/components/AppPageNote.vue'
 import AppCard from '@/components/AppCard.vue'
 import OrderListCard from '@/components/OrderListCard.vue'
 import { usePagination } from '@/composables/usePagination'
 import { listMyOrders, cancelOrder } from '@/api/orders'
-import { isFeatureDisabled } from '@/utils/non-mvp'
 import type { OrderData } from '@/types'
 
 const router = useRouter()
@@ -150,12 +139,6 @@ function goToDetail(id: string) {
 
 function onSearchClick() {
   showToast('订单搜索将在后续开放')
-}
-
-function onWechatNoticeClick() {
-  if (isFeatureDisabled('wechatPush')) {
-    showToast('公众号推送将在后续开放')
-  }
 }
 
 function goHome() {
