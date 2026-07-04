@@ -36,7 +36,7 @@ describe('ImageUploader', () => {
 
   it('uploads a selected image and emits returned url', async () => {
     vi.mocked(uploadImage).mockResolvedValue({
-      url: 'http://localhost:8080/uploads/images/cover.png',
+      url: '/uploads/images/cover.png',
       objectKey: 'images/cover.png',
       originalFilename: 'cover.png',
       contentType: 'image/png',
@@ -55,7 +55,7 @@ describe('ImageUploader', () => {
 
     expect(uploadImage).toHaveBeenCalledWith(file)
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([
-      'http://localhost:8080/uploads/images/cover.png',
+      '/uploads/images/cover.png',
     ])
     expect(wrapper.emitted('uploaded')?.[0][0]).toMatchObject({ objectKey: 'images/cover.png' })
     expect(showToast).toHaveBeenCalledWith('图片已上传')

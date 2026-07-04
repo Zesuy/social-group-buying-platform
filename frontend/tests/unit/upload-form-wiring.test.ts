@@ -47,7 +47,7 @@ vi.mock('vant', async () => {
 })
 
 const uploadedImage = {
-  url: 'http://localhost:8080/uploads/images/uploaded.png',
+  url: '/uploads/images/uploaded.png',
   objectKey: 'images/uploaded.png',
   originalFilename: 'uploaded.png',
   contentType: 'image/png' as const,

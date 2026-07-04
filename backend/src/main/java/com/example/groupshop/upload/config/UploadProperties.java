@@ -14,7 +14,7 @@ public class UploadProperties {
 
     private Path localDir = Paths.get("uploads");
 
-    private String publicBaseUrl = "http://localhost:8080/uploads";
+    private String publicBaseUrl = "/uploads";
 
     private long maxTotalSizeMb = 1024;
 

@@ -208,7 +208,7 @@ async function mockEndpoints(page: Page) {
       body: JSON.stringify({
         success: true,
         data: {
-          url: 'http://localhost:8080/uploads/images/e2e-logo.png',
+          url: '/uploads/images/e2e-logo.png',
           objectKey: 'images/e2e-logo.png',
           originalFilename: 'e2e-logo.png',
           contentType: 'image/png',
@@ -472,6 +472,6 @@ test.describe('Profile and store E2E', () => {
     await expect(page.locator('input[placeholder="Logo URL（选填，可上传）"]')).toHaveCount(0)
 
     await page.locator('button:has-text("保存")').click()
-    await expect.poll(() => patchedLogoUrl).toBe('http://localhost:8080/uploads/images/e2e-logo.png')
+    await expect.poll(() => patchedLogoUrl).toBe('/uploads/images/e2e-logo.png')
   })
 })

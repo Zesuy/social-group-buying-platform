@@ -32,6 +32,6 @@ describe('uploads api', () => {
     expect(request.post).toHaveBeenCalledWith('/my/uploads/images', expect.any(FormData))
     const formData = vi.mocked(request.post).mock.calls[0][1] as FormData
     expect(formData.get('file')).toBe(file)
-    expect(result.url).toBe('http://localhost:8080/uploads/images/cover.png')
+    expect(result.url).toBe('/uploads/images/cover.png')
   })
 })

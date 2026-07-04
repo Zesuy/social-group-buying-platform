@@ -27,7 +27,7 @@ describe('ProductForm', () => {
 
   it('uses uploaded cover image url in form data', async () => {
     vi.mocked(uploadImage).mockResolvedValue({
-      url: 'http://localhost:8080/uploads/images/cover.png',
+      url: '/uploads/images/cover.png',
       objectKey: 'images/cover.png',
       originalFilename: 'cover.png',
       contentType: 'image/png',
@@ -47,7 +47,7 @@ describe('ProductForm', () => {
     await fileInput.trigger('change')
     await flushPromises()
 
-    expect(wrapper.vm.getFormData()?.coverImageUrl).toBe('http://localhost:8080/uploads/images/cover.png')
+    expect(wrapper.vm.getFormData()?.coverImageUrl).toBe('/uploads/images/cover.png')
   })
 
   it('hides manual cover url input in product form', () => {
@@ -59,7 +59,7 @@ describe('ProductForm', () => {
 
   it('stores uploaded detail images in form data', async () => {
     vi.mocked(uploadImage).mockResolvedValue({
-      url: 'http://localhost:8080/uploads/images/detail.png',
+      url: '/uploads/images/detail.png',
       objectKey: 'images/detail.png',
       originalFilename: 'detail.png',
       contentType: 'image/png',
@@ -82,7 +82,7 @@ describe('ProductForm', () => {
     await flushPromises()
 
     expect(wrapper.vm.getFormData()?.detailImageUrls).toEqual([
-      'http://localhost:8080/uploads/images/detail.png',
+      '/uploads/images/detail.png',
     ])
   })
 })

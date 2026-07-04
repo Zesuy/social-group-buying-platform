@@ -5,6 +5,7 @@
  */
 
 import request from './request'
+import { normalizeLocalUploadUrl } from '@/utils/demo-images'
 import type { ApiResponse, ImageUploadData } from '@/types'
 
 export async function uploadImage(file: File): Promise<ImageUploadData> {
@@ -12,5 +13,8 @@ export async function uploadImage(file: File): Promise<ImageUploadData> {
   formData.append('file', file)
 
   const res = await request.post('/my/uploads/images', formData) as ApiResponse<ImageUploadData>
-  return res.data
+  return {
+    ...res.data,
+    url: normalizeLocalUploadUrl(res.data.url) || res.data.url,
+  }
 }

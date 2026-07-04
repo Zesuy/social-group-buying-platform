@@ -12,11 +12,15 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-      allowedHosts: [
-    "shop.zesuy.top"
-  ],
+    allowedHosts: [
+      'shop.zesuy.top',
+    ],
     proxy: {
       '/api/v1': {
+        target: process.env.VITE_API_BASE_URL || 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/uploads': {
         target: process.env.VITE_API_BASE_URL || 'http://localhost:8080',
         changeOrigin: true,
       },
