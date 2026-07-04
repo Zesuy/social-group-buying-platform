@@ -183,6 +183,13 @@ public class SubscriptionService {
     }
 
     private SubscriptionResponse toResponse(Subscription subscription) {
+        Leader leader = subscription.getLeaderId() != null
+                ? leaderMapper.selectById(subscription.getLeaderId())
+                : null;
+        Store store = subscription.getStoreId() != null
+                ? storeMapper.selectById(subscription.getStoreId())
+                : null;
+
         return SubscriptionResponse.builder()
                 .id(subscription.getId())
                 .userId(subscription.getUserId())
@@ -194,6 +201,20 @@ public class SubscriptionService {
                         ? subscription.getSubscribedAt().toString() : null)
                 .canceledAt(subscription.getCanceledAt() != null
                         ? subscription.getCanceledAt().toString() : null)
+                .leader(leader != null
+                        ? SubscriptionResponse.LeaderSummary.builder()
+                                .id(leader.getId())
+                                .displayName(leader.getDisplayName())
+                                .avatarUrl(leader.getAvatarUrl())
+                                .build()
+                        : null)
+                .store(store != null
+                        ? SubscriptionResponse.StoreSummary.builder()
+                                .id(store.getId())
+                                .name(store.getName())
+                                .logoUrl(store.getLogoUrl())
+                                .build()
+                        : null)
                 .build();
     }
 

@@ -5133,6 +5133,31 @@ components:
         canceledAt:
           type: string
           nullable: true
+        leader:
+          allOf:
+            - $ref: '#/components/schemas/LeaderLite'
+          nullable: true
+          description: 订阅团长摘要，用于我的订阅列表展示真实昵称和头像
+        store:
+          allOf:
+            - $ref: '#/components/schemas/SubscriptionStoreLite'
+          nullable: true
+          description: 订阅店铺摘要，用于我的订阅列表展示真实店铺名和 Logo
+      additionalProperties: false
+    SubscriptionStoreLite:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
       additionalProperties: false
     SubscriptionListSuccessResponse:
       type: object
