@@ -76,6 +76,80 @@ export interface UnreadCountData {
   unreadCount: number
 }
 
+// ── 订单上下文聊天 ──
+
+export interface ChatConversationData {
+  id: string
+  buyerUserId: string
+  leaderUserId: string
+  storeId: string
+  buyerName: string
+  buyerAvatarUrl?: string | null
+  leaderName: string
+  leaderAvatarUrl?: string | null
+  storeName: string
+  storeLogoUrl?: string | null
+  currentUserRole: 'buyer' | 'leader' | string
+  unreadCount: number
+  lastMessageId?: string | null
+  lastMessageText?: string | null
+  lastMessageType?: 'text' | 'image' | 'card' | string | null
+  lastMessageAt?: string | null
+  createdAt: string
+}
+
+export interface ChatCardPayload {
+  cardType?: string
+  title?: string
+  summary?: string
+  orderId?: string
+  orderNo?: string
+  orderStatus?: string
+  payAmount?: number
+  buyerActionUrl?: string
+  leaderActionUrl?: string
+  [key: string]: unknown
+}
+
+export interface ChatMessageData {
+  id: string
+  conversationId: string
+  senderUserId?: string | null
+  senderRole: 'buyer' | 'leader' | 'system' | string
+  messageType: 'text' | 'image' | 'card' | string
+  content?: string | null
+  imageAssetId?: string | null
+  imageUrl?: string | null
+  cardType?: string | null
+  cardPayload?: ChatCardPayload | null
+  relatedOrderId?: string | null
+  mine: boolean
+  createdAt: string
+}
+
+export interface ChatListParams extends PaginationParams {
+  role?: 'buyer' | 'leader'
+}
+
+export interface ChatMessageListParams {
+  afterMessageId?: string
+  pageSize?: number
+}
+
+export interface SendChatMessageRequest {
+  messageType: 'text' | 'image'
+  content?: string
+  imageAssetId?: string
+  imageUrl?: string
+  clientMessageId: string
+}
+
+export interface SendChatCardRequest {
+  cardType: 'order_summary' | 'prepare_done' | string
+  orderId: string
+  clientMessageId?: string
+}
+
 // ── 认证与用户 ──
 
 /** 模拟登录请求参数 */

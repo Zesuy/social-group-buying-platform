@@ -3,6 +3,7 @@ package com.example.groupshop.order.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.groupshop.chat.service.ChatService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
@@ -43,6 +44,7 @@ public class StoreOrderService {
     private final CurrentStoreHelper currentStoreHelper;
     private final AfterSaleMapper afterSaleMapper;
     private final NotificationService notificationService;
+    private final ChatService chatService;
 
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
 
@@ -139,6 +141,7 @@ public class StoreOrderService {
         shipment.setShippedAt(now);
         shipmentMapper.insert(shipment);
         notificationService.notifyOrderShipped(order, shipment.getLogisticsCompany(), shipment.getTrackingNo(), userId);
+        chatService.recordOrderShipped(order);
 
         OrderResponse orderResponse = toOrderResponseWithItems(order);
         ShipOrderResponse.ShipmentData shipmentData = toShipmentData(shipment);

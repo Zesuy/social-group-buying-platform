@@ -75,24 +75,20 @@
           <AppButton variant="primary" :disabled="actionLoading" @click="handlePay">模拟支付</AppButton>
         </template>
 
-        <AppButton
-          v-else-if="order.orderStatus === 'shipped'"
-          variant="primary"
-          :disabled="actionLoading"
-          @click="handleComplete"
-        >确认收货</AppButton>
+        <template v-else-if="order.orderStatus === 'shipped'">
+          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">联系团长</AppButton>
+          <AppButton variant="primary" :disabled="actionLoading" @click="handleComplete">确认收货</AppButton>
+        </template>
 
-        <AppButton
-          v-else-if="order.orderStatus === 'paid'"
-          variant="primary"
-          disabled
-        >等待卖家发货</AppButton>
+        <template v-else-if="order.orderStatus === 'paid'">
+          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">联系团长</AppButton>
+          <AppButton variant="primary" disabled>等待卖家发货</AppButton>
+        </template>
 
-        <AppButton
-          v-else-if="order.orderStatus === 'completed'"
-          variant="primary"
-          disabled
-        >已完成</AppButton>
+        <template v-else-if="order.orderStatus === 'completed'">
+          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">联系团长</AppButton>
+          <AppButton variant="primary" disabled>已完成</AppButton>
+        </template>
 
         <AppButton
           v-else-if="order.orderStatus === 'canceled'"
@@ -121,6 +117,7 @@ import OrderSnapshotCard from '@/components/OrderSnapshotCard.vue'
 import OrderAmountBreakdown from '@/components/OrderAmountBreakdown.vue'
 import PriceText from '@/components/PriceText.vue'
 import { getMyOrder, simulatePay, cancelOrder, completeOrder } from '@/api/orders'
+import { openChatByOrder } from '@/api/chats'
 import { formatDateTime } from '@/utils/format'
 import type { OrderData } from '@/types'
 
@@ -227,6 +224,19 @@ async function handleComplete() {
   } catch (err) {
     const apiErr = err as { code?: string; message?: string }
     showToast(apiErr.message || '操作失败')
+  } finally {
+    actionLoading.value = false
+  }
+}
+
+async function openOrderChat() {
+  actionLoading.value = true
+  try {
+    const conversation = await openChatByOrder(orderId.value)
+    await router.push(`/chats/${conversation.id}`)
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    showToast(apiErr.message || '聊天打开失败')
   } finally {
     actionLoading.value = false
   }

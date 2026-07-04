@@ -13,6 +13,17 @@
           >
             {{ getOrderStatusText(order.orderStatus) }}
           </AppStatusPill>
+          <div class="leader-chat-actions">
+            <AppButton variant="ghost" @click="openBuyerChat">联系买家</AppButton>
+            <AppButton
+              v-if="order.orderStatus === 'paid'"
+              variant="plain"
+              :loading="prepareLoading"
+              @click="sendPrepareDone"
+            >
+              备货完成
+            </AppButton>
+          </div>
         </div>
 
         <!-- 收货地址 -->
@@ -83,8 +94,10 @@ import ShipmentForm from '@/components/ShipmentForm.vue'
 import AppCard from '@/components/AppCard.vue'
 import AppFormRow from '@/components/AppFormRow.vue'
 import AppStatusPill from '@/components/AppStatusPill.vue'
+import AppButton from '@/components/AppButton.vue'
 import PriceText from '@/components/PriceText.vue'
 import { getLeaderOrder, shipOrder } from '@/api/leaderOrders'
+import { openChatByOrder, sendChatCard } from '@/api/chats'
 import { getOrderStatusText, getPayStatusText, formatDateTime } from '@/utils'
 import type { LeaderOrderData } from '@/types'
 
@@ -95,6 +108,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const order = ref<LeaderOrderData | null>(null)
 const shipLoading = ref(false)
+const prepareLoading = ref(false)
 
 const orderId = computed(() => route.params.id as string)
 
@@ -144,6 +158,35 @@ async function handleShip(data: {
   }
 }
 
+async function openBuyerChat() {
+  try {
+    const conversation = await openChatByOrder(orderId.value)
+    await router.push(`/chats/${conversation.id}`)
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    showToast(apiErr.message || '聊天打开失败')
+  }
+}
+
+async function sendPrepareDone() {
+  prepareLoading.value = true
+  try {
+    const conversation = await openChatByOrder(orderId.value)
+    await sendChatCard(conversation.id, {
+      cardType: 'prepare_done',
+      orderId: orderId.value,
+      clientMessageId: `prepare:${orderId.value}:${Date.now()}`,
+    })
+    showToast('已发送备货完成')
+    await router.push(`/chats/${conversation.id}`)
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    showToast(apiErr.message || '发送失败')
+  } finally {
+    prepareLoading.value = false
+  }
+}
+
 onMounted(() => {
   fetchOrder()
 })
@@ -155,8 +198,19 @@ onMounted(() => {
 }
 
 .status-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   padding: 12px 0;
   text-align: center;
+}
+
+.leader-chat-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
 }
 
 .section-title {
