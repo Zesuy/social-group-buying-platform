@@ -2,6 +2,8 @@ package com.example.groupshop.upload.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.example.groupshop.common.enums.ErrorCode;
+import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.model.entity.UploadAsset;
 import com.example.groupshop.model.entity.UploadAssetReference;
 import com.example.groupshop.model.mapper.UploadAssetMapper;
@@ -165,6 +167,22 @@ public class UploadAssetService {
         }
         return uploadAssetMapper.selectOne(new LambdaQueryWrapper<UploadAsset>()
                 .eq(UploadAsset::getObjectKey, objectKey));
+    }
+
+    public UploadAsset findUsableImageAssetForUploader(Long assetId, Long uploaderUserId, String imageUrl) {
+        if (assetId == null || uploaderUserId == null || imageUrl == null || imageUrl.isBlank()) {
+            throw new BusinessException(ErrorCode.CHAT_ASSET_INVALID, "聊天图片缺少资产信息");
+        }
+        UploadAsset asset = uploadAssetMapper.selectById(assetId);
+        if (asset == null
+                || "deleted".equals(asset.getStatus())
+                || !uploaderUserId.equals(asset.getUploaderUserId())
+                || asset.getContentType() == null
+                || !asset.getContentType().startsWith("image/")
+                || !imageUrl.trim().equals(asset.getUrl())) {
+            throw new BusinessException(ErrorCode.CHAT_ASSET_INVALID, "聊天图片不可用");
+        }
+        return asset;
     }
 
     public String extractObjectKey(String url) {
