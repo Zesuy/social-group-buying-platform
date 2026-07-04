@@ -67,6 +67,36 @@
         @change="onCategoryChange"
       />
 
+      <section
+        v-if="showLocationBanner"
+        class="index-location"
+        :class="{ 'index-location--active': hasUserLocation }"
+      >
+        <div class="index-location__icon" aria-hidden="true">
+          <van-icon name="location-o" size="18" />
+        </div>
+        <div class="index-location__content">
+          <strong>{{ locationTitle }}</strong>
+          <span>{{ locationDescription }}</span>
+        </div>
+        <button
+          type="button"
+          class="index-location__action"
+          :disabled="locating"
+          @click="enableLocation"
+        >
+          {{ locationActionText }}
+        </button>
+        <button
+          type="button"
+          class="index-location__close"
+          aria-label="关闭定位提示"
+          @click="dismissLocationBanner"
+        >
+          <van-icon name="cross" size="16" />
+        </button>
+      </section>
+
       <div class="index-feed">
         <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
           <van-list
@@ -115,7 +145,7 @@ import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
-import { listPublicGroupBuys } from '@/api/groupBuys'
+import { listPublicGroupBuys, type ListPublicGroupBuysParams } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { listMySubscriptions } from '@/api/subscriptions'
 import type { PublicGroupBuyItem } from '@/types'
@@ -123,7 +153,14 @@ import type { PublicGroupBuyItem } from '@/types'
 const router = useRouter()
 const authStore = useAuthStore()
 
-// ── 活动筛选：本地筛选已加载团购，不改变后端列表参数 ──
+const NEARBY_DISTANCE_METERS = 5000
+
+interface UserLocation {
+  latitude: number
+  longitude: number
+}
+
+// ── 活动筛选：关键词筛选仍在前端，本地履约使用后端距离筛选 ──
 const categories = [
   { key: 'all', label: '全部团购' },
   { key: 'nearby', label: '本地履约' },
@@ -132,8 +169,17 @@ const categories = [
   { key: 'repeat', label: '适合复购' },
 ]
 const activeCategory = ref('all')
-function onCategoryChange(key: string) {
+async function onCategoryChange(key: string) {
   activeCategory.value = key
+  if (key === 'nearby') {
+    const ok = await ensureLocation()
+    if (!ok) return
+    await reloadList()
+    return
+  }
+  if (hasUserLocation.value) {
+    await reloadList()
+  }
 }
 
 function onShareClick() {
@@ -150,6 +196,10 @@ const error = ref<string | null>(null)
 const initialized = ref(false)
 const subscribedLeaderIds = ref(new Set<string>())
 const subscribingLeaderId = ref<string | null>(null)
+const userLocation = ref<UserLocation | null>(readSavedLocation())
+const locating = ref(false)
+const locationError = ref<string | null>(null)
+const locationBannerDismissed = ref(readLocationBannerDismissed())
 
 const firstLoading = computed(() => !initialized.value && loading.value)
 const isEmpty = computed(() => initialized.value && !error.value && visibleItems.value.length === 0)
@@ -158,8 +208,21 @@ const visibleItems = computed(() => items.value.filter(matchesActiveCategory))
 const activeGroupBuyCount = computed(() => items.value.filter(item => item.status !== 'ended').length)
 const totalSoldCount = computed(() => items.value.reduce((total, item) => total + item.soldCount, 0))
 const leaderCount = computed(() => new Set(items.value.map(item => item.leader.id)).size)
+const hasUserLocation = computed(() => Boolean(userLocation.value))
+const showLocationBanner = computed(() => !locationBannerDismissed.value)
+const locationTitle = computed(() => (hasUserLocation.value ? '已按你的位置展示距离' : '开启定位，精确找周边团购'))
+const locationDescription = computed(() => {
+  if (locationError.value) return locationError.value
+  if (hasUserLocation.value) return '本地履约会筛选 5km 内团购，列表按距离优先展示'
+  return '允许定位后，只在首页计算距离和附近筛选'
+})
+const locationActionText = computed(() => {
+  if (locating.value) return '定位中'
+  return hasUserLocation.value ? '重新定位' : '开启定位'
+})
 const emptyDescription = computed(() => {
   const label = categories.find(category => category.key === activeCategory.value)?.label ?? '团购'
+  if (activeCategory.value === 'nearby' && !hasUserLocation.value) return '开启定位后查看附近本地履约团购'
   return activeCategory.value === 'all' ? '暂无正在进行的团购，可先去一键开团' : `暂无${label}团购`
 })
 
@@ -172,11 +235,113 @@ const categoryKeywords: Record<string, string[]> = {
 function matchesActiveCategory(item: PublicGroupBuyItem): boolean {
   if (activeCategory.value === 'all') return true
   if (activeCategory.value === 'nearby') {
-    return Boolean(item.store.distanceMeters || item.store.distanceText)
+    return Boolean(item.store.distanceMeters != null || item.store.distanceText)
   }
   const keywords = categoryKeywords[activeCategory.value] ?? []
   const haystack = `${item.title} ${item.store.name}`.toLowerCase()
   return keywords.some(keyword => haystack.includes(keyword.toLowerCase()))
+}
+
+function readSavedLocation(): UserLocation | null {
+  try {
+    const raw = window.localStorage.getItem('index:user-location')
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<UserLocation>
+    if (typeof parsed.latitude !== 'number' || typeof parsed.longitude !== 'number') return null
+    if (!isValidCoordinate(parsed.latitude, parsed.longitude)) return null
+    return { latitude: parsed.latitude, longitude: parsed.longitude }
+  } catch {
+    return null
+  }
+}
+
+function saveLocation(location: UserLocation) {
+  window.localStorage.setItem('index:user-location', JSON.stringify(location))
+}
+
+function readLocationBannerDismissed(): boolean {
+  try {
+    return window.localStorage.getItem('index:location-banner-dismissed') === '1'
+  } catch {
+    return false
+  }
+}
+
+function dismissLocationBanner() {
+  locationBannerDismissed.value = true
+  try {
+    window.localStorage.setItem('index:location-banner-dismissed', '1')
+  } catch {
+    // 本地偏好保存失败不影响继续浏览。
+  }
+}
+
+function isValidCoordinate(latitude: number, longitude: number) {
+  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
+}
+
+function requestBrowserLocation(): Promise<UserLocation> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('当前浏览器不支持定位，暂时无法筛选附近团购'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      position => {
+        const nextLocation = {
+          latitude: Number(position.coords.latitude.toFixed(7)),
+          longitude: Number(position.coords.longitude.toFixed(7)),
+        }
+        if (!isValidCoordinate(nextLocation.latitude, nextLocation.longitude)) {
+          reject(new Error('定位坐标异常，请稍后重试'))
+          return
+        }
+        resolve(nextLocation)
+      },
+      () => reject(new Error('未获得定位权限，无法筛选附近团购')),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },
+    )
+  })
+}
+
+async function enableLocation(): Promise<boolean> {
+  locating.value = true
+  locationError.value = null
+  try {
+    const location = await requestBrowserLocation()
+    userLocation.value = location
+    saveLocation(location)
+    locationBannerDismissed.value = false
+    window.localStorage.removeItem('index:location-banner-dismissed')
+    await reloadList()
+    showToast('已按当前位置更新团购距离')
+    return true
+  } catch (err) {
+    const locationErr = err as { message?: string }
+    locationError.value = locationErr.message || '定位失败，请稍后重试'
+    showToast(locationError.value)
+    return false
+  } finally {
+    locating.value = false
+  }
+}
+
+async function ensureLocation(): Promise<boolean> {
+  if (hasUserLocation.value) return true
+  return enableLocation()
+}
+
+function buildListParams(p: number): ListPublicGroupBuysParams {
+  const params: ListPublicGroupBuysParams = { page: p, pageSize: 20 }
+  if (!userLocation.value) return params
+
+  params.latitude = userLocation.value.latitude
+  params.longitude = userLocation.value.longitude
+  params.sort = 'distance'
+  if (activeCategory.value === 'nearby') {
+    params.maxDistanceMeters = NEARBY_DISTANCE_METERS
+  }
+  return params
 }
 
 async function initSubscriptions(): Promise<void> {
@@ -231,7 +396,7 @@ async function onSubscribeClick(item: PublicGroupBuyItem): Promise<void> {
 
 async function fetchList(p: number): Promise<boolean> {
   try {
-    const data = await listPublicGroupBuys(p)
+    const data = await listPublicGroupBuys(buildListParams(p))
     if (p === 1) {
       items.value = data.items
     } else {
@@ -248,11 +413,15 @@ async function fetchList(p: number): Promise<boolean> {
   }
 }
 
-async function initLoad() {
+async function reloadList(): Promise<void> {
   loading.value = true
   await fetchList(1)
   loading.value = false
   initialized.value = true
+}
+
+async function initLoad() {
+  await reloadList()
 }
 
 async function onRefresh() {
@@ -494,7 +663,103 @@ onMounted(() => {
   padding-bottom: 12px;
 }
 
+.index-location {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 12px 12px;
+  padding: 10px 10px 10px 12px;
+  border: 1px solid rgba(16, 196, 104, 0.16);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.index-location--active {
+  border-color: rgba(16, 196, 104, 0.32);
+  background: linear-gradient(135deg, rgba(232, 255, 242, 0.92), #fff);
+}
+
+.index-location__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+.index-location__content {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.index-location__content strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+.index-location__content span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+
+.index-location__action {
+  min-height: 34px;
+  flex-shrink: 0;
+  border: 1px solid rgba(16, 196, 104, 0.28);
+  border-radius: var(--radius-pill);
+  padding: 0 10px;
+  background: #fff;
+  color: var(--color-primary-dark);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.index-location__action:disabled {
+  opacity: 0.62;
+}
+
+.index-location__close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-hint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.index-location__close:active {
+  background: var(--color-bg-subtle);
+}
+
 .index-feed {
   padding: 0 var(--spacing-md) var(--spacing-md);
+}
+
+@media (max-width: 360px) {
+  .index-location {
+    align-items: flex-start;
+  }
+
+  .index-location__action {
+    padding: 0 8px;
+  }
+
+  .index-location__close {
+    width: 30px;
+  }
 }
 </style>

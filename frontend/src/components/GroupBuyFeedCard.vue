@@ -1,6 +1,6 @@
 <template>
   <article class="group-buy-feed-card" @click="$emit('click')">
-    <div class="group-buy-feed-card__leader" @click.stop="$emit('leader')">
+    <div v-if="showStoreHeader" class="group-buy-feed-card__leader" @click.stop="$emit('leader')">
       <img
         v-if="leaderAvatarUrl"
         :src="leaderAvatarUrl"
@@ -25,6 +25,11 @@
       >
         {{ subscribeText }}
       </button>
+    </div>
+
+    <div v-if="locationBadgeText" class="group-buy-feed-card__location">
+      <van-icon name="location-o" size="14" />
+      <span>{{ locationBadgeText }}</span>
     </div>
 
     <div class="group-buy-feed-card__body">
@@ -52,7 +57,7 @@
         <div class="group-buy-feed-card__promise">
           <span>团长履约</span>
           <span>集中收单</span>
-          <span>{{ item.store.distanceText || '社群分享' }}</span>
+          <span>{{ nearbyPromiseText }}</span>
         </div>
 
         <div class="group-buy-feed-card__meta">
@@ -86,11 +91,16 @@ import { resolveDisplayImageUrl } from '@/utils/demo-images'
 import PriceText from './PriceText.vue'
 import ImageWithFallback from './ImageWithFallback.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   item: PublicGroupBuyItem
   subscribed?: boolean
   subscribeLoading?: boolean
-}>()
+  showLocationSignals?: boolean
+  showStoreHeader?: boolean
+}>(), {
+  showLocationSignals: true,
+  showStoreHeader: true,
+})
 
 defineEmits<{
   click: []
@@ -116,6 +126,15 @@ const subscribeText = computed(() => {
   if (props.subscribeLoading) return '处理中'
   return props.subscribed ? '已订阅' : '订阅'
 })
+const locationBadgeText = computed(() => {
+  if (props.showLocationSignals === false) return ''
+  if (props.item.store.distanceText) return `距你 ${props.item.store.distanceText}`
+  return ''
+})
+const nearbyPromiseText = computed(() => (
+  props.showLocationSignals !== false && props.item.store.distanceText ? '附近可履约' : '社群分享'
+))
+const showStoreHeader = computed(() => props.showStoreHeader !== false)
 const endTimeText = computed(() => {
   if (!props.item.endTime) return ''
   const end = new Date(props.item.endTime)
@@ -146,6 +165,30 @@ const endTimeText = computed(() => {
   gap: 10px;
   padding: 12px 12px 0;
   min-height: 54px;
+}
+
+.group-buy-feed-card__location {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 24px);
+  min-height: 26px;
+  margin: 8px 12px 0;
+  border: 1px solid rgba(16, 196, 104, 0.22);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  padding: 0 9px;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.group-buy-feed-card__location span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .group-buy-feed-card__body {

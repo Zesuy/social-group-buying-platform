@@ -5,15 +5,22 @@ import PriceText from '@/components/PriceText.vue'
 import type { PublicGroupBuyItem } from '@/types'
 
 const baseItem: PublicGroupBuyItem = {
-  id: 100,
+  id: '100',
   title: '周末阳山水蜜桃社区团',
   coverImageUrl: null,
   status: 'published',
   endTime: null,
   minPriceAmount: 1990,
   soldCount: 5,
-  leader: { id: 1, displayName: '王姐鲜果团', avatarUrl: null },
-  store: { id: 1, name: '王姐社区鲜果店' },
+  leader: { id: '1', displayName: '王姐鲜果团', avatarUrl: null },
+  store: {
+    id: '1',
+    name: '王姐社区鲜果店',
+    latitude: null,
+    longitude: null,
+    distanceMeters: null,
+    distanceText: null,
+  },
 }
 
 describe('GroupBuyFeedCard ended tag', () => {

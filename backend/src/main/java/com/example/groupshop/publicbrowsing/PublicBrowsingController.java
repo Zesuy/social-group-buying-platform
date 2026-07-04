@@ -106,9 +106,18 @@ public class PublicBrowsingController {
             @PathVariable Long leaderId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) BigDecimal latitude,
+            @RequestParam(required = false) BigDecimal longitude,
             HttpServletRequest request) {
+        if ((latitude != null || longitude != null) && (latitude == null || longitude == null)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "经纬度必须同时提供");
+        }
+        if (latitude != null && longitude != null) {
+            validateCoordinateRange(latitude, longitude);
+        }
         Long viewerUserId = resolveOptionalUserId(request);
-        return ApiResponse.success(leaderService.getLeaderHomepage(leaderId, page, pageSize, viewerUserId));
+        return ApiResponse.success(leaderService.getLeaderHomepage(
+                leaderId, page, pageSize, viewerUserId, latitude, longitude));
     }
 
     /**

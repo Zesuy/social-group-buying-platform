@@ -92,18 +92,11 @@
       </div>
     </template>
 
-    <van-action-sheet
-      v-model:show="showActionSheet"
-      :actions="actionSheetActions"
-      cancel-text="取消"
-      @select="onActionSelect"
-      close-on-click-action
-    />
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { storeToRefs } from 'pinia'
@@ -122,26 +115,6 @@ interface GroupType {
 const router = useRouter()
 const authStore = useAuthStore()
 const { isLoggedIn, isLeader } = storeToRefs(authStore)
-
-const showActionSheet = ref(false)
-const actionSheetActions = [
-  {
-    name: '发布团购',
-    callback: () => {
-      if (isFeatureDisabled('groupBuyPublish')) {
-        showToast('发布功能将在后续 batch 开放')
-        return
-      }
-      router.push('/leader/group-buys/new')
-    },
-  },
-  {
-    name: '管理团购',
-    callback: () => {
-      router.push('/leader/group-buys')
-    },
-  },
-]
 
 const groupTypes: GroupType[] = [
   {
@@ -226,7 +199,7 @@ function onCardClick(type: GroupType) {
     return
   }
 
-  showActionSheet.value = true
+  goToPublish()
 }
 
 function onPrimaryStatusClick() {
@@ -245,10 +218,12 @@ function onGuideClick(_type: string) {
   showToast('内容将在后续开放')
 }
 
-function onActionSelect(action: (typeof actionSheetActions)[number]) {
-  if (action.callback) {
-    action.callback()
+function goToPublish() {
+  if (isFeatureDisabled('groupBuyPublish')) {
+    showToast('发布功能将在后续 batch 开放')
+    return
   }
+  router.push('/leader/group-buys/new')
 }
 </script>
 
