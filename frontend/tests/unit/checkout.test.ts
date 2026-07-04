@@ -17,6 +17,7 @@ describe('checkoutStore', () => {
     expect(store.quantity).toBe(1)
     expect(store.selectedAddressId).toBeNull()
     expect(store.userCouponId).toBeNull()
+    expect(store.shareToken).toBeNull()
     expect(store.remark).toBe('')
     expect(store.snapshot).toBeNull()
   })
@@ -31,14 +32,29 @@ describe('checkoutStore', () => {
       coverImageUrl: null,
       displayName: '阳山水蜜桃 5 斤装',
       unitPriceAmount: 2990,
+      shareToken: 'share-token-1',
     })
     expect(store.groupBuyId).toBe(100)
     expect(store.groupBuyItemId).toBe(1001)
     expect(store.quantity).toBe(2)
     expect(store.selectedAddressId).toBeNull() // 从详情进入时清空地址
     expect(store.userCouponId).toBeNull()
+    expect(store.shareToken).toBe('share-token-1')
     expect(store.snapshot?.title).toBe('周末阳山水蜜桃社区团')
     expect(store.snapshot?.displayName).toBe('阳山水蜜桃 5 斤装')
+  })
+
+  it('setCartCheckoutContext can keep share token', () => {
+    const store = useCheckoutStore()
+    store.setCartCheckoutContext({
+      groupBuyId: '100',
+      cartItemIds: ['cart-1', 'cart-2'],
+      shareToken: 'share-token-2',
+    })
+    expect(store.mode).toBe('cart')
+    expect(store.groupBuyId).toBe('100')
+    expect(store.cartItemIds).toEqual(['cart-1', 'cart-2'])
+    expect(store.shareToken).toBe('share-token-2')
   })
 
   it('setAddress updates selected address', () => {
@@ -84,6 +100,7 @@ describe('checkoutStore', () => {
     expect(store.quantity).toBe(1)
     expect(store.selectedAddressId).toBeNull()
     expect(store.userCouponId).toBeNull()
+    expect(store.shareToken).toBeNull()
     expect(store.remark).toBe('')
     expect(store.snapshot).toBeNull()
   })

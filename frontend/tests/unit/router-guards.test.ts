@@ -29,6 +29,14 @@ describe('Router guards', () => {
     expect(router.currentRoute.value.name).toBe('index')
   })
 
+  it('should allow unauthenticated access to share token group buy detail', async () => {
+    const router = await setupRouter()
+    await router.push('/share/group-buys/token-abc')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('groupBuyShareDetail')
+  })
+
   it('should redirect /orders to /login when not authenticated', async () => {
     const router = await setupRouter()
     await router.push('/orders')

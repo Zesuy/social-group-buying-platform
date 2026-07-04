@@ -299,13 +299,19 @@
       <CartSheet
         v-model="cartSheetVisible"
         :current-group-buy-id="groupBuy.id"
+        :share-token="currentShareToken"
+      />
+      <GroupBuyShareSheet
+        v-model="shareSheetVisible"
+        :payload="sharePayload"
+        :share-url="shareUrl"
       />
     </template>
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
@@ -315,11 +321,12 @@ import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import PriceText from '@/components/PriceText.vue'
 import SkuSheet from '@/components/SkuSheet.vue'
 import CartSheet from '@/components/CartSheet.vue'
+import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
 import { useAuthStore, useCheckoutStore } from '@/stores'
-import { getPublicGroupBuyDetail } from '@/api/groupBuys'
+import { getGroupBuyDetailByShareToken, getPublicGroupBuyDetail } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { addCartItem } from '@/api/cart'
-import { getDeliveryTypeText, getGroupBuyStatusText } from '@/utils'
+import { buildGroupBuyShareUrl, buildShareTokenUrl, getDeliveryTypeText, getGroupBuyStatusText } from '@/utils'
 import type {
   GroupBuyDetail,
   LeaderDetail,
@@ -348,6 +355,7 @@ const subLoading = ref(false)
 const skuSheetVisible = ref(false)
 const skuTargetItem = ref<PublicGroupBuyDetailItem | null>(null)
 const cartSheetVisible = ref(false)
+const shareSheetVisible = ref(false)
 
 const hasAnyStock = computed(() => items.value.some(item => item.groupStock > 0))
 const isPurchasable = computed(() => {
@@ -414,18 +422,37 @@ const storeLocationText = computed(() => {
   if (store.value.latitude !== null && store.value.longitude !== null) return `${store.value.name}，已配置店铺位置`
   return `${store.value.name}，暂未提供距离`
 })
+const currentShareToken = computed(() => (
+  route.name === 'groupBuyShareDetail' ? (route.params.shareToken as string) : null
+))
+const shareUrl = computed(() => {
+  if (currentShareToken.value) return buildShareTokenUrl(currentShareToken.value)
+  return groupBuy.value ? buildGroupBuyShareUrl(groupBuy.value.id) : ''
+})
+const sharePayload = computed<GroupBuySharePayload>(() => {
+  const prices = items.value.map(item => item.groupPriceAmount).filter(amount => Number.isFinite(amount))
+  return {
+    title: groupBuy.value?.title || '团购分享',
+    coverImageUrl: heroImageUrl.value,
+    minPriceAmount: prices.length > 0 ? Math.min(...prices) : null,
+    maxPriceAmount: prices.length > 0 ? Math.max(...prices) : null,
+    storeName: store.value?.name || '团长店铺',
+    leaderName: leader.value?.displayName || '团长',
+    deliveryType: groupBuy.value?.deliveryType || null,
+    shippingTime: groupBuy.value?.shippingTime || null,
+  }
+})
 
 async function fetchDetail() {
   loading.value = true
   error.value = null
   try {
-    const id = route.params.id as string
-    const latitude = readNumberQuery('latitude')
-    const longitude = readNumberQuery('longitude')
-    const data = await getPublicGroupBuyDetail(
-      id,
-      latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined,
-    )
+    const data = currentShareToken.value
+      ? await getGroupBuyDetailByShareToken(currentShareToken.value)
+      : await getPublicGroupBuyDetail(
+          route.params.id as string,
+          readLocationParams(),
+        )
     groupBuy.value = data.groupBuy
     leader.value = data.leader
     store.value = data.store
@@ -439,6 +466,12 @@ async function fetchDetail() {
   } finally {
     loading.value = false
   }
+}
+
+function readLocationParams() {
+  const latitude = readNumberQuery('latitude')
+  const longitude = readNumberQuery('longitude')
+  return latitude !== undefined && longitude !== undefined ? { latitude, longitude } : undefined
 }
 
 function readNumberQuery(key: string) {
@@ -484,6 +517,7 @@ function onSkuBuyNow(payload: { itemId: string; quantity: number; deliveryType: 
     groupBuyId: groupBuy.value.id,
     groupBuyItemId: payload.itemId,
     quantity: payload.quantity,
+    shareToken: currentShareToken.value,
     title: groupBuy.value.title,
     coverImageUrl: groupBuy.value.coverImageUrl || item.coverImageUrl || item.product?.coverImageUrl || null,
     displayName: item.displayName,
@@ -501,6 +535,7 @@ async function onSkuAddToCart(payload: { itemId: string; quantity: number; deliv
     await addCartItem({
       groupBuyItemId: payload.itemId,
       quantity: payload.quantity,
+      shareToken: currentShareToken.value,
     })
     skuSheetVisible.value = false
     cartSheetVisible.value = true
@@ -542,7 +577,8 @@ async function toggleSubscribe() {
 }
 
 function handleShare() {
-  showToast('复制团购链接和分享海报将在后续批次开放')
+  if (!groupBuy.value || !shareUrl.value) return
+  shareSheetVisible.value = true
 }
 
 function scrollToSection(id: string) {
@@ -570,6 +606,13 @@ function goBack() {
 onMounted(() => {
   fetchDetail()
 })
+
+watch(
+  () => route.fullPath,
+  () => {
+    fetchDetail()
+  },
+)
 </script>
 
 <style scoped>

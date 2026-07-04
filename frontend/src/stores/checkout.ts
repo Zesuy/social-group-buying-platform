@@ -17,6 +17,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
   const quantity = ref(1)
   const selectedAddressId = ref<string | null>(null)
   const userCouponId = ref<string | null>(null)
+  const shareToken = ref<string | null>(null)
   const remark = ref('')
 
   // 商品快照（用于 checkout 页快速展示）
@@ -38,6 +39,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     coverImageUrl?: string | null
     displayName?: string
     unitPriceAmount?: number
+    shareToken?: string | null
   }): void {
     mode.value = 'direct'
     groupBuyId.value = params.groupBuyId
@@ -46,6 +48,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     quantity.value = params.quantity
     selectedAddressId.value = null
     userCouponId.value = null
+    shareToken.value = params.shareToken ?? null
     remark.value = ''
     snapshot.value = {
       title: params.title ?? '',
@@ -58,6 +61,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
   function setCartCheckoutContext(params: {
     groupBuyId: string
     cartItemIds: string[]
+    shareToken?: string | null
   }): void {
     mode.value = 'cart'
     groupBuyId.value = params.groupBuyId
@@ -66,6 +70,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     quantity.value = 1
     selectedAddressId.value = null
     userCouponId.value = null
+    shareToken.value = params.shareToken ?? null
     remark.value = ''
     snapshot.value = null
   }
@@ -78,6 +83,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     quantity.value = 1
     selectedAddressId.value = null
     userCouponId.value = null
+    shareToken.value = null
     remark.value = ''
     snapshot.value = null
   }
@@ -94,6 +100,10 @@ export const useCheckoutStore = defineStore('checkout', () => {
     userCouponId.value = couponId
   }
 
+  function setShareToken(token: string | null): void {
+    shareToken.value = token
+  }
+
   function setRemark(newRemark: string): void {
     remark.value = newRemark
   }
@@ -106,6 +116,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     quantity,
     selectedAddressId,
     userCouponId,
+    shareToken,
     remark,
     snapshot,
     setCheckoutContext,
@@ -114,6 +125,7 @@ export const useCheckoutStore = defineStore('checkout', () => {
     setAddress,
     setQuantity,
     setCoupon,
+    setShareToken,
     setRemark,
   }
 })

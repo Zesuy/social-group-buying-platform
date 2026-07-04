@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
@@ -17,6 +17,18 @@ interface LoginViewInstance {
 
 function getLoginViewInstance(wrapper: VueWrapper): LoginViewInstance {
   return wrapper.vm as unknown as LoginViewInstance
+}
+
+const wrappers: VueWrapper[] = []
+
+function mountLoginView(): VueWrapper {
+  const wrapper = mount(LoginView, {
+    global: {
+      plugins: [router, createPinia()],
+    },
+  })
+  wrappers.push(wrapper)
+  return wrapper
 }
 
 const router = createRouter({
@@ -76,12 +88,12 @@ describe('LoginView', () => {
     routeQuery = {}
   })
 
+  afterEach(() => {
+    wrappers.splice(0).forEach(wrapper => wrapper.unmount())
+  })
+
   it('should render phone-code login form with title', () => {
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     expect(wrapper.text()).toContain('登录邻鲜团')
     expect(wrapper.text()).toContain('获取验证码')
@@ -92,11 +104,7 @@ describe('LoginView', () => {
     routePath = '/register'
     routeName = 'register'
 
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     expect(wrapper.text()).toContain('注册邻鲜团')
     expect(wrapper.text()).toContain('昵称')
@@ -104,11 +112,7 @@ describe('LoginView', () => {
   })
 
   it('should keep dev test users behind collapsible section', async () => {
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     expect(wrapper.text()).toContain('开发测试账号')
     expect(wrapper.text()).not.toContain('买家测试用户')
@@ -120,11 +124,7 @@ describe('LoginView', () => {
 
   it('should login as buyer test user on dev shortcut click', async () => {
     mockLogin.mockResolvedValue(undefined)
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     await wrapper.find('.auth-dev__toggle').trigger('click')
     const buyerBtn = wrapper.findAll('button').find((b) => b.text().includes('买家测试用户'))
@@ -143,11 +143,7 @@ describe('LoginView', () => {
 
   it('should login as leader test user on dev shortcut click', async () => {
     mockLogin.mockResolvedValue(undefined)
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     await wrapper.find('.auth-dev__toggle').trigger('click')
     const leaderBtn = wrapper.findAll('button').find((b) => b.text().includes('团长测试用户'))
@@ -168,11 +164,7 @@ describe('LoginView', () => {
       expiresInSeconds: 300,
       devCode: '123456',
     })
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     const vm = getLoginViewInstance(wrapper)
     vm.form.phone = '13800000000'
@@ -187,11 +179,7 @@ describe('LoginView', () => {
 
   it('should submit phone-code login', async () => {
     mockLoginWithCode.mockResolvedValue(undefined)
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     const vm = getLoginViewInstance(wrapper)
     vm.form.phone = '13800000000'
@@ -210,11 +198,7 @@ describe('LoginView', () => {
     routePath = '/register'
     routeName = 'register'
     mockRegisterWithCode.mockResolvedValue(undefined)
-    const wrapper = mount(LoginView, {
-      global: {
-        plugins: [router, createPinia()],
-      },
-    })
+    const wrapper = mountLoginView()
 
     const vm = getLoginViewInstance(wrapper)
     vm.form.phone = '13800000000'

@@ -34,6 +34,15 @@
               @click="goToDetail(gb.id)"
             >
               <template #actions>
+                <AppButton
+                  v-if="gb.status === 'published'"
+                  variant="ghost"
+                  size="sm"
+                  :loading="shareLoadingId === gb.id"
+                  @click.stop="openShare(gb.id)"
+                >
+                  分享
+                </AppButton>
                 <AppButton variant="primary" size="sm" @click.stop="goToDetail(gb.id)">详情</AppButton>
               </template>
             </GroupBuyManageCard>
@@ -43,6 +52,12 @@
         </van-pull-refresh>
       </div>
     </div>
+    <GroupBuyShareSheet
+      v-if="shareCard"
+      v-model="shareSheetVisible"
+      :payload="sharePayload"
+      :share-url="shareUrl"
+    />
   </PageLayout>
 </template>
 
@@ -55,14 +70,19 @@ import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import GroupBuyManageCard from '@/components/GroupBuyManageCard.vue'
+import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import { usePagination } from '@/composables/usePagination'
-import { listMyGroupBuys } from '@/api/leaderGroupBuys'
-import type { GroupBuyManageData } from '@/types'
+import { getMyGroupBuyShareCard, listMyGroupBuys } from '@/api/leaderGroupBuys'
+import { buildShareTokenUrl } from '@/utils'
+import type { GroupBuyManageData, ShareCardData } from '@/types'
 
 const router = useRouter()
 const activeTab = ref('published')
+const shareSheetVisible = ref(false)
+const shareCard = ref<ShareCardData | null>(null)
+const shareLoadingId = ref<string | null>(null)
 
 const {
   items,
@@ -82,6 +102,17 @@ const {
 
 const firstLoading = computed(() => !initialized.value && loading.value)
 const showError = computed(() => !!error.value && items.value.length === 0)
+const shareUrl = computed(() => shareCard.value ? buildShareTokenUrl(shareCard.value.shareToken) : '')
+const sharePayload = computed<GroupBuySharePayload>(() => ({
+  title: shareCard.value?.title || '团购分享',
+  coverImageUrl: shareCard.value?.coverImageUrl ?? null,
+  minPriceAmount: shareCard.value?.minPriceAmount ?? null,
+  maxPriceAmount: shareCard.value?.maxPriceAmount ?? null,
+  storeName: shareCard.value?.storeName || '团长店铺',
+  leaderName: shareCard.value?.leaderName || '团长',
+  deliveryType: shareCard.value?.deliveryType ?? null,
+  shippingTime: shareCard.value?.shippingTime ?? null,
+}))
 
 function onTabChange() {
   reset()
@@ -105,6 +136,18 @@ function goToNew() {
 
 function goToDetail(id: string) {
   router.push(`/leader/group-buys/${id}`)
+}
+
+async function openShare(id: string) {
+  shareLoadingId.value = id
+  try {
+    shareCard.value = await getMyGroupBuyShareCard(id)
+    shareSheetVisible.value = true
+  } catch (err) {
+    showToast((err as { message?: string }).message || '分享卡片生成失败')
+  } finally {
+    shareLoadingId.value = null
+  }
 }
 
 onMounted(() => {

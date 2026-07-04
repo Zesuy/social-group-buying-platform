@@ -105,6 +105,7 @@ import type { CartItemData } from '@/types'
 const props = defineProps<{
   modelValue: boolean
   currentGroupBuyId?: string | null
+  shareToken?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -233,6 +234,7 @@ function handleCheckout() {
   checkoutStore.setCartCheckoutContext({
     groupBuyId,
     cartItemIds: selectedItems.value.map(item => item.cartItemId),
+    shareToken: props.shareToken ?? null,
   })
   visible.value = false
   router.push('/checkout')

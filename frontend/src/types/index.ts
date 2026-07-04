@@ -32,6 +32,7 @@ export type {
   PublicGroupBuyDetailItem,
   ProductSummaryData,
   ViewerInfo,
+  ShareCardData,
   LeaderHomepageData,
   LeaderHomepageLeader,
   LeaderHomepageStore,

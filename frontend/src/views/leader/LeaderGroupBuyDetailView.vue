@@ -59,22 +59,37 @@
         <!-- 3. 团购操作 -->
         <AppFormCard title="团购操作">
           <AppFormRow label="编辑基础信息" value="标题、介绍、封面" arrow clickable @click="editing = true" />
+          <AppFormRow v-if="detail.groupBuy.status === 'published'" label="分享团购" value="生成二维码链接" arrow clickable @click="openShare" />
           <AppFormRow v-if="detail.groupBuy.status === 'published'" label="结束团购" value="需要二次确认" arrow clickable @click="handleEndGroupBuy" />
         </AppFormCard>
       </div>
 
       <AppFixedActions :single="detail?.groupBuy.status !== 'published'">
-        <AppButton variant="ghost" @click="editing = true">编辑基础信息</AppButton>
+        <AppButton
+          v-if="detail?.groupBuy.status === 'published'"
+          variant="ghost"
+          :loading="shareLoading"
+          @click="openShare"
+        >
+          分享团购
+        </AppButton>
+        <AppButton v-else variant="ghost" @click="editing = true">编辑基础信息</AppButton>
         <AppButton v-if="detail?.groupBuy.status === 'published'" variant="danger" :loading="endLoading" @click="handleEndGroupBuy">
           {{ endLoading ? '处理中...' : '结束团购' }}
         </AppButton>
       </AppFixedActions>
+      <GroupBuyShareSheet
+        v-if="shareCard"
+        v-model="shareSheetVisible"
+        :payload="sharePayload"
+        :share-url="shareUrl"
+      />
     </template>
   </PageLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
@@ -87,9 +102,10 @@ import AppFormCard from '@/components/AppFormCard.vue'
 import AppFormRow from '@/components/AppFormRow.vue'
 import AppStatusPill from '@/components/AppStatusPill.vue'
 import PriceText from '@/components/PriceText.vue'
-import { getMyGroupBuy, updateMyGroupBuy, endGroupBuy } from '@/api/leaderGroupBuys'
-import { getGroupBuyStatusText, getDeliveryTypeText } from '@/utils'
-import type { GroupBuyManageDetailData } from '@/types'
+import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
+import { getMyGroupBuy, updateMyGroupBuy, endGroupBuy, getMyGroupBuyShareCard } from '@/api/leaderGroupBuys'
+import { buildShareTokenUrl, getGroupBuyStatusText, getDeliveryTypeText } from '@/utils'
+import type { GroupBuyManageDetailData, ShareCardData } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -99,7 +115,21 @@ const detail = ref<GroupBuyManageDetailData | null>(null)
 const editing = ref(false)
 const editLoading = ref(false)
 const endLoading = ref(false)
+const shareLoading = ref(false)
+const shareSheetVisible = ref(false)
+const shareCard = ref<ShareCardData | null>(null)
 const editForm = reactive({ title: '', introduction: '', coverImageUrl: '', deliveryType: 'express', shippingTime: '', startTime: '', endTime: '' })
+const shareUrl = computed(() => shareCard.value ? buildShareTokenUrl(shareCard.value.shareToken) : '')
+const sharePayload = computed<GroupBuySharePayload>(() => ({
+  title: shareCard.value?.title || detail.value?.groupBuy.title || '团购分享',
+  coverImageUrl: shareCard.value?.coverImageUrl ?? detail.value?.groupBuy.coverImageUrl ?? null,
+  minPriceAmount: shareCard.value?.minPriceAmount ?? null,
+  maxPriceAmount: shareCard.value?.maxPriceAmount ?? null,
+  storeName: shareCard.value?.storeName || '团长店铺',
+  leaderName: shareCard.value?.leaderName || '团长',
+  deliveryType: shareCard.value?.deliveryType ?? detail.value?.groupBuy.deliveryType ?? null,
+  shippingTime: shareCard.value?.shippingTime ?? detail.value?.groupBuy.shippingTime ?? null,
+}))
 
 async function fetchDetail() {
   loading.value = true; error.value = null
@@ -134,6 +164,18 @@ async function handleEndGroupBuy() {
   try { await endGroupBuy(detail.value.groupBuy.id); showToast('团购已结束'); await fetchDetail() }
   catch (err) { showToast((err as { message?: string; code?: string }).message || '操作失败') }
   finally { endLoading.value = false }
+}
+async function openShare() {
+  if (!detail.value) return
+  shareLoading.value = true
+  try {
+    shareCard.value = await getMyGroupBuyShareCard(detail.value.groupBuy.id)
+    shareSheetVisible.value = true
+  } catch (err) {
+    showToast((err as { message?: string }).message || '分享卡片生成失败')
+  } finally {
+    shareLoading.value = false
+  }
 }
 onMounted(() => { fetchDetail() })
 </script>

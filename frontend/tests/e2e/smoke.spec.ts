@@ -19,6 +19,74 @@ async function navigateToHash(page: Page, hashPath: string) {
  * Mock 后端响应辅助
  */
 async function mockAuthEndpoints(page: Page) {
+  await page.route('**/api/v1/share/group-buys/token-1', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          groupBuy: {
+            id: '100',
+            storeId: '20',
+            leaderId: '10',
+            title: '周末阳山水蜜桃社区团',
+            introduction: '团长集中收单，周末统一发货。',
+            coverImageUrl: null,
+            groupType: 'normal',
+            deliveryType: 'express',
+            shippingTime: '2026-07-10T18:00:00',
+            startTime: '2026-07-04T10:00:00',
+            endTime: '2026-07-08T22:00:00',
+            visibility: 'hidden',
+            status: 'published',
+            galleryImageUrls: [],
+            contentBlocks: [],
+          },
+          leader: {
+            id: '10',
+            displayName: '王姐',
+            avatarUrl: null,
+            followerCount: 28,
+          },
+          store: {
+            id: '20',
+            name: '王姐鲜果团',
+            logoUrl: null,
+            latitude: null,
+            longitude: null,
+            distanceMeters: null,
+            distanceText: null,
+          },
+          items: [
+            {
+              id: '1001',
+              productId: '1',
+              displayName: '阳山水蜜桃 5斤装',
+              groupPriceAmount: 3990,
+              groupStock: 80,
+              soldCount: 12,
+              sortOrder: 1,
+              coverImageUrl: null,
+              product: {
+                id: '1',
+                name: '阳山水蜜桃',
+                description: '偏软甜口，适合现吃。',
+                coverImageUrl: null,
+                detailImageUrls: [],
+                basePriceAmount: 4990,
+                status: 'active',
+              },
+            },
+          ],
+          featuredItem: null,
+          viewer: { subscribed: false },
+        },
+        traceId: 'e2e_share_detail',
+      }),
+    })
+  })
+
   // 首页团购列表（抑制 Vite proxy 404 噪音）
   await page.route('**/api/v1/group-buys*', async (route) => {
     await route.fulfill({
@@ -247,5 +315,13 @@ test.describe('App smoke test', () => {
 
     await expect(page.locator('text=发货通知')).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=团长已填写物流')).toBeVisible()
+  })
+
+  test('should open group buy detail from share token link', async ({ page }) => {
+    await navigateToHash(page, '/share/group-buys/token-1')
+
+    await expect(page.locator('h1:has-text("周末阳山水蜜桃社区团")')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('王姐鲜果团 · 28人关注')).toBeVisible()
+    await expect(page.locator('.detail-item__name', { hasText: '阳山水蜜桃 5斤装' })).toBeVisible()
   })
 })
