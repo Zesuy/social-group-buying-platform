@@ -34,6 +34,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +48,8 @@ public class ChatService {
 
     private static final Long SYSTEM_USER_ID = 0L;
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() { };
+    private static final ZoneId SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final DateTimeFormatter RESPONSE_TIME_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     private final ChatConversationMapper conversationMapper;
     private final ChatMessageMapper messageMapper;
@@ -198,7 +202,7 @@ public class ChatService {
     @Transactional
     public void markRead(Long userId, Long conversationId) {
         ChatConversation conversation = findConversationForUser(userId, conversationId);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = nowInShanghai();
         LambdaUpdateWrapper<ChatConversation> wrapper = new LambdaUpdateWrapper<ChatConversation>()
                 .eq(ChatConversation::getId, conversationId);
         if (userId.equals(conversation.getBuyerUserId())) {
@@ -325,6 +329,9 @@ public class ChatService {
     }
 
     private void insertMessage(ChatMessage message) {
+        if (message.getCreatedAt() == null) {
+            message.setCreatedAt(nowInShanghai());
+        }
         try {
             messageMapper.insert(message);
         } catch (DuplicateKeyException ex) {
@@ -339,7 +346,7 @@ public class ChatService {
     }
 
     private void updateConversationAfterMessage(Long conversationId, ChatMessage message, String roleOrRecipientRole) {
-        LocalDateTime now = message.getCreatedAt() != null ? message.getCreatedAt() : LocalDateTime.now();
+        LocalDateTime now = message.getCreatedAt() != null ? message.getCreatedAt() : nowInShanghai();
         LambdaUpdateWrapper<ChatConversation> wrapper = new LambdaUpdateWrapper<ChatConversation>()
                 .eq(ChatConversation::getId, conversationId)
                 .set(ChatConversation::getLastMessageId, message.getId())
@@ -428,8 +435,8 @@ public class ChatService {
                 .lastMessageId(conversation.getLastMessageId())
                 .lastMessageText(lastMessageText(lastMessage))
                 .lastMessageType(lastMessage == null ? null : lastMessage.getMessageType())
-                .lastMessageAt(conversation.getLastMessageAt() == null ? null : conversation.getLastMessageAt().toString())
-                .createdAt(conversation.getCreatedAt() == null ? null : conversation.getCreatedAt().toString())
+                .lastMessageAt(formatShanghaiTime(conversation.getLastMessageAt()))
+                .createdAt(formatShanghaiTime(conversation.getCreatedAt()))
                 .build();
     }
 
@@ -447,8 +454,19 @@ public class ChatService {
                 .cardPayload(parseCardPayload(message.getCardPayload()))
                 .relatedOrderId(message.getRelatedOrderId())
                 .mine(currentUserId.equals(message.getSenderUserId()))
-                .createdAt(message.getCreatedAt() == null ? null : message.getCreatedAt().toString())
+                .createdAt(formatShanghaiTime(message.getCreatedAt()))
                 .build();
+    }
+
+    private LocalDateTime nowInShanghai() {
+        return LocalDateTime.now(SHANGHAI_ZONE);
+    }
+
+    private String formatShanghaiTime(LocalDateTime time) {
+        if (time == null) {
+            return null;
+        }
+        return time.atZone(SHANGHAI_ZONE).format(RESPONSE_TIME_FORMATTER);
     }
 
     private String lastMessageText(ChatMessage message) {
