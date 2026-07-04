@@ -44,3 +44,9 @@ export {
   shareBySystem,
 } from './share'
 export type { SystemShareResult } from './share'
+export {
+  NEARBY_DISTANCE_METERS,
+  groupBuyCategoryKeywords,
+  isNearbyGroupBuy,
+  matchesGroupBuyCategory,
+} from './group-buy-filters'

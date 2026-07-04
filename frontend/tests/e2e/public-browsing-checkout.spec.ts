@@ -543,12 +543,28 @@ test.describe('Public browsing and checkout E2E', () => {
         && url.searchParams.has('longitude')
     })
 
-    await page.getByText('本地履约').click()
+    await page.locator('.category-chips__item', { hasText: /^附近$/ }).click()
     await locationRequestPromise
 
     await expect(page.getByText('已按你的位置展示距离')).toBeVisible({ timeout: 5000 })
     await expect(page.getByText('距你 860m')).toBeVisible()
     await expect(page.getByText('附近可履约')).toBeVisible()
+  })
+
+  test('homepage search sends keyword to group buy list', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForSelector('.van-tabbar', { timeout: 10000 })
+
+    const searchRequestPromise = page.waitForRequest((request) => {
+      const url = new URL(request.url())
+      return url.pathname.endsWith('/api/v1/group-buys')
+        && url.searchParams.get('keyword') === '蜜桃'
+    })
+
+    await page.getByPlaceholder('搜索团购、店铺、团长').fill('蜜桃')
+    await page.getByRole('button', { name: '搜索', exact: true }).click()
+    await searchRequestPromise
+    await expect(page.getByPlaceholder('搜索团购、店铺、团长')).toHaveValue('蜜桃')
   })
 
   test('unauthenticated click buy redirects to login, logged in user completes flow', async ({ page }) => {

@@ -15,6 +15,7 @@ import type {
 export interface ListPublicGroupBuysParams {
   page?: number
   pageSize?: number
+  keyword?: string
   latitude?: number
   longitude?: number
   maxDistanceMeters?: number
