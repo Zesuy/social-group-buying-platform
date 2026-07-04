@@ -60,6 +60,77 @@ paths:
                 $ref: '#/components/schemas/MockLoginSuccessResponse'
         '400':
           $ref: '#/components/responses/ValidationError'
+  /api/v1/auth/codes:
+    post:
+      tags:
+        - Auth
+      summary: Send a demo verification code for login or registration.
+      operationId: sendAuthCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendAuthCodeRequest'
+      responses:
+        '200':
+          description: Verification code was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendAuthCodeSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login with phone and verification code.
+      operationId: phoneCodeLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneCodeLoginRequest'
+      responses:
+        '200':
+          description: Login succeeded and an access token was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockLoginSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register with phone, verification code, and profile summary.
+      operationId: phoneCodeRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PhoneCodeRegisterRequest'
+      responses:
+        '200':
+          description: Registration succeeded and an access token was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MockLoginSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ResourceConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
   /api/v1/me:
     get:
       tags:
@@ -2122,6 +2193,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    ResourceConflictError:
+      description: The requested resource conflicts with existing state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     LeaderRequiredError:
       description: The current operation requires a leader/store identity.
       content:
@@ -2530,6 +2607,81 @@ components:
         avatarUrl:
           type: string
           nullable: true
+      additionalProperties: false
+    SendAuthCodeSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/SendAuthCodeData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    SendAuthCodeRequest:
+      type: object
+      required:
+        - phone
+        - scene
+      properties:
+        phone:
+          type: string
+          pattern: '^1\d{10}$'
+        scene:
+          type: string
+          enum:
+            - login
+            - register
+      additionalProperties: false
+    SendAuthCodeData:
+      type: object
+      required:
+        - expiresInSeconds
+      properties:
+        expiresInSeconds:
+          type: integer
+          minimum: 1
+        devCode:
+          type: string
+          nullable: true
+      additionalProperties: false
+    PhoneCodeLoginRequest:
+      type: object
+      required:
+        - phone
+        - code
+      properties:
+        phone:
+          type: string
+          pattern: '^1\d{10}$'
+        code:
+          type: string
+          pattern: '^\d{6}$'
+      additionalProperties: false
+    PhoneCodeRegisterRequest:
+      type: object
+      required:
+        - phone
+        - code
+        - nickname
+      properties:
+        phone:
+          type: string
+          pattern: '^1\d{10}$'
+        code:
+          type: string
+          pattern: '^\d{6}$'
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 24
       additionalProperties: false
     MockLoginData:
       type: object

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { flushPromises, mount } from '@vue/test-utils'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import BottomTabBar from '@/components/BottomTabBar.vue'
@@ -30,6 +30,14 @@ const router = createRouter({
   ],
 })
 
+const mountedWrappers: VueWrapper[] = []
+
+function mountBottomTabBar(options: Parameters<typeof mount>[1]) {
+  const wrapper = mount(BottomTabBar, options)
+  mountedWrappers.push(wrapper)
+  return wrapper
+}
+
 describe('BottomTabBar', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -38,8 +46,14 @@ describe('BottomTabBar', () => {
     vi.mocked(getUnreadCount).mockResolvedValue({ unreadCount: 0 })
   })
 
+  afterEach(() => {
+    while (mountedWrappers.length > 0) {
+      mountedWrappers.pop()?.unmount()
+    }
+  })
+
   it('should render 5 tabs', () => {
-    const wrapper = mount(BottomTabBar, {
+    const wrapper = mountBottomTabBar({
       global: {
         plugins: [router, createPinia()],
       },
@@ -50,7 +64,7 @@ describe('BottomTabBar', () => {
   })
 
   it('should have correct tab labels', () => {
-    const wrapper = mount(BottomTabBar, {
+    const wrapper = mountBottomTabBar({
       global: {
         plugins: [router, createPinia()],
       },
@@ -68,7 +82,7 @@ describe('BottomTabBar', () => {
     await router.push('/orders')
     await router.isReady()
 
-    const wrapper = mount(BottomTabBar, {
+    const wrapper = mountBottomTabBar({
       global: {
         plugins: [router, createPinia()],
       },
@@ -83,7 +97,7 @@ describe('BottomTabBar', () => {
     const authStore = useAuthStore()
     authStore.logout()
 
-    const wrapper = mount(BottomTabBar, {
+    const wrapper = mountBottomTabBar({
       global: {
         plugins: [router, pinia],
       },
@@ -109,7 +123,7 @@ describe('BottomTabBar', () => {
       storeId: null,
     }
 
-    const wrapper = mount(BottomTabBar, {
+    const wrapper = mountBottomTabBar({
       global: {
         plugins: [router, pinia],
       },
@@ -137,7 +151,7 @@ describe('BottomTabBar', () => {
       storeId: null,
     }
 
-    const wrapper = mount(BottomTabBar, {
+    const wrapper = mountBottomTabBar({
       global: {
         plugins: [router, pinia],
       },
@@ -155,7 +169,7 @@ describe('BottomTabBar', () => {
     const authStore = useAuthStore()
     authStore.logout()
 
-    const wrapper = mount(BottomTabBar, {
+    const wrapper = mountBottomTabBar({
       global: {
         plugins: [router, pinia],
       },

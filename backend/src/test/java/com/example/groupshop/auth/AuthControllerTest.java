@@ -13,7 +13,154 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthControllerTest extends MockMvcTestBase {
 
     private static final String MOCK_LOGIN_URL = "/api/v1/auth/mock-login";
+    private static final String AUTH_CODES_URL = "/api/v1/auth/codes";
+    private static final String LOGIN_URL = "/api/v1/auth/login";
+    private static final String REGISTER_URL = "/api/v1/auth/register";
     private static final String ME_URL = "/api/v1/me";
+
+    // ── POST /api/v1/auth/codes ──────────────────────────────────────
+
+    @Test
+    void sendAuthCode_shouldReturnDemoCode() throws Exception {
+        mockMvc.perform(post(AUTH_CODES_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004001",
+                                    "scene": "register"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.expiresInSeconds").value(300))
+                .andExpect(jsonPath("$.data.devCode").value("123456"));
+    }
+
+    @Test
+    void sendAuthCode_shouldFailWhenSceneInvalid() throws Exception {
+        mockMvc.perform(post(AUTH_CODES_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004002",
+                                    "scene": "reset"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
+    }
+
+    // ── POST /api/v1/auth/register ───────────────────────────────────
+
+    @Test
+    void register_shouldCreateUserAndReturnToken() throws Exception {
+        sendCode("13800004003", "register");
+
+        mockMvc.perform(post(REGISTER_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004003",
+                                    "code": "123456",
+                                    "nickname": "注册用户"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.user.phone").value("13800004003"))
+                .andExpect(jsonPath("$.data.user.nickname").value("注册用户"));
+    }
+
+    @Test
+    void register_shouldFailWhenCodeIsWrong() throws Exception {
+        sendCode("13800004004", "register");
+
+        mockMvc.perform(post(REGISTER_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004004",
+                                    "code": "000000",
+                                    "nickname": "验证码错误"
+                                }
+                                """))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpectAll(errorResult("BUSINESS_RULE_VIOLATION"));
+    }
+
+    @Test
+    void register_shouldFailWhenPhoneExists() throws Exception {
+        mockMvc.perform(post(MOCK_LOGIN_URL)
+                .contentType("application/json")
+                .content("""
+                        {
+                            "phone": "13800004005",
+                            "nickname": "已有用户"
+                        }
+                        """));
+        sendCode("13800004005", "register");
+
+        mockMvc.perform(post(REGISTER_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004005",
+                                    "code": "123456",
+                                    "nickname": "重复用户"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpectAll(errorResult("RESOURCE_CONFLICT"));
+    }
+
+    // ── POST /api/v1/auth/login ──────────────────────────────────────
+
+    @Test
+    void login_shouldReturnExistingUser() throws Exception {
+        mockMvc.perform(post(MOCK_LOGIN_URL)
+                .contentType("application/json")
+                .content("""
+                        {
+                            "phone": "13800004006",
+                            "nickname": "验证码登录用户"
+                        }
+                        """));
+        sendCode("13800004006", "login");
+
+        mockMvc.perform(post(LOGIN_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004006",
+                                    "code": "123456"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.data.user.nickname").value("验证码登录用户"))
+                .andExpect(jsonPath("$.data.user.phone").value("13800004006"));
+    }
+
+    @Test
+    void login_shouldFailWhenUserNotRegistered() throws Exception {
+        sendCode("13800004007", "login");
+
+        mockMvc.perform(post(LOGIN_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004007",
+                                    "code": "123456"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpectAll(errorResult("RESOURCE_NOT_FOUND"));
+    }
 
     // ── POST /api/v1/auth/mock-login ─────────────────────────────────
 
@@ -171,5 +318,17 @@ class AuthControllerTest extends MockMvcTestBase {
                         .header("Authorization", "Basic token123"))
                 .andExpect(status().isUnauthorized())
                 .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
+    private void sendCode(String phone, String scene) throws Exception {
+        mockMvc.perform(post(AUTH_CODES_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "%s",
+                                    "scene": "%s"
+                                }
+                                """.formatted(phone, scene)))
+                .andExpect(status().isOk());
     }
 }

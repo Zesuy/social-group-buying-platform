@@ -5,7 +5,34 @@
  */
 
 import request from './request'
-import type { ApiResponse, MockLoginRequest, MockLoginData, CurrentUserData } from '@/types'
+import type {
+  ApiResponse,
+  MockLoginRequest,
+  MockLoginData,
+  CurrentUserData,
+  SendAuthCodeRequest,
+  SendAuthCodeData,
+  PhoneCodeLoginRequest,
+  PhoneCodeRegisterRequest,
+} from '@/types'
+
+/** 发送登录 / 注册验证码 */
+export async function sendAuthCode(params: SendAuthCodeRequest): Promise<SendAuthCodeData> {
+  const res = await request.post('/auth/codes', params) as ApiResponse<SendAuthCodeData>
+  return res.data
+}
+
+/** 手机号验证码登录 */
+export async function loginWithCode(params: PhoneCodeLoginRequest): Promise<MockLoginData> {
+  const res = await request.post('/auth/login', params) as ApiResponse<MockLoginData>
+  return res.data
+}
+
+/** 手机号验证码注册 */
+export async function registerWithCode(params: PhoneCodeRegisterRequest): Promise<MockLoginData> {
+  const res = await request.post('/auth/register', params) as ApiResponse<MockLoginData>
+  return res.data
+}
 
 /**
  * 模拟登录

@@ -197,13 +197,89 @@ MVP 统一约定：
 
 ## 4. 认证与当前用户
 
-### 4.1 模拟登录
+### 4.1 发送验证码
+
+```http
+POST /api/v1/auth/codes
+```
+
+用途：手机号验证码登录 / 注册的第一步。当前演示环境返回固定验证码 `123456`；后续接入短信服务时，生产环境不返回 `devCode`，前端接口不变。
+
+请求：
+
+```json
+{
+  "phone": "13800000000",
+  "scene": "login"
+}
+```
+
+字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `phone` | string | 是 | 11 位手机号 |
+| `scene` | string | 是 | `login` 或 `register` |
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "expiresInSeconds": 300,
+    "devCode": "123456"
+  },
+  "traceId": "req_001"
+}
+```
+
+### 4.2 手机号验证码登录
+
+```http
+POST /api/v1/auth/login
+```
+
+用途：已注册用户使用手机号和验证码登录。手机号不存在时返回 `RESOURCE_NOT_FOUND`，引导用户注册。
+
+请求：
+
+```json
+{
+  "phone": "13800000000",
+  "code": "123456"
+}
+```
+
+响应同 `POST /api/v1/auth/mock-login`，返回 `accessToken` 和用户摘要。
+
+### 4.3 手机号验证码注册
+
+```http
+POST /api/v1/auth/register
+```
+
+用途：新用户使用手机号验证码创建账号，并补充最小资料。手机号已存在时返回 `RESOURCE_CONFLICT`。
+
+请求：
+
+```json
+{
+  "phone": "13800000000",
+  "code": "123456",
+  "nickname": "用户昵称"
+}
+```
+
+响应同 `POST /api/v1/auth/mock-login`，返回 `accessToken` 和用户摘要。注册时头像保持为空，用户进入个人主页后再维护头像资料。
+
+### 4.4 模拟登录
 
 ```http
 POST /api/v1/auth/mock-login
 ```
 
-用途：MVP 阶段用于模拟登录，后续替换为微信登录。
+用途：开发测试和 E2E 使用。正式登录 / 注册页默认使用手机号验证码接口；`mock-login` 保留为快捷测试账号入口。
 
 请求：
 
@@ -236,7 +312,7 @@ POST /api/v1/auth/mock-login
 }
 ```
 
-### 4.2 获取当前用户
+### 4.5 获取当前用户
 
 ```http
 GET /api/v1/me

@@ -39,6 +39,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '登录' },
   },
   {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/views/LoginView.vue'),
+    meta: { title: '注册' },
+  },
+  {
     path: '/group-buys/:id',
     name: 'groupBuyDetail',
     component: () => import('@/views/GroupBuyDetailView.vue'),
@@ -220,8 +226,8 @@ router.beforeEach((to, _from, next) => {
     return next({ name: 'createStore', query: { redirect: to.fullPath } })
   }
 
-  // 4. 已登录用户访问 /login，重定向到 redirect 查询参数或 /profile
-  if (to.name === 'login' && authStore.isLoggedIn) {
+  // 4. 已登录用户访问认证页，重定向到 redirect 查询参数或 /profile
+  if ((to.name === 'login' || to.name === 'register') && authStore.isLoggedIn) {
     return next({ path: (to.query.redirect as string) || '/profile' })
   }
 

@@ -7,6 +7,9 @@ import * as authApi from '@/api/auth'
 
 // 模拟 authApi
 vi.mock('@/api/auth', () => ({
+  sendAuthCode: vi.fn(),
+  loginWithCode: vi.fn(),
+  registerWithCode: vi.fn(),
   mockLogin: vi.fn(),
   fetchMe: vi.fn(),
 }))
@@ -185,6 +188,66 @@ describe('authStore', () => {
 
       await loginPromise
       expect(store.isLoading).toBe(false)
+    })
+  })
+
+  describe('phone-code auth', () => {
+    it('should send auth code', async () => {
+      vi.mocked(authApi.sendAuthCode).mockResolvedValue({
+        expiresInSeconds: 300,
+        devCode: '123456',
+      })
+
+      const store = useAuthStore()
+      const response = await store.sendAuthCode({
+        phone: '13800000000',
+        scene: 'login',
+      })
+
+      expect(authApi.sendAuthCode).toHaveBeenCalledWith({
+        phone: '13800000000',
+        scene: 'login',
+      })
+      expect(response.devCode).toBe('123456')
+    })
+
+    it('should login with phone code and fetch user', async () => {
+      vi.mocked(authApi.loginWithCode).mockResolvedValue(mockLoginResponse)
+      vi.mocked(authApi.fetchMe).mockResolvedValue(mockMeResponse)
+
+      const store = useAuthStore()
+      await store.loginWithCode({
+        phone: '13800000000',
+        code: '123456',
+      })
+
+      expect(authApi.loginWithCode).toHaveBeenCalledWith({
+        phone: '13800000000',
+        code: '123456',
+      })
+      expect(store.accessToken).toBe('mock_token_test123')
+      expect(store.user).toEqual(mockMeResponse.user)
+      expect(store.isLoggedIn).toBe(true)
+    })
+
+    it('should register with phone code and fetch user', async () => {
+      vi.mocked(authApi.registerWithCode).mockResolvedValue(mockLoginResponse)
+      vi.mocked(authApi.fetchMe).mockResolvedValue(mockMeResponse)
+
+      const store = useAuthStore()
+      await store.registerWithCode({
+        phone: '13800000000',
+        code: '123456',
+        nickname: '买家用户',
+      })
+
+      expect(authApi.registerWithCode).toHaveBeenCalledWith({
+        phone: '13800000000',
+        code: '123456',
+        nickname: '买家用户',
+      })
+      expect(store.accessToken).toBe('mock_token_test123')
+      expect(store.isLoggedIn).toBe(true)
     })
   })
 

@@ -4,6 +4,11 @@ import com.example.groupshop.auth.AuthInterceptor;
 import com.example.groupshop.auth.dto.CurrentUserResponse;
 import com.example.groupshop.auth.dto.MockLoginRequest;
 import com.example.groupshop.auth.dto.MockLoginResponse;
+import com.example.groupshop.auth.dto.PhoneCodeLoginRequest;
+import com.example.groupshop.auth.dto.PhoneCodeRegisterRequest;
+import com.example.groupshop.auth.dto.SendAuthCodeRequest;
+import com.example.groupshop.auth.dto.SendAuthCodeResponse;
+import com.example.groupshop.auth.service.AuthCodeService;
 import com.example.groupshop.auth.service.AuthService;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.ApiResponse;
@@ -27,6 +32,34 @@ import static com.example.groupshop.common.enums.ErrorCode.UNAUTHORIZED;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthCodeService authCodeService;
+
+    /**
+     * Send a demo verification code for login or registration.
+     */
+    @PostMapping("/auth/codes")
+    public ApiResponse<SendAuthCodeResponse> sendAuthCode(@Valid @RequestBody SendAuthCodeRequest request) {
+        SendAuthCodeResponse response = authCodeService.sendCode(request);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Login with phone + verification code.
+     */
+    @PostMapping("/auth/login")
+    public ApiResponse<MockLoginResponse> login(@Valid @RequestBody PhoneCodeLoginRequest request) {
+        MockLoginResponse response = authService.loginWithCode(request);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Register with phone + verification code + profile summary.
+     */
+    @PostMapping("/auth/register")
+    public ApiResponse<MockLoginResponse> register(@Valid @RequestBody PhoneCodeRegisterRequest request) {
+        MockLoginResponse response = authService.registerWithCode(request);
+        return ApiResponse.success(response);
+    }
 
     /**
      * Mock login: accepts a phone number, finds or creates a user, and returns an access token.

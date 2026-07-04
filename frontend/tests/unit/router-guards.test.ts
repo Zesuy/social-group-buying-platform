@@ -4,6 +4,9 @@ import { useAuthStore } from '@/stores/auth'
 
 // 模拟 auth API
 vi.mock('@/api/auth', () => ({
+  sendAuthCode: vi.fn(),
+  loginWithCode: vi.fn(),
+  registerWithCode: vi.fn(),
   mockLogin: vi.fn(),
   fetchMe: vi.fn(),
 }))
@@ -80,6 +83,27 @@ describe('Router guards', () => {
 
     const router = await setupRouter()
     await router.push('/login')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('profile')
+  })
+
+  it('should redirect /register to /profile when already authenticated', async () => {
+    const store = useAuthStore()
+    store.accessToken = 'valid_token'
+    store.user = {
+      id: 1,
+      nickname: '买家用户',
+      avatarUrl: null,
+      phone: '13800000000',
+      hasLeader: false,
+      leaderId: null,
+      storeId: null,
+    }
+    store.isBootstrapped = true
+
+    const router = await setupRouter()
+    await router.push('/register')
     await router.isReady()
 
     expect(router.currentRoute.value.name).toBe('profile')

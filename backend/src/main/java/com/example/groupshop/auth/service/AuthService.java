@@ -4,15 +4,21 @@ import com.example.groupshop.auth.TokenStore;
 import com.example.groupshop.auth.dto.CurrentUserResponse;
 import com.example.groupshop.auth.dto.MockLoginRequest;
 import com.example.groupshop.auth.dto.MockLoginResponse;
+import com.example.groupshop.auth.dto.PhoneCodeLoginRequest;
+import com.example.groupshop.auth.dto.PhoneCodeRegisterRequest;
 import com.example.groupshop.model.entity.Leader;
 import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.entity.User;
 import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserMapper;
+import com.example.groupshop.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static com.example.groupshop.common.enums.ErrorCode.RESOURCE_CONFLICT;
+import static com.example.groupshop.common.enums.ErrorCode.RESOURCE_NOT_FOUND;
 
 /**
  * Service for MVP authentication: mock login and current user resolution.
@@ -22,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final TokenStore tokenStore;
+    private final AuthCodeService authCodeService;
     private final UserMapper userMapper;
     private final LeaderMapper leaderMapper;
     private final StoreMapper storeMapper;
@@ -31,13 +38,9 @@ public class AuthService {
      */
     @Transactional
     public MockLoginResponse mockLogin(MockLoginRequest request) {
-        // Find existing user by phone
-        User user = userMapper.selectOne(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<User>()
-                        .eq(User::getPhone, request.getPhone()));
+        User user = findUserByPhone(request.getPhone());
 
         if (user == null) {
-            // Create a new user
             user = new User();
             user.setPhone(request.getPhone());
             user.setNickname(request.getNickname() != null ? request.getNickname() : "用户" + request.getPhone().substring(Math.max(0, request.getPhone().length() - 4)));
@@ -46,10 +49,50 @@ public class AuthService {
             userMapper.insert(user);
         }
 
-        // Generate token
-        String token = tokenStore.createToken(user.getId());
+        return buildLoginResponse(user);
+    }
 
-        // Check leader/store status
+    /**
+     * Phone-code login: requires an existing user.
+     */
+    public MockLoginResponse loginWithCode(PhoneCodeLoginRequest request) {
+        authCodeService.verify(request.getPhone(), "login", request.getCode());
+        User user = findUserByPhone(request.getPhone());
+        if (user == null) {
+            throw new BusinessException(RESOURCE_NOT_FOUND, "该手机号尚未注册，请先注册");
+        }
+        return buildLoginResponse(user);
+    }
+
+    /**
+     * Phone-code registration: creates a new user and returns a token.
+     */
+    @Transactional
+    public MockLoginResponse registerWithCode(PhoneCodeRegisterRequest request) {
+        authCodeService.verify(request.getPhone(), "register", request.getCode());
+        User existing = findUserByPhone(request.getPhone());
+        if (existing != null) {
+            throw new BusinessException(RESOURCE_CONFLICT, "该手机号已注册，请直接登录");
+        }
+
+        User user = new User();
+        user.setPhone(request.getPhone());
+        user.setNickname(request.getNickname().trim());
+        user.setAvatarUrl(null);
+        user.setStatus("normal");
+        userMapper.insert(user);
+
+        return buildLoginResponse(user);
+    }
+
+    private User findUserByPhone(String phone) {
+        return userMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<User>()
+                        .eq(User::getPhone, phone));
+    }
+
+    private MockLoginResponse buildLoginResponse(User user) {
+        String token = tokenStore.createToken(user.getId());
         boolean hasLeader = false;
         Long leaderId = null;
         Long storeId = null;
