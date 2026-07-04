@@ -710,7 +710,7 @@ Content-Type: multipart/form-data
   "success": true,
   "data": {
     "assetId": "2071642363297644546",
-    "url": "http://localhost:8080/uploads/images/2026/07/uuid.png",
+    "url": "/uploads/images/2026/07/uuid.png",
     "objectKey": "images/2026/07/uuid.png",
     "originalFilename": "cover.png",
     "contentType": "image/png",
@@ -1752,6 +1752,11 @@ GET /api/v1/my/subscriptions
 登录：需要。
 
 响应：返回当前用户订阅的团长 / 店铺列表。
+
+`items[]` 除 `leaderId`、`storeId`、`status`、`source`、`subscribedAt` 外，还返回用于前端真实展示的摘要：
+
+- `leader`: `{ id, displayName, avatarUrl }`
+- `store`: `{ id, name, logoUrl }`
 
 ---
 
