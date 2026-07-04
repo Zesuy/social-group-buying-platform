@@ -144,6 +144,11 @@ class ChatServiceTest extends ServiceTestBase {
         ChatMessageResponse second = chatService.sendMessage(buyerUserId, conversation.getId(), request);
 
         assertThat(second.getId()).isEqualTo(first.getId());
+        assertThat(first.getCreatedAt()).endsWith("+08:00");
+        assertThat(chatService.listMyConversations(leaderUserId, "leader", 1, 10)
+                .getItems()
+                .get(0)
+                .getLastMessageAt()).endsWith("+08:00");
         assertThat(chatService.unreadCount(leaderUserId).getUnreadCount()).isEqualTo(1);
 
         chatService.markRead(leaderUserId, conversation.getId());
@@ -157,7 +162,7 @@ class ChatServiceTest extends ServiceTestBase {
         UploadAsset asset = uploadAssetService.recordUpload(
                 buyerUserId,
                 "images/chat-test.png",
-                "http://localhost:8080/uploads/images/chat-test.png",
+                "/uploads/images/chat-test.png",
                 "chat-test.png",
                 "image/png",
                 128,
