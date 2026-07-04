@@ -61,6 +61,29 @@
         </button>
       </div>
 
+      <form class="index-search" role="search" @submit.prevent="onSearchSubmit">
+        <van-icon name="search" class="index-search__icon" />
+        <input
+          v-model="searchInput"
+          class="index-search__input"
+          type="search"
+          enterkeyhint="search"
+          placeholder="搜索团购、店铺、团长"
+        >
+        <button
+          v-if="searchInput"
+          type="button"
+          class="index-search__clear"
+          aria-label="清空搜索"
+          @click="clearSearch"
+        >
+          <van-icon name="cross" size="15" />
+        </button>
+        <button type="submit" class="index-search__submit" :disabled="loading">
+          搜索
+        </button>
+      </form>
+
       <CategoryChips
         :chips="categories"
         :active="activeCategory"
@@ -119,7 +142,17 @@
               @subscribe="onSubscribeClick(item)"
               @leader="goToLeader(item.leader.id)"
             />
-            <EmptyState v-if="isEmpty" :description="emptyDescription" />
+            <div v-if="isNearbyEmpty" class="index-nearby-empty">
+              <div class="index-nearby-empty__icon" aria-hidden="true">
+                <van-icon name="location-o" size="28" />
+              </div>
+              <strong>附近暂无</strong>
+              <p>{{ nearbyEmptyDescription }}</p>
+              <button type="button" class="index-nearby-empty__action" @click="showAllGroupBuys">
+                查看其他团购
+              </button>
+            </div>
+            <EmptyState v-else-if="isEmpty" :description="emptyDescription" />
           </van-list>
         </van-pull-refresh>
 
@@ -155,23 +188,26 @@ import ErrorView from '@/components/ErrorView.vue'
 import { listPublicGroupBuys, type ListPublicGroupBuysParams } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { listMySubscriptions } from '@/api/subscriptions'
-import { buildGroupBuyShareUrl, shareBySystem } from '@/utils'
+import {
+  NEARBY_DISTANCE_METERS,
+  buildGroupBuyShareUrl,
+  matchesGroupBuyCategory,
+  shareBySystem,
+} from '@/utils'
 import type { PublicGroupBuyItem } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
-
-const NEARBY_DISTANCE_METERS = 5000
 
 interface UserLocation {
   latitude: number
   longitude: number
 }
 
-// ── 活动筛选：关键词筛选仍在前端，本地履约使用后端距离筛选 ──
+// ── 活动筛选：分类关键词在前端筛选，附近和搜索使用后端参数 ──
 const categories = [
   { key: 'all', label: '全部团购' },
-  { key: 'nearby', label: '本地履约' },
+  { key: 'nearby', label: '附近' },
   { key: 'fresh', label: '生鲜水果' },
   { key: 'seasonal', label: '节令特产' },
   { key: 'repeat', label: '适合复购' },
@@ -200,6 +236,8 @@ const error = ref<string | null>(null)
 const initialized = ref(false)
 const subscribedLeaderIds = ref(new Set<string>())
 const subscribingLeaderId = ref<string | null>(null)
+const searchInput = ref('')
+const searchKeyword = ref('')
 const userLocation = ref<UserLocation | null>(readSavedLocation())
 const locating = ref(false)
 const locationError = ref<string | null>(null)
@@ -209,6 +247,7 @@ const shareItem = ref<PublicGroupBuyItem | null>(null)
 
 const firstLoading = computed(() => !initialized.value && loading.value)
 const isEmpty = computed(() => initialized.value && !error.value && visibleItems.value.length === 0)
+const isNearbyEmpty = computed(() => isEmpty.value && activeCategory.value === 'nearby' && hasUserLocation.value)
 const showError = computed(() => error.value && items.value.length === 0)
 const visibleItems = computed(() => items.value.filter(matchesActiveCategory))
 const activeGroupBuyCount = computed(() => items.value.filter(item => item.status !== 'ended').length)
@@ -219,7 +258,7 @@ const showLocationBanner = computed(() => !locationBannerDismissed.value)
 const locationTitle = computed(() => (hasUserLocation.value ? '已按你的位置展示距离' : '开启定位，精确找周边团购'))
 const locationDescription = computed(() => {
   if (locationError.value) return locationError.value
-  if (hasUserLocation.value) return '本地履约会筛选 5km 内团购，列表按距离优先展示'
+  if (hasUserLocation.value) return '附近会筛选 5km 内团购，列表按距离优先展示'
   return '允许定位后，只在首页计算距离和附近筛选'
 })
 const locationActionText = computed(() => {
@@ -228,9 +267,11 @@ const locationActionText = computed(() => {
 })
 const emptyDescription = computed(() => {
   const label = categories.find(category => category.key === activeCategory.value)?.label ?? '团购'
-  if (activeCategory.value === 'nearby' && !hasUserLocation.value) return '开启定位后查看附近本地履约团购'
+  if (searchKeyword.value) return `暂无“${searchKeyword.value}”相关团购`
+  if (activeCategory.value === 'nearby' && !hasUserLocation.value) return '开启定位后查看附近团购'
   return activeCategory.value === 'all' ? '暂无正在进行的团购，可先去一键开团' : `暂无${label}团购`
 })
+const nearbyEmptyDescription = '5km 内暂时没有可履约团购，先看看其他团长正在开团的活动。'
 const shareUrl = computed(() => shareItem.value ? buildGroupBuyShareUrl(shareItem.value.id) : '')
 const sharePayload = computed<GroupBuySharePayload>(() => ({
   title: shareItem.value?.title || '团购分享',
@@ -243,20 +284,8 @@ const sharePayload = computed<GroupBuySharePayload>(() => ({
   shippingTime: null,
 }))
 
-const categoryKeywords: Record<string, string[]> = {
-  fresh: ['生鲜', '水果', '鲜', '桃', '瓜', '梨', '莓', '橙', '柑', '苹果', '荔枝'],
-  seasonal: ['节令', '特产', '应季', '当季', '产地', '年货', '端午', '中秋'],
-  repeat: ['复购', '常备', '家庭', '办公室', '每日', '每周', '回购'],
-}
-
 function matchesActiveCategory(item: PublicGroupBuyItem): boolean {
-  if (activeCategory.value === 'all') return true
-  if (activeCategory.value === 'nearby') {
-    return Boolean(item.store.distanceMeters != null || item.store.distanceText)
-  }
-  const keywords = categoryKeywords[activeCategory.value] ?? []
-  const haystack = `${item.title} ${item.store.name}`.toLowerCase()
-  return keywords.some(keyword => haystack.includes(keyword.toLowerCase()))
+  return matchesGroupBuyCategory(item, activeCategory.value)
 }
 
 function readSavedLocation(): UserLocation | null {
@@ -350,6 +379,10 @@ async function ensureLocation(): Promise<boolean> {
 
 function buildListParams(p: number): ListPublicGroupBuysParams {
   const params: ListPublicGroupBuysParams = { page: p, pageSize: 20 }
+  const keyword = searchKeyword.value.trim()
+  if (keyword) {
+    params.keyword = keyword
+  }
   if (!userLocation.value) return params
 
   params.latitude = userLocation.value.latitude
@@ -359,6 +392,22 @@ function buildListParams(p: number): ListPublicGroupBuysParams {
     params.maxDistanceMeters = NEARBY_DISTANCE_METERS
   }
   return params
+}
+
+async function onSearchSubmit(): Promise<void> {
+  const keyword = searchInput.value.trim()
+  if (keyword === searchKeyword.value && initialized.value) return
+  searchKeyword.value = keyword
+  await reloadList()
+}
+
+function clearSearch(): void {
+  const hadKeyword = Boolean(searchKeyword.value)
+  searchInput.value = ''
+  searchKeyword.value = ''
+  if (hadKeyword) {
+    void reloadList()
+  }
 }
 
 async function initSubscriptions(): Promise<void> {
@@ -465,6 +514,11 @@ async function onLoadMore() {
   if (!hasMore.value) return
   await fetchList(page.value + 1)
   loading.value = false
+}
+
+async function showAllGroupBuys() {
+  activeCategory.value = 'all'
+  await reloadList()
 }
 
 function onErrorRetry() {
@@ -687,6 +741,76 @@ onMounted(() => {
   font-weight: 800;
 }
 
+.index-search {
+  min-height: 46px;
+  margin: 0 12px 10px;
+  padding: 5px 6px 5px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.index-search__icon {
+  flex-shrink: 0;
+  color: var(--color-text-hint);
+  font-size: 18px;
+}
+
+.index-search__input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: 1.4;
+}
+
+.index-search__input::placeholder {
+  color: var(--color-text-hint);
+}
+
+.index-search__clear {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-hint);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.index-search__submit {
+  min-width: 58px;
+  min-height: 36px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0 12px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.index-search__submit:disabled {
+  opacity: 0.58;
+}
+
+.index-search__clear:active,
+.index-search__submit:active {
+  transform: scale(0.96);
+}
+
 .index-shell :deep(.category-chips) {
   padding-top: 0;
   padding-bottom: 12px;
@@ -778,6 +902,65 @@ onMounted(() => {
   padding: 0 var(--spacing-md) var(--spacing-md);
 }
 
+.index-nearby-empty {
+  min-height: 238px;
+  margin: 0 0 12px;
+  padding: 28px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.index-nearby-empty__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+.index-nearby-empty strong {
+  margin-top: 14px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.index-nearby-empty p {
+  max-width: 260px;
+  margin: 6px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.55;
+}
+
+.index-nearby-empty__action {
+  min-height: 44px;
+  margin-top: 18px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-md);
+  font-weight: 800;
+}
+
+.index-nearby-empty__action:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
 @media (max-width: 360px) {
   .index-location {
     align-items: flex-start;
@@ -789,6 +972,16 @@ onMounted(() => {
 
   .index-location__close {
     width: 30px;
+  }
+
+  .index-search {
+    padding-left: 10px;
+    gap: 6px;
+  }
+
+  .index-search__submit {
+    min-width: 50px;
+    padding: 0 10px;
   }
 }
 </style>
