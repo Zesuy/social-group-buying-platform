@@ -88,8 +88,9 @@ describe('LoginView', () => {
     routeQuery = {}
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     wrappers.splice(0).forEach(wrapper => wrapper.unmount())
+    await new Promise(resolve => window.setTimeout(resolve, 120))
   })
 
   it('should render phone-code login form with title', () => {
