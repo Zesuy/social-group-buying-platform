@@ -24,7 +24,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores'
-import { useNotificationPolling } from '@/composables'
+import { useChatUnreadPolling, useNotificationPolling } from '@/composables'
 
 interface TabItem {
   to: string
@@ -44,6 +44,7 @@ const tabs: TabItem[] = [
 const route = useRoute()
 const authStore = useAuthStore()
 const { unreadCount } = useNotificationPolling()
+const { unreadCount: chatUnreadCount } = useChatUnreadPolling()
 
 const active = computed(() => {
   const idx = tabs.findIndex((t) => t.to === route.path)
@@ -59,7 +60,9 @@ function onChange(index: number) {
 }
 
 function getTabBadge(tab: TabItem) {
-  const count = Number.isFinite(unreadCount.value) ? unreadCount.value : 0
+  const notificationCount = Number.isFinite(unreadCount.value) ? unreadCount.value : 0
+  const chatCount = Number.isFinite(chatUnreadCount.value) ? chatUnreadCount.value : 0
+  const count = notificationCount + chatCount
   if (tab.to !== '/messages' || count <= 0) return undefined
   return count > 99 ? '99+' : String(count)
 }

@@ -831,6 +831,40 @@ POST /api/v1/my/notifications/read-all
 
 ---
 
+## 6.6 订单上下文聊天 API（P2）
+
+聊天用于下单后的买家和店铺团长履约沟通。会话按 `buyerUserId + storeId` 聚合；仅买家本人或该店铺团长可访问。当前只使用 REST 轮询，不接 WebSocket、SSE、公众号或微信服务通知。
+
+```http
+POST /api/v1/my/chat-conversations/orders/{orderId}
+GET /api/v1/my/chat-conversations?page=1&pageSize=20&role=buyer
+GET /api/v1/my/chat-conversations/unread-count
+GET /api/v1/my/chat-conversations/{conversationId}/messages?afterMessageId=&pageSize=20
+POST /api/v1/my/chat-conversations/{conversationId}/messages
+POST /api/v1/my/chat-conversations/{conversationId}/cards
+POST /api/v1/my/chat-conversations/{conversationId}/read
+```
+
+消息类型：
+
+| 类型 | 说明 |
+|---|---|
+| `text` | 文本消息，必须提供 `content` 和 `clientMessageId` |
+| `image` | 图片消息，必须先上传图片，并携带 `imageAssetId` 和 `imageUrl` |
+| `card` | 订单卡片消息，由卡片接口或订单事件生成 |
+
+卡片规则：
+
+| 卡片 | 发送方 | 说明 |
+|---|---|---|
+| `order_summary` | 买家或团长 | 手动发送订单摘要 |
+| `prepare_done` | 团长 | 备货完成提示，不改变订单状态 |
+| `order_created` / `order_paid` / `order_shipped` / `order_completed` | 系统 | 订单创建、支付、发货、完成后自动写入聊天 |
+
+错误码：`CHAT_CONVERSATION_NOT_FOUND`、`CHAT_FORBIDDEN`、`CHAT_MESSAGE_INVALID`、`CHAT_ASSET_INVALID`、`CHAT_CARD_NOT_ALLOWED`。
+
+---
+
 ## 7. 商品 API
 
 ### 7.1 我的店铺商品列表
@@ -2646,7 +2680,7 @@ POST /api/v1/my/store/after-sales/{afterSaleId}/complete-refund
 | 帮卖分销 | P2 | 不设计佣金和结算 |
 | 积分商城 | P2 | 不设计积分账户和兑换 |
 | 公众号推送 | P2 | 不设计真实触达 |
-| 商家用户聊天 | P2 | 不在站内通知批次中实现 |
+| 商家用户聊天 | P2（部分已完成） | 本批已实现订单关系下的买家-店铺团长轻量聊天；完整客服中心、坐席分配、撤回、评价、敏感词和实时推送仍不设计 |
 | 平台管理后台 | P2 | 不设计后台 API |
 
 ---

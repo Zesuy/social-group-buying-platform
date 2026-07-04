@@ -92,6 +92,32 @@ async function mockEndpoints(page: Page) {
     })
   })
 
+  await page.route('**/api/v1/my/chat-conversations**', async (route) => {
+    const url = route.request().url()
+    if (url.includes('/unread-count')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: { unreadCount: 0 },
+          traceId: 'e2e_chat_count',
+        }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: { items: [], page: 1, pageSize: 20, total: 0, hasMore: false },
+        traceId: 'e2e_chat_list',
+      }),
+    })
+  })
+
   // POST /api/v1/stores
   await page.route('**/api/v1/stores', async (route) => {
     const body = route.request().postDataJSON()
