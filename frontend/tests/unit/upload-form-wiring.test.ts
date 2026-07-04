@@ -1,27 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import CreateStoreView from '@/views/CreateStoreView.vue'
 import LeaderStoreView from '@/views/leader/LeaderStoreView.vue'
 import PublishGroupBuyView from '@/views/leader/PublishGroupBuyView.vue'
-import { getMyStore, updateMyStore } from '@/api/stores'
+import { createStore, getMyStore, updateMyStore } from '@/api/stores'
 import { createGroupBuy } from '@/api/leaderGroupBuys'
 import { uploadImage } from '@/api/uploads'
 import { listProducts } from '@/api/products'
 
 const push = vi.fn()
 const back = vi.fn()
+const replace = vi.fn()
 const fetchMe = vi.fn()
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push, back }),
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push, back, replace }),
 }))
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
+    isLeader: false,
     fetchMe,
   }),
 }))
 
 vi.mock('@/api/stores', () => ({
+  createStore: vi.fn(),
   getMyStore: vi.fn(),
   updateMyStore: vi.fn(),
 }))
@@ -68,7 +73,9 @@ describe('upload form wiring', () => {
   beforeEach(() => {
     push.mockClear()
     back.mockClear()
+    replace.mockClear()
     fetchMe.mockClear()
+    vi.mocked(createStore).mockReset()
     vi.mocked(getMyStore).mockReset()
     vi.mocked(updateMyStore).mockReset()
     vi.mocked(createGroupBuy).mockReset()
@@ -82,6 +89,44 @@ describe('upload form wiring', () => {
       total: 0,
       hasMore: false,
     })
+  })
+
+  it('writes uploaded logo url into create store payload', async () => {
+    vi.mocked(createStore).mockResolvedValue({
+      leader: {
+        id: '10',
+        displayName: '王姐鲜果团',
+        avatarUrl: uploadedImage.url,
+      },
+      store: {
+        id: '20',
+        leaderId: '10',
+        name: '王姐鲜果店',
+        logoUrl: uploadedImage.url,
+        description: '社区水果团',
+        defaultDeliveryType: 'express',
+        distributionEnabled: false,
+        status: 'active',
+        latitude: null,
+        longitude: null,
+      },
+    })
+
+    const wrapper = mount(CreateStoreView)
+    await wrapper.find('input[placeholder="请输入店铺名称（必填）"]').setValue('王姐鲜果店')
+    await uploadFirstFile(wrapper)
+    await wrapper.find('textarea[placeholder="可选，介绍你的店铺"]').setValue('社区水果团')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(createStore).toHaveBeenCalledWith(expect.objectContaining({
+      name: '王姐鲜果店',
+      logoUrl: uploadedImage.url,
+      description: '社区水果团',
+      defaultDeliveryType: 'express',
+    }))
+    expect(fetchMe).toHaveBeenCalledOnce()
+    expect(replace).toHaveBeenCalledWith('/leader/store')
   })
 
   it('writes uploaded logo url into store update payload', async () => {

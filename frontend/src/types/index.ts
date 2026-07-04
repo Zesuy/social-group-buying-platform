@@ -24,6 +24,7 @@ export type {
   PhoneCodeLoginRequest,
   PhoneCodeRegisterRequest,
   CurrentUserData,
+  UpdateCurrentUserRequest,
   CurrentUserSummary,
   LeaderSummary,
   StoreSummary,

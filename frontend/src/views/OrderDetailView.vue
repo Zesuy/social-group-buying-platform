@@ -76,17 +76,17 @@
         </template>
 
         <template v-else-if="order.orderStatus === 'shipped'">
-          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">联系团长</AppButton>
+          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">带订单咨询</AppButton>
           <AppButton variant="primary" :disabled="actionLoading" @click="handleComplete">确认收货</AppButton>
         </template>
 
         <template v-else-if="order.orderStatus === 'paid'">
-          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">联系团长</AppButton>
+          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">带订单咨询</AppButton>
           <AppButton variant="primary" disabled>等待卖家发货</AppButton>
         </template>
 
         <template v-else-if="order.orderStatus === 'completed'">
-          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">联系团长</AppButton>
+          <AppButton variant="ghost" :disabled="actionLoading" @click="openOrderChat">带订单咨询</AppButton>
           <AppButton variant="primary" disabled>已完成</AppButton>
         </template>
 
@@ -117,7 +117,7 @@ import OrderSnapshotCard from '@/components/OrderSnapshotCard.vue'
 import OrderAmountBreakdown from '@/components/OrderAmountBreakdown.vue'
 import PriceText from '@/components/PriceText.vue'
 import { getMyOrder, simulatePay, cancelOrder, completeOrder } from '@/api/orders'
-import { openChatByOrder } from '@/api/chats'
+import { openChatByOrder, sendChatCard } from '@/api/chats'
 import { formatDateTime } from '@/utils/format'
 import type { OrderData } from '@/types'
 
@@ -233,6 +233,11 @@ async function openOrderChat() {
   actionLoading.value = true
   try {
     const conversation = await openChatByOrder(orderId.value)
+    await sendChatCard(conversation.id, {
+      cardType: 'order_summary',
+      orderId: orderId.value,
+      clientMessageId: `order-summary:${orderId.value}:${Date.now()}`,
+    })
     await router.push(`/chats/${conversation.id}`)
   } catch (err) {
     const apiErr = err as { message?: string }

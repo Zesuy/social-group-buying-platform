@@ -39,6 +39,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '我的', showTabBar: true },
   },
   {
+    path: '/profile/me',
+    name: 'userProfile',
+    component: () => import('@/views/UserProfileView.vue'),
+    meta: { title: '我的主页', requiresAuth: true },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('@/views/LoginView.vue'),

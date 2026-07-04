@@ -30,6 +30,15 @@
               <van-icon name="arrow" />
             </button>
             <button
+              v-if="isLoggedIn && isLeader && leader?.id"
+              type="button"
+              class="profile-link-btn"
+              @click.stop="router.push(`/leaders/${leader.id}`)"
+            >
+              团长主页
+              <van-icon name="arrow" />
+            </button>
+            <button
               v-else-if="isLoggedIn"
               type="button"
               class="profile-link-btn profile-link-btn--primary"
@@ -128,8 +137,8 @@ const storeEntries: ProfileGridEntry[] = [
 function handleHeaderClick() {
   if (!isLoggedIn.value) {
     router.push('/login?redirect=/profile')
-  } else if (leader.value?.id) {
-    router.push(`/leaders/${leader.value.id}`)
+  } else {
+    router.push('/profile/me')
   }
 }
 

@@ -149,6 +149,30 @@ paths:
                 $ref: '#/components/schemas/CurrentUserSuccessResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+    patch:
+      tags:
+        - Auth
+      summary: Update current user profile.
+      operationId: updateCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCurrentUserRequest'
+      responses:
+        '200':
+          description: Updated current user context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/v1/stores:
     post:
       tags:
@@ -3208,6 +3232,18 @@ components:
         traceId:
           type: string
           minLength: 1
+      additionalProperties: false
+    UpdateCurrentUserRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+          maxLength: 50
+          nullable: true
+        avatarUrl:
+          type: string
+          maxLength: 500
+          nullable: true
       additionalProperties: false
     CurrentUserData:
       type: object

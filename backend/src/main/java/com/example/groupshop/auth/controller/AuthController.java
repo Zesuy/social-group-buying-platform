@@ -8,6 +8,7 @@ import com.example.groupshop.auth.dto.PhoneCodeLoginRequest;
 import com.example.groupshop.auth.dto.PhoneCodeRegisterRequest;
 import com.example.groupshop.auth.dto.SendAuthCodeRequest;
 import com.example.groupshop.auth.dto.SendAuthCodeResponse;
+import com.example.groupshop.auth.dto.UpdateCurrentUserRequest;
 import com.example.groupshop.auth.service.AuthCodeService;
 import com.example.groupshop.auth.service.AuthService;
 import com.example.groupshop.common.exception.BusinessException;
@@ -15,6 +16,7 @@ import com.example.groupshop.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -82,5 +84,15 @@ public class AuthController {
             throw new BusinessException(UNAUTHORIZED, "用户不存在");
         }
         return ApiResponse.success(response);
+    }
+
+    /**
+     * Update the current user's profile summary.
+     */
+    @PatchMapping("/me")
+    public ApiResponse<CurrentUserResponse> updateCurrentUser(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @Valid @RequestBody UpdateCurrentUserRequest request) {
+        return ApiResponse.success(authService.updateCurrentUser(userId, request));
     }
 }

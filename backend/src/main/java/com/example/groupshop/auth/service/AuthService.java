@@ -6,16 +6,21 @@ import com.example.groupshop.auth.dto.MockLoginRequest;
 import com.example.groupshop.auth.dto.MockLoginResponse;
 import com.example.groupshop.auth.dto.PhoneCodeLoginRequest;
 import com.example.groupshop.auth.dto.PhoneCodeRegisterRequest;
+import com.example.groupshop.auth.dto.UpdateCurrentUserRequest;
+import com.example.groupshop.common.enums.ErrorCode;
+import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.model.entity.Leader;
 import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.entity.User;
 import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserMapper;
-import com.example.groupshop.common.exception.BusinessException;
+import com.example.groupshop.upload.service.UploadAssetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collections;
 
 import static com.example.groupshop.common.enums.ErrorCode.RESOURCE_CONFLICT;
 import static com.example.groupshop.common.enums.ErrorCode.RESOURCE_NOT_FOUND;
@@ -32,6 +37,7 @@ public class AuthService {
     private final UserMapper userMapper;
     private final LeaderMapper leaderMapper;
     private final StoreMapper storeMapper;
+    private final UploadAssetService uploadAssetService;
 
     /**
      * Mock login: find or create a user by phone, generate a token.
@@ -185,5 +191,36 @@ public class AuthService {
                 .build());
 
         return builder.build();
+    }
+
+    /**
+     * Update the current user's editable profile fields.
+     */
+    @Transactional
+    public CurrentUserResponse updateCurrentUser(Long userId, UpdateCurrentUserRequest request) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户不存在");
+        }
+
+        if (request.getNickname() != null) {
+            String nickname = request.getNickname().trim();
+            if (nickname.isBlank()) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "昵称不能为空");
+            }
+            user.setNickname(nickname);
+        }
+        if (request.getAvatarUrl() != null) {
+            String avatarUrl = request.getAvatarUrl().trim();
+            user.setAvatarUrl(avatarUrl.isBlank() ? null : avatarUrl);
+        }
+
+        userMapper.updateById(user);
+        uploadAssetService.replaceReferences(
+                "user",
+                user.getId(),
+                "avatarUrl",
+                Collections.singletonList(user.getAvatarUrl()));
+        return getCurrentUser(userId);
     }
 }
