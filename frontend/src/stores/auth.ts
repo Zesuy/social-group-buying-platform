@@ -15,6 +15,7 @@ import type {
   PhoneCodeRegisterRequest,
   SendAuthCodeRequest,
   SendAuthCodeData,
+  UpdateCurrentUserRequest,
   CurrentUserSummary,
   LeaderSummary,
   StoreSummary,
@@ -56,9 +57,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchMe(): Promise<void> {
     try {
       const data = await authApi.fetchMe()
-      user.value = data.user
-      leader.value = data.leader ?? null
-      store.value = data.store ?? null
+      applyCurrentUserData(data)
     } catch (err) {
       const apiErr = err as { code?: string }
       if (apiErr.code === 'UNAUTHORIZED') {
@@ -66,6 +65,12 @@ export const useAuthStore = defineStore('auth', () => {
       }
       throw err
     }
+  }
+
+  function applyCurrentUserData(data: { user: CurrentUserSummary; leader?: LeaderSummary | null; store?: StoreSummary | null }): void {
+    user.value = data.user
+    leader.value = data.leader ?? null
+    store.value = data.store ?? null
   }
 
   async function applyLoginData(data: { accessToken: string; user: CurrentUserSummary }): Promise<void> {
@@ -92,6 +97,16 @@ export const useAuthStore = defineStore('auth', () => {
 
   function sendAuthCode(params: SendAuthCodeRequest): Promise<SendAuthCodeData> {
     return authApi.sendAuthCode(params)
+  }
+
+  async function updateProfile(params: UpdateCurrentUserRequest): Promise<void> {
+    isLoading.value = true
+    try {
+      const data = await authApi.updateMe(params)
+      applyCurrentUserData(data)
+    } finally {
+      isLoading.value = false
+    }
   }
 
   /**
@@ -177,6 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     fetchMe,
+    updateProfile,
     restoreSession,
     checkLoggedIn,
   }

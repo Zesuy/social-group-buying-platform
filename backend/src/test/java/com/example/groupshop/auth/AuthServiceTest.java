@@ -6,6 +6,7 @@ import com.example.groupshop.auth.dto.MockLoginResponse;
 import com.example.groupshop.auth.dto.PhoneCodeLoginRequest;
 import com.example.groupshop.auth.dto.PhoneCodeRegisterRequest;
 import com.example.groupshop.auth.dto.SendAuthCodeRequest;
+import com.example.groupshop.auth.dto.UpdateCurrentUserRequest;
 import com.example.groupshop.auth.service.AuthService;
 import com.example.groupshop.auth.service.AuthCodeService;
 import com.example.groupshop.base.ServiceTestBase;
@@ -198,6 +199,37 @@ class AuthServiceTest extends ServiceTestBase {
     void getCurrentUser_shouldReturnNullForUnknownUser() {
         CurrentUserResponse current = authService.getCurrentUser(-1L);
         assertThat(current).isNull();
+    }
+
+    @Test
+    void updateCurrentUser_shouldUpdateProfile() {
+        MockLoginRequest loginRequest = new MockLoginRequest();
+        loginRequest.setPhone("13800002002");
+        loginRequest.setNickname("旧资料");
+        MockLoginResponse login = authService.mockLogin(loginRequest);
+
+        UpdateCurrentUserRequest request = new UpdateCurrentUserRequest();
+        request.setNickname("新资料");
+        request.setAvatarUrl("https://example.com/avatar.png");
+
+        CurrentUserResponse updated = authService.updateCurrentUser(login.getUser().getId(), request);
+
+        assertThat(updated.getUser().getNickname()).isEqualTo("新资料");
+        assertThat(updated.getUser().getAvatarUrl()).isEqualTo("https://example.com/avatar.png");
+    }
+
+    @Test
+    void updateCurrentUser_shouldRejectBlankNickname() {
+        MockLoginRequest loginRequest = new MockLoginRequest();
+        loginRequest.setPhone("13800002003");
+        loginRequest.setNickname("旧资料");
+        MockLoginResponse login = authService.mockLogin(loginRequest);
+
+        UpdateCurrentUserRequest request = new UpdateCurrentUserRequest();
+        request.setNickname("   ");
+
+        assertThatThrownBy(() -> authService.updateCurrentUser(login.getUser().getId(), request))
+                .hasMessageContaining("昵称不能为空");
     }
 
     private void sendCode(String phone, String scene) {

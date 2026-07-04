@@ -14,7 +14,7 @@
             {{ getOrderStatusText(order.orderStatus) }}
           </AppStatusPill>
           <div class="leader-chat-actions">
-            <AppButton variant="ghost" @click="openBuyerChat">联系买家</AppButton>
+            <AppButton variant="ghost" :loading="chatLoading" @click="openBuyerChat">订单卡片咨询</AppButton>
             <AppButton
               v-if="order.orderStatus === 'paid'"
               variant="plain"
@@ -108,6 +108,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const order = ref<LeaderOrderData | null>(null)
 const shipLoading = ref(false)
+const chatLoading = ref(false)
 const prepareLoading = ref(false)
 
 const orderId = computed(() => route.params.id as string)
@@ -159,12 +160,21 @@ async function handleShip(data: {
 }
 
 async function openBuyerChat() {
+  chatLoading.value = true
   try {
     const conversation = await openChatByOrder(orderId.value)
+    await sendChatCard(conversation.id, {
+      cardType: 'order_summary',
+      orderId: orderId.value,
+      clientMessageId: `order-summary:${orderId.value}:${Date.now()}`,
+    })
+    showToast('已发送订单卡片')
     await router.push(`/chats/${conversation.id}`)
   } catch (err) {
     const apiErr = err as { message?: string }
     showToast(apiErr.message || '聊天打开失败')
+  } finally {
+    chatLoading.value = false
   }
 }
 
@@ -211,6 +221,11 @@ onMounted(() => {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   width: 100%;
+}
+
+.leader-chat-actions :deep(.app-button) {
+  width: 100%;
+  padding: 0 10px;
 }
 
 .section-title {

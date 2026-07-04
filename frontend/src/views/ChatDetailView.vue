@@ -30,20 +30,33 @@
               'chat-message--system': message.senderRole === 'system',
             }"
           >
-            <div class="chat-message__bubble">
+            <div
+              class="chat-message__bubble"
+              :class="{
+                'chat-message__bubble--media': message.messageType === 'image' || message.messageType === 'card',
+              }"
+            >
               <p v-if="message.messageType === 'text'" class="chat-message__text">
                 {{ message.content }}
               </p>
 
-              <ImageWithFallback
+              <button
                 v-else-if="message.messageType === 'image'"
-                :src="message.imageUrl"
-                alt="聊天图片"
-                width="180px"
-                height="180px"
-                radius="10px"
-                demo-kind="cover"
-              />
+                type="button"
+                class="chat-image-preview"
+                aria-label="查看聊天图片"
+                @click="previewImage(message)"
+              >
+                <ImageWithFallback
+                  :src="message.imageUrl"
+                  alt="聊天图片"
+                  width="180px"
+                  height="180px"
+                  radius="10px"
+                  demo-kind="cover"
+                />
+                <span>点击查看大图</span>
+              </button>
 
               <button
                 v-else-if="message.messageType === 'card'"
@@ -52,9 +65,26 @@
                 @click="openCard(message)"
               >
                 <span class="chat-card__tag">{{ cardTag(message.cardType) }}</span>
-                <strong>{{ message.cardPayload?.title || message.content || '订单消息' }}</strong>
-                <span>{{ message.cardPayload?.summary || '查看订单详情' }}</span>
-                <small v-if="message.cardPayload?.orderNo">订单号：{{ message.cardPayload.orderNo }}</small>
+                <span class="chat-card__main">
+                  <strong>{{ cardTitle(message) }}</strong>
+                  <b v-if="cardAmount(message.cardPayload)">{{ cardAmount(message.cardPayload) }}</b>
+                </span>
+                <span class="chat-card__summary">
+                  {{ message.cardPayload?.summary || '正在咨询这笔订单的商品与履约信息' }}
+                </span>
+                <span
+                  v-if="message.cardPayload?.orderNo || message.cardPayload?.orderStatus"
+                  class="chat-card__meta"
+                >
+                  <small v-if="message.cardPayload?.orderNo">订单号：{{ message.cardPayload.orderNo }}</small>
+                  <small v-if="message.cardPayload?.orderStatus">
+                    {{ cardStatusText(message.cardPayload.orderStatus) }}
+                  </small>
+                </span>
+                <span class="chat-card__action">
+                  查看订单
+                  <van-icon name="arrow" />
+                </span>
               </button>
             </div>
             <span class="chat-message__time">{{ formatDateTime(message.createdAt) }}</span>
@@ -100,7 +130,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showImagePreview, showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
@@ -114,8 +144,8 @@ import {
 } from '@/api/chats'
 import { uploadImage } from '@/api/uploads'
 import { useChatPolling } from '@/composables'
-import { formatDateTime } from '@/utils'
-import type { ChatConversationData, ChatMessageData } from '@/types'
+import { formatAmount, formatDateTime, resolveDisplayImageUrl } from '@/utils'
+import type { ChatCardPayload, ChatConversationData, ChatMessageData } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -236,6 +266,15 @@ function openCard(message: ChatMessageData) {
   }
 }
 
+function previewImage(message: ChatMessageData) {
+  const imageUrl = resolveDisplayImageUrl(message.imageUrl, '聊天图片', 'cover')
+  if (!imageUrl) return
+  showImagePreview({
+    images: [imageUrl],
+    closeable: true,
+  })
+}
+
 function cardTag(type?: string | null) {
   const map: Record<string, string> = {
     order_created: '下单',
@@ -246,6 +285,28 @@ function cardTag(type?: string | null) {
     order_summary: '订单',
   }
   return type ? map[type] || '订单' : '订单'
+}
+
+function cardTitle(message: ChatMessageData) {
+  if (message.cardPayload?.title) return message.cardPayload.title
+  if (message.content) return message.content
+  return message.cardType === 'prepare_done' ? '备货完成' : '订单卡片'
+}
+
+function cardAmount(payload?: ChatCardPayload | null) {
+  if (typeof payload?.payAmount !== 'number') return ''
+  return formatAmount(payload.payAmount)
+}
+
+function cardStatusText(status?: string) {
+  const map: Record<string, string> = {
+    pendingPay: '待支付',
+    paid: '已支付',
+    shipped: '已发货',
+    completed: '已完成',
+    canceled: '已取消',
+  }
+  return status ? map[status] || status : ''
 }
 
 function scrollToBottom() {
@@ -333,9 +394,20 @@ onUnmounted(() => {
   color: var(--color-text-primary);
 }
 
+.chat-message__bubble--media {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .chat-message--mine .chat-message__bubble {
   background: var(--color-primary);
   color: #fff;
+}
+
+.chat-message--mine .chat-message__bubble--media {
+  background: transparent;
+  color: var(--color-text-primary);
 }
 
 .chat-message--system .chat-message__bubble {
@@ -357,12 +429,36 @@ onUnmounted(() => {
   font-size: var(--font-size-xs);
 }
 
+.chat-image-preview {
+  position: relative;
+  display: block;
+  min-height: 180px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.chat-image-preview span {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.72);
+  color: #fff;
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
 .chat-card {
   width: min(82vw, 360px);
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  min-height: 92px;
+  gap: 8px;
+  min-height: 120px;
   padding: 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
@@ -371,6 +467,10 @@ onUnmounted(() => {
   text-align: left;
   font-family: inherit;
   cursor: pointer;
+}
+
+.chat-card:active {
+  transform: scale(0.98);
 }
 
 .chat-card__tag {
@@ -383,17 +483,59 @@ onUnmounted(() => {
   font-weight: 800;
 }
 
+.chat-card__main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .chat-card strong {
+  min-width: 0;
   color: var(--color-text-primary);
   font-size: var(--font-size-md);
   font-weight: 800;
+  line-height: 1.35;
 }
 
-.chat-card span,
+.chat-card b {
+  flex-shrink: 0;
+  color: var(--color-price);
+  font-size: var(--font-size-md);
+  font-weight: 900;
+}
+
+.chat-card__summary,
 .chat-card small {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   line-height: 1.45;
+}
+
+.chat-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chat-card__meta small {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-hint);
+}
+
+.chat-card__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
 }
 
 .chat-composer {

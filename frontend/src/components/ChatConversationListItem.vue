@@ -52,7 +52,15 @@ const counterpartLabel = computed(() => {
   return `团长 ${props.conversation.leaderName}`
 })
 
-const summaryText = computed(() => props.conversation.lastMessageText || '下单后可在这里沟通履约细节')
+const summaryText = computed(() => {
+  if (props.conversation.lastMessageType === 'image') {
+    return '[图片] 买家发送了一张图片'
+  }
+  if (props.conversation.lastMessageType === 'card') {
+    return `[订单卡片] ${props.conversation.lastMessageText || '查看订单详情'}`
+  }
+  return props.conversation.lastMessageText || '下单后可在这里沟通履约细节'
+})
 </script>
 
 <style scoped>

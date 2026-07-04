@@ -1,5 +1,6 @@
 <template>
   <router-view />
+  <NewOrderNotificationDialog />
   <BottomTabBar v-if="showTabBar" />
 </template>
 
@@ -7,6 +8,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BottomTabBar from '@/components/BottomTabBar.vue'
+import NewOrderNotificationDialog from '@/components/NewOrderNotificationDialog.vue'
 
 const route = useRoute()
 

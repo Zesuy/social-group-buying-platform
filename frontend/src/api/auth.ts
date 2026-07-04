@@ -14,6 +14,7 @@ import type {
   SendAuthCodeData,
   PhoneCodeLoginRequest,
   PhoneCodeRegisterRequest,
+  UpdateCurrentUserRequest,
 } from '@/types'
 
 /** 发送登录 / 注册验证码 */
@@ -55,5 +56,11 @@ export async function mockLogin(params: MockLoginRequest): Promise<MockLoginData
  */
 export async function fetchMe(): Promise<CurrentUserData> {
   const res = await request.get('/me') as ApiResponse<CurrentUserData>
+  return res.data
+}
+
+/** 更新当前用户资料 */
+export async function updateMe(params: UpdateCurrentUserRequest): Promise<CurrentUserData> {
+  const res = await request.patch('/me', params) as ApiResponse<CurrentUserData>
   return res.data
 }

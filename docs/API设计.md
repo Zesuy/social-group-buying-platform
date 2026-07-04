@@ -351,6 +351,25 @@ GET /api/v1/me
 }
 ```
 
+### 4.6 更新当前用户资料
+
+```http
+PATCH /api/v1/me
+```
+
+登录：需要。
+
+请求：仅允许修改当前用户自己的昵称和头像。
+
+```json
+{
+  "nickname": "新的昵称",
+  "avatarUrl": "https://example.com/avatar.png"
+}
+```
+
+响应：同 `GET /api/v1/me`，返回更新后的当前用户上下文。
+
 ---
 
 ## 5. 公共浏览 API

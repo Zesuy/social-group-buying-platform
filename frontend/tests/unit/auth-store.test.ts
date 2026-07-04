@@ -12,6 +12,7 @@ vi.mock('@/api/auth', () => ({
   registerWithCode: vi.fn(),
   mockLogin: vi.fn(),
   fetchMe: vi.fn(),
+  updateMe: vi.fn(),
 }))
 
 const mockLoginResponse = {
@@ -319,6 +320,35 @@ describe('authStore', () => {
       // Network errors should preserve token
       expect(store.accessToken).toBe('stored_token')
       expect(store.user).not.toBeNull()
+    })
+  })
+
+  describe('updateProfile', () => {
+    it('should update current user profile in store', async () => {
+      vi.mocked(authApi.updateMe).mockResolvedValue({
+        user: {
+          ...mockMeResponse.user,
+          nickname: '新昵称',
+          avatarUrl: '/uploads/images/avatar.png',
+        },
+      })
+
+      const store = useAuthStore()
+      store.accessToken = 'stored_token'
+      store.user = mockMeResponse.user
+
+      await store.updateProfile({
+        nickname: '新昵称',
+        avatarUrl: '/uploads/images/avatar.png',
+      })
+
+      expect(authApi.updateMe).toHaveBeenCalledWith({
+        nickname: '新昵称',
+        avatarUrl: '/uploads/images/avatar.png',
+      })
+      expect(store.user?.nickname).toBe('新昵称')
+      expect(store.user?.avatarUrl).toBe('/uploads/images/avatar.png')
+      expect(store.isLoading).toBe(false)
     })
   })
 

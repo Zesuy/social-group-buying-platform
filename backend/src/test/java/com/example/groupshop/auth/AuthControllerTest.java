@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.ResultActions;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -318,6 +319,60 @@ class AuthControllerTest extends MockMvcTestBase {
                         .header("Authorization", "Basic token123"))
                 .andExpect(status().isUnauthorized())
                 .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
+    @Test
+    void updateMe_shouldUpdateNicknameAndAvatar() throws Exception {
+        String response = mockMvc.perform(post(MOCK_LOGIN_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004100",
+                                    "nickname": "旧昵称"
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        String token = response.split("\"accessToken\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch(ME_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "nickname": "新昵称",
+                                    "avatarUrl": "https://example.com/avatar.png"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.user.nickname").value("新昵称"))
+                .andExpect(jsonPath("$.data.user.avatarUrl").value("https://example.com/avatar.png"));
+    }
+
+    @Test
+    void updateMe_shouldRejectBlankNickname() throws Exception {
+        String response = mockMvc.perform(post(MOCK_LOGIN_URL)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "phone": "13800004101",
+                                    "nickname": "旧昵称"
+                                }
+                                """))
+                .andReturn().getResponse().getContentAsString();
+        String token = response.split("\"accessToken\":\"")[1].split("\"")[0];
+
+        mockMvc.perform(patch(ME_URL)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "nickname": "   "
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpectAll(errorResult("VALIDATION_ERROR"));
     }
 
     private void sendCode(String phone, String scene) throws Exception {

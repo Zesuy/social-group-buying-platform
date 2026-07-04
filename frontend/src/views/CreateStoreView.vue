@@ -12,12 +12,19 @@
           :rules="nameRules"
         />
 
-        <!-- Logo URL (optional) -->
-        <van-field
-          v-model="form.logoUrl"
-          label="Logo 链接"
-          placeholder="可选，输入图片 URL"
-        />
+        <!-- 店铺 Logo (optional) -->
+        <van-field label="店铺 Logo">
+          <template #input>
+            <ImageUploader
+              v-model="form.logoUrl"
+              :disabled="submitting"
+              :preview-alt="form.name || '店铺 Logo'"
+              demo-kind="store"
+              :show-url-input="false"
+              button-label="选择图片"
+            />
+          </template>
+        </van-field>
 
         <!-- 店铺简介 (optional) -->
         <van-field
@@ -64,9 +71,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { createStore } from '@/api/stores'
-import { resolveDisplayImageUrl } from '@/utils'
 import PageLayout from '@/components/PageLayout.vue'
 import ReminderBanner from '@/components/ReminderBanner.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -113,7 +120,7 @@ async function handleSubmit() {
   try {
     const data = {
       name: form.value.name.trim(),
-      logoUrl: resolveDisplayImageUrl(form.value.logoUrl.trim(), form.value.name, 'store'),
+      logoUrl: form.value.logoUrl.trim() || null,
       description: form.value.description.trim() || null,
       defaultDeliveryType: form.value.defaultDeliveryType,
     }
@@ -153,6 +160,10 @@ async function handleSubmit() {
 
 .create-store__content :deep(.van-cell) {
   min-height: 52px;
+}
+
+.create-store__content :deep(.image-uploader) {
+  padding: 2px 0;
 }
 
 .create-store__submit {

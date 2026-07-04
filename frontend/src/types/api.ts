@@ -199,6 +199,12 @@ export interface CurrentUserData {
   store?: StoreSummary | null
 }
 
+/** 更新当前用户资料请求 */
+export interface UpdateCurrentUserRequest {
+  nickname?: string
+  avatarUrl?: string | null
+}
+
 /** 当前用户摘要 */
 export interface CurrentUserSummary {
   id: string
