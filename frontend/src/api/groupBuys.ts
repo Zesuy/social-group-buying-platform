@@ -52,3 +52,10 @@ export async function getPublicGroupBuyDetail(
   const res = await request.get(`/group-buys/${groupBuyId}`, { params }) as ApiResponse<GroupBuyDetailData>
   return res.data
 }
+
+export async function getGroupBuyDetailByShareToken(
+  shareToken: string,
+): Promise<GroupBuyDetailData> {
+  const res = await request.get(`/share/group-buys/${shareToken}`) as ApiResponse<GroupBuyDetailData>
+  return res.data
+}

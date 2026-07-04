@@ -13,6 +13,7 @@ import type {
   CreateGroupBuyRequest,
   UpdateGroupBuyRequest,
   EndGroupBuyData,
+  ShareCardData,
 } from '@/types'
 
 /**
@@ -58,5 +59,13 @@ export async function updateMyGroupBuy(groupBuyId: string, data: UpdateGroupBuyR
  */
 export async function endGroupBuy(groupBuyId: string): Promise<EndGroupBuyData> {
   const res = await request.post(`/my/store/group-buys/${groupBuyId}/end`) as ApiResponse<EndGroupBuyData>
+  return res.data
+}
+
+/**
+ * 获取或创建团购分享卡片
+ */
+export async function getMyGroupBuyShareCard(groupBuyId: string): Promise<ShareCardData> {
+  const res = await request.post(`/my/store/group-buys/${groupBuyId}/share-card`) as ApiResponse<ShareCardData>
   return res.data
 }

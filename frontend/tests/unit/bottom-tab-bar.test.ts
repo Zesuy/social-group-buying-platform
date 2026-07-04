@@ -33,7 +33,26 @@ const router = createRouter({
 const mountedWrappers: VueWrapper[] = []
 
 function mountBottomTabBar(options: Parameters<typeof mount>[1]) {
-  const wrapper = mount(BottomTabBar, options)
+  const wrapper = mount(BottomTabBar, {
+    ...options,
+    global: {
+      ...options?.global,
+      stubs: {
+        ...options?.global?.stubs,
+        VanTabbar: {
+          name: 'VanTabbar',
+          props: ['modelValue'],
+          emits: ['change'],
+          template: '<div class="van-tabbar"><slot /></div>',
+        },
+        VanTabbarItem: {
+          name: 'VanTabbarItem',
+          props: ['to', 'icon', 'badge'],
+          template: '<div class="van-tabbar-item"><slot /></div>',
+        },
+      },
+    },
+  })
   mountedWrappers.push(wrapper)
   return wrapper
 }

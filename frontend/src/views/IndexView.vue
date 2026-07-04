@@ -115,7 +115,7 @@
               :subscribed="subscribedLeaderIds.has(item.leader.id)"
               :subscribe-loading="subscribingLeaderId === item.leader.id"
               @click="goToDetail(item.id)"
-              @share="onShareClick"
+              @share="onShareClick(item)"
               @subscribe="onSubscribeClick(item)"
               @leader="goToLeader(item.leader.id)"
             />
@@ -131,6 +131,12 @@
         />
       </div>
     </div>
+    <GroupBuyShareSheet
+      v-if="shareItem"
+      v-model="shareSheetVisible"
+      :payload="sharePayload"
+      :share-url="shareUrl"
+    />
   </PageLayout>
 </template>
 
@@ -142,12 +148,14 @@ import { useAuthStore } from '@/stores'
 import PageLayout from '@/components/PageLayout.vue'
 import CategoryChips from '@/components/CategoryChips.vue'
 import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
+import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import { listPublicGroupBuys, type ListPublicGroupBuysParams } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { listMySubscriptions } from '@/api/subscriptions'
+import { buildGroupBuyShareUrl, shareBySystem } from '@/utils'
 import type { PublicGroupBuyItem } from '@/types'
 
 const router = useRouter()
@@ -182,10 +190,6 @@ async function onCategoryChange(key: string) {
   }
 }
 
-function onShareClick() {
-  showToast('分享能力仅作占位展示')
-}
-
 // ── 分页 ──
 const items = ref<PublicGroupBuyItem[]>([])
 const page = ref(1)
@@ -200,6 +204,8 @@ const userLocation = ref<UserLocation | null>(readSavedLocation())
 const locating = ref(false)
 const locationError = ref<string | null>(null)
 const locationBannerDismissed = ref(readLocationBannerDismissed())
+const shareSheetVisible = ref(false)
+const shareItem = ref<PublicGroupBuyItem | null>(null)
 
 const firstLoading = computed(() => !initialized.value && loading.value)
 const isEmpty = computed(() => initialized.value && !error.value && visibleItems.value.length === 0)
@@ -225,6 +231,17 @@ const emptyDescription = computed(() => {
   if (activeCategory.value === 'nearby' && !hasUserLocation.value) return '开启定位后查看附近本地履约团购'
   return activeCategory.value === 'all' ? '暂无正在进行的团购，可先去一键开团' : `暂无${label}团购`
 })
+const shareUrl = computed(() => shareItem.value ? buildGroupBuyShareUrl(shareItem.value.id) : '')
+const sharePayload = computed<GroupBuySharePayload>(() => ({
+  title: shareItem.value?.title || '团购分享',
+  coverImageUrl: shareItem.value?.coverImageUrl ?? null,
+  minPriceAmount: shareItem.value?.minPriceAmount ?? null,
+  maxPriceAmount: shareItem.value?.minPriceAmount ?? null,
+  storeName: shareItem.value?.store.name || '团长店铺',
+  leaderName: shareItem.value?.leader.displayName || '团长',
+  deliveryType: null,
+  shippingTime: null,
+}))
 
 const categoryKeywords: Record<string, string[]> = {
   fresh: ['生鲜', '水果', '鲜', '桃', '瓜', '梨', '莓', '橙', '柑', '苹果', '荔枝'],
@@ -392,6 +409,18 @@ async function onSubscribeClick(item: PublicGroupBuyItem): Promise<void> {
   } finally {
     subscribingLeaderId.value = null
   }
+}
+
+async function onShareClick(item: PublicGroupBuyItem): Promise<void> {
+  shareItem.value = item
+  const url = buildGroupBuyShareUrl(item.id)
+  const result = await shareBySystem({
+    title: item.title,
+    text: `${item.store.name}的团购正在进行`,
+    url,
+  })
+  if (result === 'shared' || result === 'aborted') return
+  shareSheetVisible.value = true
 }
 
 async function fetchList(p: number): Promise<boolean> {

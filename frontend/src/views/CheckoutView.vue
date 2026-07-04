@@ -257,11 +257,13 @@ async function doPreview(): Promise<void> {
           cartItemIds: checkoutStore.cartItemIds,
           addressId: checkoutStore.selectedAddressId,
           userCouponId: checkoutStore.userCouponId,
+          shareToken: checkoutStore.shareToken,
         })
       : await previewOrder({
           groupBuyId: checkoutStore.groupBuyId!,
           addressId: checkoutStore.selectedAddressId,
           userCouponId: checkoutStore.userCouponId,
+          shareToken: checkoutStore.shareToken,
           items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
         })
     preview.value = data
@@ -319,12 +321,14 @@ async function handleSubmit() {
           cartItemIds: checkoutStore.cartItemIds,
           addressId: checkoutStore.selectedAddressId,
           userCouponId: checkoutStore.userCouponId,
+          shareToken: checkoutStore.shareToken,
           remark: remark.value || null,
         })
       : await createOrder({
           groupBuyId: checkoutStore.groupBuyId!,
           addressId: checkoutStore.selectedAddressId,
           userCouponId: checkoutStore.userCouponId,
+          shareToken: checkoutStore.shareToken,
           remark: remark.value || null,
           items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
         })

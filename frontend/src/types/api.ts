@@ -263,6 +263,26 @@ export interface ViewerInfo {
   subscribed: boolean
 }
 
+export interface ShareCardData {
+  shareToken: string
+  landingPath: string
+  groupBuyId: string
+  title: string
+  coverImageUrl: string | null
+  minPriceAmount: number
+  maxPriceAmount: number
+  endTime: string | null
+  groupType: string
+  storeId: string
+  storeName: string
+  storeLogoUrl: string | null
+  leaderId: string
+  leaderName: string
+  leaderAvatarUrl: string | null
+  deliveryType: string
+  shippingTime: string | null
+}
+
 // ── 团长主页 ──
 
 export interface LeaderHomepageData {

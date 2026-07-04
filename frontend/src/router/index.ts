@@ -51,6 +51,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '团购详情' },
   },
   {
+    path: '/share/group-buys/:shareToken',
+    name: 'groupBuyShareDetail',
+    component: () => import('@/views/GroupBuyDetailView.vue'),
+    meta: { title: '团购分享' },
+  },
+  {
     path: '/leaders/:id',
     name: 'leaderDetail',
     component: () => import('@/views/LeaderDetailView.vue'),
