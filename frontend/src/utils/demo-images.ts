@@ -45,6 +45,21 @@ export function isExampleImageUrl(src?: string | null): boolean {
   }
 }
 
+export function normalizeLocalUploadUrl(src?: string | null): string | null {
+  if (!src) return null
+
+  try {
+    const url = new URL(src)
+    if ((url.hostname === 'localhost' || url.hostname === '127.0.0.1') && url.pathname.startsWith('/uploads/')) {
+      return `${url.pathname}${url.search}${url.hash}`
+    }
+  } catch {
+    return src
+  }
+
+  return src
+}
+
 function isUsableImageUrl(src: string): boolean {
   if (src.startsWith('/') || src.startsWith('data:') || src.startsWith('blob:')) return true
 
@@ -61,11 +76,12 @@ export function resolveDisplayImageUrl(
   seed = '',
   kind: DemoImageKind = 'product',
 ): string | null {
-  if (!src) return null
-  if (!isUsableImageUrl(src)) return getDemoImage(kind, seed)
-  if (!isExampleImageUrl(src)) return src
+  const normalizedSrc = normalizeLocalUploadUrl(src)
+  if (!normalizedSrc) return null
+  if (!isUsableImageUrl(normalizedSrc)) return getDemoImage(kind, seed)
+  if (!isExampleImageUrl(normalizedSrc)) return normalizedSrc
 
-  const pathname = new URL(src).pathname.toLowerCase()
+  const pathname = new URL(normalizedSrc).pathname.toLowerCase()
   const namedImage = NAMED_DEMO_IMAGES.find(([pattern]) => pattern.test(`${pathname} ${seed}`))
   if (namedImage) return namedImage[1]
 

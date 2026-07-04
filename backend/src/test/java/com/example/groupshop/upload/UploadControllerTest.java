@@ -41,7 +41,7 @@ class UploadControllerTest extends MockMvcTestBase {
                 .andExpect(status().isOk())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.assetId").exists())
-                .andExpect(jsonPath("$.data.url", startsWith("http://localhost:8080/uploads/images/")))
+                .andExpect(jsonPath("$.data.url", startsWith("/uploads/images/")))
                 .andExpect(jsonPath("$.data.objectKey", startsWith("images/")))
                 .andExpect(jsonPath("$.data.originalFilename").value("cover.png"))
                 .andExpect(jsonPath("$.data.contentType").value("image/png"))

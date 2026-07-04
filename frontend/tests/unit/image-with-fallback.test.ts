@@ -28,4 +28,15 @@ describe('ImageWithFallback', () => {
     expect(wrapper.find('.image-with-fallback__placeholder--named').exists()).toBe(false)
     expect(wrapper.find('.van-icon-photo').exists()).toBe(true)
   })
+
+  it('rewrites legacy localhost upload urls to the current origin', () => {
+    const wrapper = mount(ImageWithFallback, {
+      props: {
+        src: 'http://localhost:8080/uploads/images/2026/07/logo.png',
+        alt: '店铺头像',
+      },
+    })
+
+    expect(wrapper.find('img').attributes('src')).toBe('/uploads/images/2026/07/logo.png')
+  })
 })

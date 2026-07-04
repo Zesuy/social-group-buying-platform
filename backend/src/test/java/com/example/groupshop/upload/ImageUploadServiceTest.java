@@ -42,7 +42,7 @@ class ImageUploadServiceTest {
         ImageUploadResponse response = service.uploadImage(101L, file);
 
         assertThat(response.getAssetId()).isEqualTo(9001L);
-        assertThat(response.getUrl()).startsWith("http://localhost:8080/uploads/images/");
+        assertThat(response.getUrl()).startsWith("/uploads/images/");
         assertThat(response.getObjectKey()).startsWith("images/");
         assertThat(response.getObjectKey()).endsWith(".png");
         assertThat(response.getOriginalFilename()).isEqualTo("avatar.png");
@@ -112,7 +112,7 @@ class ImageUploadServiceTest {
     private ImageUploadService newService(Path localDir) {
         UploadProperties properties = new UploadProperties();
         properties.setLocalDir(localDir);
-        properties.setPublicBaseUrl("http://localhost:8080/uploads");
+        properties.setPublicBaseUrl("/uploads");
         UploadAssetService uploadAssetService = mock(UploadAssetService.class);
         when(uploadAssetService.recordUpload(anyLong(), any(), any(), any(), any(), anyLong(), any()))
                 .thenAnswer(invocation -> {
