@@ -9,24 +9,24 @@
           <button type="button" class="leader-topbar__back" aria-label="返回" @click="goBack">
             <van-icon name="arrow-left" size="22" />
           </button>
-          <button type="button" class="leader-topbar__search" @click="onSearchClick">
-            <van-icon name="search" size="19" />
-            <span>搜索团购...</span>
-          </button>
+          <div class="leader-topbar__title">团长主页</div>
           <button type="button" class="leader-topbar__icon" aria-label="分享" @click="onShareClick">
             <van-icon name="share-o" size="22" />
-          </button>
-          <button type="button" class="leader-topbar__more" aria-label="更多">
-            <span></span><span></span><span></span>
           </button>
         </div>
 
         <section class="leader-hero">
-          <button type="button" class="leader-edit-home" @click="onEditHomepageClick">编辑主页</button>
+          <div class="leader-hero__copy">
+            <span>私域团购小店</span>
+            <h1>{{ storeData?.name || `${leaderData.displayName}的小店` }}</h1>
+            <p>{{ leaderData.bio || storeData?.description || '精选社群团购，按约定履约发货。' }}</p>
+          </div>
+          <button v-if="isOwnLeader" type="button" class="leader-edit-home" @click="onEditHomepageClick">
+            编辑店铺
+          </button>
         </section>
 
         <AppCard class="leader-store-card">
-          <div class="leader-subscribe-tip">邀请团员订阅，开团消息及时通知</div>
           <div class="leader-store-card__main">
             <div class="leader-store-card__identity">
               <img
@@ -40,60 +40,68 @@
                 <span>金牌</span>
               </div>
               <div class="leader-store-card__copy">
-                <h1>{{ leaderData.displayName }}</h1>
-                <p>成员 {{ leaderData.memberCount }} ｜ 关注 {{ leaderData.followerCount }}</p>
+                <h2>{{ leaderData.displayName }}</h2>
+                <p>{{ storeData?.name || '团长小店' }}</p>
                 <div class="leader-store-card__stats">
-                  <span>{{ storeData?.name || '团长小店' }}</span>
+                  <span>{{ leaderData.memberCount }} 位成员</span>
+                  <span>{{ leaderData.followerCount }} 人订阅</span>
                 </div>
               </div>
             </div>
             <div class="leader-store-card__actions">
-              <button type="button" class="leader-action-icon" @click="onServiceClick">
-                <van-icon name="chat-o" />
-                <span>客服</span>
-              </button>
               <button
                 type="button"
-                class="leader-action-icon leader-action-icon--subscribe"
+                class="leader-subscribe-button"
                 :disabled="subLoading"
                 @click="toggleSubscribe"
               >
                 <van-icon :name="subscribed ? 'bookmark' : 'bookmark-o'" />
-                <span>{{ subscribed ? '已订阅' : '订阅邀请' }}</span>
+                <span>{{ subLoading ? '处理中' : subscribed ? '已订阅' : '订阅' }}</span>
               </button>
             </div>
           </div>
 
-          <div class="leader-profile-lines">
-            <div class="leader-profile-line">
-              <van-icon name="description-o" />
-              <span>{{ leaderData.bio || `我是团长${leaderData.displayName}，欢迎您来到我的团购` }}</span>
+          <div class="leader-trust-strip">
+            <div>
+              <b>履约方式</b>
+              <span>{{ deliveryTypeText }}</span>
             </div>
-            <button type="button" class="leader-profile-line" @click="onLocationClick">
-              <van-icon name="location-o" />
-              <span>添加位置，让更多的人购买</span>
-              <b>更多信息</b>
-              <van-icon name="arrow" />
+            <div>
+              <b>当前团购</b>
+              <span>{{ groupBuys.length }} 个</span>
+            </div>
+          </div>
+
+          <div class="leader-store-location">
+            <van-icon name="location-o" />
+            <div>
+              <b>店铺位置</b>
+              <span>{{ storeAddressText }}</span>
+              <small>{{ storeLocationMetaText }}</small>
+            </div>
+            <button v-if="!hasUserLocation && !isOwnLeader" type="button" @click="onLocationClick">
+              开启定位
             </button>
           </div>
-        </AppCard>
 
-        <div class="leader-follow-banner">
-          <span>关注公众号，收到活动和订单、物流通知</span>
-          <button type="button" @click="onWechatNoticeClick">关注</button>
-          <van-icon name="cross" />
-        </div>
-
-        <AppCard class="leader-helper-card">
-          <div class="leader-helper-row">
-            <span>帮卖介绍</span>
-            <button type="button" @click="onDistributionClick">去填写</button>
+          <div class="leader-profile-lines" v-if="showLocationLine">
+            <div class="leader-profile-line">
+              <button type="button" class="leader-profile-line__main" @click="onLocationClick">
+                <van-icon name="location-o" />
+                <span>{{ locationLineText }}</span>
+                <b>{{ locationActionText }}</b>
+                <van-icon v-if="isOwnLeader" name="arrow" />
+              </button>
+              <button
+                type="button"
+                class="leader-profile-line__close"
+                aria-label="关闭位置提示"
+                @click="dismissLocationLine"
+              >
+                <van-icon name="cross" size="16" />
+              </button>
+            </div>
           </div>
-          <button type="button" class="leader-album-row" @click="onShowcaseClick">
-            <van-icon name="photo-o" />
-            <span>相册素材号</span>
-            <van-icon name="arrow" />
-          </button>
         </AppCard>
 
         <nav class="leader-tabs" aria-label="团购排序">
@@ -120,6 +128,8 @@
                 v-for="item in groupBuys"
                 :key="item.id"
                 :item="item"
+                :show-location-signals="false"
+                :show-store-header="false"
                 @click="goToDetail(item.id)"
                 @share="onShareClick"
                 @subscribe="toggleSubscribe"
@@ -149,7 +159,7 @@ import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
 import AppCard from '@/components/AppCard.vue'
 import { useAuthStore } from '@/stores'
 import { getLeaderHomepage, subscribeLeader, unsubscribeLeader } from '@/api/leaders'
-import { isFeatureDisabled } from '@/utils/non-mvp'
+import { getMyStore } from '@/api/stores'
 import type { LeaderHomepageLeader, LeaderHomepageStore, PublicGroupBuyItem } from '@/types'
 
 const route = useRoute()
@@ -169,6 +179,7 @@ const refreshing = ref(false)
 const hasMore = ref(true)
 const subLoading = ref(false)
 const activeSort = ref('default')
+const locationLineDismissed = ref(false)
 
 const sortTabs = [
   { key: 'default', label: '默认' },
@@ -181,25 +192,121 @@ const avatarText = computed(() => {
   return name.slice(0, 1)
 })
 const leaderAvatarUrl = computed(() => leaderData.value?.avatarUrl || storeData.value?.logoUrl || null)
-const isOwnLeader = computed(() => authStore.leader?.id === leaderData.value?.id)
+const isOwnLeader = computed(() => (
+  authStore.leader?.id != null
+  && leaderData.value?.id != null
+  && String(authStore.leader.id) === String(leaderData.value.id)
+))
+const hasStoreLocation = computed(() => storeData.value?.latitude != null && storeData.value?.longitude != null)
+const hasUserLocation = computed(() => Boolean(readSavedUserLocation()))
+const homepageLocationParams = computed(() => readSavedUserLocation() ?? undefined)
+const showLocationLine = computed(() => {
+  if (locationLineDismissed.value) return false
+  if (isOwnLeader.value) return true
+  return !hasUserLocation.value || hasStoreLocation.value
+})
+const locationLineText = computed(() => {
+  if (isOwnLeader.value) {
+    return hasStoreLocation.value ? '店铺位置已设置，首页可参与附近筛选' : '添加位置，让更多人购买'
+  }
+  if (!hasUserLocation.value) return '开启定位后，可更精确找到周边团购'
+  return '这家店铺在你的附近团购范围内'
+})
+const locationActionText = computed(() => {
+  if (isOwnLeader.value) return hasStoreLocation.value ? '去修改' : '去设置'
+  return hasUserLocation.value ? '已开启' : '去开启'
+})
+const deliveryTypeText = computed(() => {
+  const map: Record<string, string> = {
+    express: '快递配送',
+    pickup: '到店自提',
+    local_delivery: '同城配送',
+  }
+  return map[storeData.value?.defaultDeliveryType || ''] || '按团购说明履约'
+})
+const storeAddressText = computed(() => (
+  storeData.value?.addressText
+  || storeData.value?.fullAddress
+  || (isOwnLeader.value ? '暂未填写详细地址' : '店铺暂未填写详细地址')
+))
+const storeLocationMetaText = computed(() => {
+  if (storeData.value?.distanceText) return `距你 ${storeData.value.distanceText}`
+  if (!hasUserLocation.value && !isOwnLeader.value) return '开启定位后显示与你的距离'
+  if (hasStoreLocation.value) return '店铺已设置定位'
+  return '还没有设置店铺定位'
+})
+
+function readSavedUserLocation(): { latitude: number; longitude: number } | null {
+  try {
+    const raw = window.localStorage.getItem('index:user-location')
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<{ latitude: number; longitude: number }>
+    if (typeof parsed.latitude !== 'number' || typeof parsed.longitude !== 'number') return null
+    return { latitude: parsed.latitude, longitude: parsed.longitude }
+  } catch {
+    return null
+  }
+}
+
+function locationDismissKey(leaderId = leaderData.value?.id) {
+  return leaderId ? `leader-home:${leaderId}:location-line-dismissed` : ''
+}
+
+function readLocationLineDismissed(leaderId: string): boolean {
+  try {
+    return window.localStorage.getItem(locationDismissKey(leaderId)) === '1'
+  } catch {
+    return false
+  }
+}
+
+function dismissLocationLine() {
+  locationLineDismissed.value = true
+  try {
+    const key = locationDismissKey()
+    if (key) window.localStorage.setItem(key, '1')
+  } catch {
+    // 本地偏好保存失败不影响继续浏览。
+  }
+}
 
 async function fetchData() {
   loading.value = true
   error.value = null
   try {
     const id = route.params.id as string
-    const data = await getLeaderHomepage(id)
+    const data = await getLeaderHomepage(id, 1, 20, homepageLocationParams.value)
     leaderData.value = data.leader
     storeData.value = data.store
+    locationLineDismissed.value = readLocationLineDismissed(data.leader.id)
     subscribed.value = data.viewer.subscribed
     groupBuys.value = data.groupBuys.items
     hasMore.value = data.groupBuys.hasMore
     listPage.value = 1
+    await syncOwnStoreLocation()
   } catch (err) {
     const apiErr = err as { message?: string }
     error.value = apiErr.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+async function syncOwnStoreLocation() {
+  if (!isOwnLeader.value || !storeData.value || hasStoreLocation.value) return
+  try {
+    const ownStoreData = await getMyStore()
+    const ownStore = ownStoreData?.store
+    if (!ownStore || String(ownStore.id) !== String(storeData.value.id)) return
+    storeData.value = {
+      ...storeData.value,
+      description: storeData.value.description || ownStore.description,
+      defaultDeliveryType: storeData.value.defaultDeliveryType || ownStore.defaultDeliveryType,
+      latitude: ownStore.latitude,
+      longitude: ownStore.longitude,
+    }
+  } catch {
+    // 公开主页仍可正常展示，店铺位置兜底失败时不打断用户浏览。
   }
 }
 
@@ -209,7 +316,7 @@ async function loadMoreGroupBuys() {
   try {
     const id = route.params.id as string
     const nextPage = listPage.value + 1
-    const data = await getLeaderHomepage(id, nextPage)
+    const data = await getLeaderHomepage(id, nextPage, 20, homepageLocationParams.value)
     groupBuys.value = [...groupBuys.value, ...data.groupBuys.items]
     hasMore.value = data.groupBuys.hasMore
     listPage.value = nextPage
@@ -269,20 +376,8 @@ function onSortChange(key: string) {
   }
 }
 
-function onServiceClick() {
-  showToast('客服入口仅作占位展示')
-}
-
-function onShowcaseClick() {
-  showToast('晒单内容暂不展开')
-}
-
 function onShareClick() {
   showToast('分享能力仅作占位展示')
-}
-
-function onSearchClick() {
-  showToast('团长主页搜索暂未开放')
 }
 
 function onEditHomepageClick() {
@@ -294,19 +389,15 @@ function onEditHomepageClick() {
 }
 
 function onLocationClick() {
-  showToast('位置展示后续开放')
-}
-
-function onDistributionClick() {
-  if (isFeatureDisabled('distribution')) {
-    showToast('帮卖介绍不在 MVP 范围内')
+  if (isOwnLeader.value) {
+    router.push('/leader/store')
+    return
   }
-}
-
-function onWechatNoticeClick() {
-  if (isFeatureDisabled('wechatPush')) {
-    showToast('公众号推送将在后续开放')
+  if (hasUserLocation.value) {
+    showToast('已开启附近展示')
+    return
   }
+  router.push('/')
 }
 
 function goToDetail(id: string) {
@@ -330,23 +421,23 @@ onMounted(() => {
 }
 
 .leader-topbar {
-  height: 84px;
-  background: var(--color-primary);
+  height: 64px;
+  background: var(--color-bg-card);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 20;
-  padding: 18px 14px 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .leader-topbar__back,
-.leader-topbar__icon,
-.leader-topbar__more {
+.leader-topbar__icon {
   height: 44px;
   border: 0;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--color-bg-subtle);
   color: var(--color-text-primary);
   display: inline-flex;
   align-items: center;
@@ -357,85 +448,82 @@ onMounted(() => {
 .leader-topbar__back,
 .leader-topbar__icon {
   width: 44px;
-  border-radius: 50%;
+  border-radius: var(--radius-md);
 }
 
-.leader-topbar__search {
-  height: 44px;
-  min-width: 0;
+.leader-topbar__title {
   flex: 1;
-  border: 0;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
-  color: #8a929d;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 14px;
-  font-size: 15px;
-}
-
-.leader-topbar__search span {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-weight: 900;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.leader-topbar__more {
-  width: 74px;
-  border-radius: 999px;
-  gap: 5px;
-}
-
-.leader-topbar__more span {
-  width: 6px;
-  height: 6px;
-  background: currentColor;
-  border-radius: 50%;
-}
-
 .leader-hero {
-  height: 230px;
-  margin-top: -1px;
-  background:
-    radial-gradient(circle at 18% 28%, rgba(255, 255, 255, 0.14) 0 30px, transparent 31px),
-    radial-gradient(circle at 74% 42%, rgba(255, 255, 255, 0.12) 0 36px, transparent 37px),
-    linear-gradient(180deg, #0bbf67, #08b960);
+  min-height: 178px;
+  background: linear-gradient(180deg, var(--color-primary), var(--color-primary-dark));
   position: relative;
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 0 18px 82px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 18px 70px;
   overflow: hidden;
 }
 
-.leader-hero::before {
-  content: '□  ▱  ○  ◇  ◎  ♡  ⌂  ✚  ◌  ▣';
-  position: absolute;
-  inset: 14px 16px auto;
-  color: rgba(255, 255, 255, 0.13);
-  font-size: 46px;
-  line-height: 1.8;
-  letter-spacing: 17px;
-  word-break: break-all;
+.leader-hero__copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  color: #fff;
+}
+
+.leader-hero__copy span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.18);
+  padding: 0 10px;
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.leader-hero__copy h1 {
+  margin: 12px 0 8px;
+  font-size: 25px;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.leader-hero__copy p {
+  margin: 0;
+  max-width: 26em;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
 }
 
 .leader-edit-home {
   position: relative;
   z-index: 1;
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.14);
   color: #fff;
-  border-radius: 8px;
-  min-height: 34px;
+  border-radius: var(--radius-md);
+  min-height: 36px;
   padding: 0 12px;
-  font-weight: 900;
+  font-weight: 800;
+  flex: none;
 }
 
 .leader-store-card {
   background: #fff;
-  border-radius: 18px 18px 0 0;
-  margin: -34px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  margin: -46px 0 0;
   padding: 0;
   box-shadow: none;
   position: relative;
@@ -443,25 +531,12 @@ onMounted(() => {
   overflow: visible;
 }
 
-.leader-subscribe-tip {
-  position: absolute;
-  right: 24px;
-  top: -38px;
-  background: rgba(0, 0, 0, 0.72);
-  color: #fff;
-  border-radius: 7px;
-  padding: 7px 10px;
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
 .leader-store-card__main {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  padding: 26px 18px 12px;
+  gap: 12px;
+  padding: 24px 18px 14px;
 }
 
 .leader-store-card__identity {
@@ -473,12 +548,12 @@ onMounted(() => {
 }
 
 .leader-store-card__avatar {
-  width: 78px;
-  height: 78px;
-  border-radius: 10px;
+  width: 76px;
+  height: 76px;
+  border-radius: var(--radius-md);
   object-fit: cover;
   flex: none;
-  margin-top: -56px;
+  margin-top: -50px;
   border: 4px solid #fff;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
 }
@@ -503,8 +578,8 @@ onMounted(() => {
   min-width: 0;
 }
 
-.leader-store-card__copy h1 {
-  font-size: 22px;
+.leader-store-card__copy h2 {
+  font-size: 21px;
   font-weight: 900;
   color: var(--color-text-primary);
   line-height: 1.35;
@@ -512,57 +587,141 @@ onMounted(() => {
 }
 
 .leader-store-card__copy p {
-  margin: 5px 0 0;
-  color: var(--color-text-hint);
-  font-size: 13px;
+  margin: 4px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   line-height: 1.45;
 }
 
 .leader-store-card__stats {
   color: var(--color-text-hint);
   font-size: var(--font-size-xs);
-  margin-top: 5px;
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .leader-store-card__actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
-.leader-action-icon {
+.leader-subscribe-button {
+  min-height: 44px;
   border: 0;
-  background: transparent;
-  color: #7a808a;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
-  gap: 3px;
-  min-width: 54px;
-  font-size: 13px;
-  font-weight: 700;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 900;
 }
 
-.leader-action-icon .van-icon {
-  color: var(--color-primary);
-  font-size: 31px;
+.leader-subscribe-button:disabled {
+  opacity: 0.72;
 }
 
-.leader-action-icon--subscribe {
-  position: relative;
+.leader-trust-strip {
+  margin: 0 18px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.leader-action-icon--subscribe::after {
-  content: '';
-  position: absolute;
-  right: 7px;
-  top: 1px;
-  width: 10px;
-  height: 10px;
-  background: #f25541;
-  border: 2px solid #fff;
-  border-radius: 50%;
+.leader-trust-strip div {
+  min-height: 58px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.leader-trust-strip b {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 900;
+}
+
+.leader-trust-strip span {
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.leader-store-location {
+  min-height: 64px;
+  margin: 0 18px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.leader-store-location > .van-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.leader-store-location div {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+
+.leader-store-location b {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 900;
+}
+
+.leader-store-location span,
+.leader-store-location small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.leader-store-location span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.leader-store-location small {
+  color: var(--color-text-hint);
+  font-size: var(--font-size-xs);
+}
+
+.leader-store-location button {
+  min-height: 34px;
+  border: 1px solid rgba(16, 196, 104, 0.28);
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: var(--color-primary-dark);
+  padding: 0 10px;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
 .leader-profile-lines {
@@ -571,20 +730,29 @@ onMounted(() => {
 }
 
 .leader-profile-line {
-  min-height: 34px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #717780;
+}
+
+.leader-profile-line__main {
+  min-height: 44px;
+  min-width: 0;
+  flex: 1;
   border: 0;
   background: transparent;
-  width: 100%;
   display: flex;
   align-items: center;
   gap: 9px;
   padding: 0;
   color: #717780;
-  font-size: 15px;
+  font-size: var(--font-size-sm);
   text-align: left;
 }
 
-.leader-profile-line > span {
+.leader-profile-line__main > span {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -592,87 +760,27 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.leader-profile-line b {
+.leader-profile-line__main b {
   color: #9aa0a6;
   font-size: 14px;
   font-weight: 500;
 }
 
-.leader-follow-banner {
-  min-height: 58px;
-  background: #fff7e6;
-  color: #e96c2b;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
-  font-weight: 800;
-}
-
-.leader-follow-banner span {
-  flex: 1;
-  min-width: 0;
-}
-
-.leader-follow-banner button {
+.leader-profile-line__close {
+  width: 36px;
+  height: 36px;
   border: 0;
-  border-radius: 9px;
-  background: var(--color-primary);
-  color: #fff;
-  min-height: 36px;
-  padding: 0 18px;
-  font-weight: 900;
-}
-
-.leader-follow-banner > .van-icon {
-  color: #b8a995;
-  font-size: 18px;
-}
-
-.leader-helper-card {
-  margin: 12px 14px;
-  border-radius: 12px;
-}
-
-.leader-helper-row {
-  min-height: 58px;
-  padding: 0 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 18px;
-  font-weight: 900;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.leader-helper-row button {
-  border: 1px solid var(--color-primary);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--color-primary);
-  min-height: 36px;
-  padding: 0 18px;
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.leader-album-row {
-  width: 100%;
-  min-height: 58px;
-  border: 0;
+  border-radius: var(--radius-md);
   background: transparent;
-  display: flex;
+  color: var(--color-text-hint);
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px;
-  color: var(--color-text-primary);
-  font-size: 18px;
-  font-weight: 800;
-  text-align: left;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.leader-album-row span {
-  flex: 1;
+.leader-profile-line__close:active {
+  background: var(--color-bg-subtle);
 }
 
 .leader-tabs {
@@ -682,7 +790,9 @@ onMounted(() => {
   background: #fff;
   padding: 0;
   height: 64px;
-  margin: 0;
+  margin: 12px 0 0;
+  border-top: 1px solid var(--color-border-light);
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .leader-tabs button {
@@ -690,7 +800,7 @@ onMounted(() => {
   border: 0;
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 19px;
+  font-size: var(--font-size-md);
   position: relative;
   cursor: pointer;
   min-width: 72px;
@@ -743,21 +853,20 @@ onMounted(() => {
 
 @media (max-width: 374px) {
   .leader-topbar {
-    gap: 7px;
+    gap: 8px;
     padding-inline: 10px;
   }
 
-  .leader-topbar__more {
-    width: 58px;
+  .leader-hero {
+    padding-inline: 14px;
   }
 
-  .leader-store-card__actions {
-    gap: 8px;
+  .leader-store-card__main {
+    padding-inline: 14px;
   }
 
-  .leader-action-icon {
-    min-width: 44px;
-    font-size: 12px;
+  .leader-subscribe-button {
+    padding: 0 10px;
   }
 }
 </style>

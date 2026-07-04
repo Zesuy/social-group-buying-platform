@@ -260,6 +260,12 @@ export interface LeaderHomepageStore {
   logoUrl: string | null
   description: string | null
   defaultDeliveryType: string
+  latitude?: number | null
+  longitude?: number | null
+  distanceMeters?: number | null
+  distanceText?: string | null
+  addressText?: string | null
+  fullAddress?: string | null
 }
 
 export interface PublicGroupBuyPageData {

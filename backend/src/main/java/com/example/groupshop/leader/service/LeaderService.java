@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
+import com.example.groupshop.common.util.DistanceCalculator;
 import com.example.groupshop.groupbuy.service.GroupBuyService;
 import com.example.groupshop.leader.dto.LeaderHomepageResponse;
 import com.example.groupshop.leader.dto.LeaderHomepageResponse.LeaderInfo;
@@ -21,6 +22,7 @@ import com.example.groupshop.subscription.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,7 +44,8 @@ public class LeaderService {
      *
      * @param viewerUserId optional — if provided, checks real subscription status
      */
-    public LeaderHomepageResponse getLeaderHomepage(Long leaderId, int page, int pageSize, Long viewerUserId) {
+    public LeaderHomepageResponse getLeaderHomepage(Long leaderId, int page, int pageSize, Long viewerUserId,
+                                                    BigDecimal latitude, BigDecimal longitude) {
         Leader leader = leaderMapper.selectById(leaderId);
         if (leader == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
@@ -64,12 +67,18 @@ public class LeaderService {
                 .followerCount(leader.getFollowerCount())
                 .build();
 
+        Long distanceMeters = DistanceCalculator.haversineMeters(
+                latitude, longitude, store.getLatitude(), store.getLongitude());
         StoreInfo storeInfo = StoreInfo.builder()
                 .id(store.getId())
                 .name(store.getName())
                 .logoUrl(store.getLogoUrl())
                 .description(store.getDescription())
                 .defaultDeliveryType(store.getDefaultDeliveryType())
+                .latitude(store.getLatitude())
+                .longitude(store.getLongitude())
+                .distanceMeters(distanceMeters)
+                .distanceText(DistanceCalculator.formatDistance(distanceMeters))
                 .build();
 
         // Get public group buys for this leader
@@ -82,7 +91,7 @@ public class LeaderService {
 
         Page<GroupBuy> result = groupBuyMapper.selectPage(pageObj, wrapper);
         List<PublicGroupBuyItem> groupBuyItems = result.getRecords().stream()
-                .map(groupBuyService::toPublicGroupBuyItem)
+                .map(gb -> groupBuyService.toPublicGroupBuyItem(gb, latitude, longitude))
                 .collect(Collectors.toList());
 
         PageResponse<PublicGroupBuyItem> groupBuysPage = PageResponse.of(

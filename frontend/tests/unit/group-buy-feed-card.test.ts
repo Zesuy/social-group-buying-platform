@@ -4,15 +4,22 @@ import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
 import type { PublicGroupBuyItem } from '@/types'
 
 const mockItem: PublicGroupBuyItem = {
-  id: 100,
+  id: '100',
   title: '周末阳山水蜜桃社区团',
   coverImageUrl: 'https://example.com/cover.png',
   status: 'published',
   endTime: '2026-07-01T12:00:00',
   minPriceAmount: 2990,
   soldCount: 12,
-  leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: 'https://example.com/avatar.png' },
-  store: { id: 20, name: '王姐社区鲜果店' },
+  leader: { id: '10', displayName: '王姐鲜果团', avatarUrl: 'https://example.com/avatar.png' },
+  store: {
+    id: '20',
+    name: '王姐社区鲜果店',
+    latitude: null,
+    longitude: null,
+    distanceMeters: null,
+    distanceText: null,
+  },
 }
 
 describe('GroupBuyFeedCard', () => {
@@ -59,5 +66,19 @@ describe('GroupBuyFeedCard', () => {
     await wrapper.setProps({ subscribed: false, subscribeLoading: true })
     expect(wrapper.text()).toContain('处理中')
     expect(wrapper.find('.group-buy-feed-card__subscribe').attributes('disabled')).toBeDefined()
+  })
+
+  it('renders distance marker when distance text exists', () => {
+    const wrapper = mount(GroupBuyFeedCard, {
+      props: {
+        item: {
+          ...mockItem,
+          store: { ...mockItem.store, distanceMeters: 860, distanceText: '860m' },
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('距你 860m')
+    expect(wrapper.text()).toContain('附近可履约')
   })
 })

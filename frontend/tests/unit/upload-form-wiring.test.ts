@@ -100,6 +100,8 @@ describe('upload form wiring', () => {
         defaultDeliveryType: 'express',
         distributionEnabled: false,
         status: 'active',
+        latitude: null,
+        longitude: null,
       },
     })
     vi.mocked(updateMyStore).mockResolvedValue({
@@ -117,6 +119,8 @@ describe('upload form wiring', () => {
         defaultDeliveryType: 'express',
         distributionEnabled: false,
         status: 'active',
+        latitude: 30.2741,
+        longitude: 120.1551,
       },
     })
 

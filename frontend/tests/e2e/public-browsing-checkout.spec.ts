@@ -81,6 +81,8 @@ async function mockAllEndpoints(page: Page) {
 
   // 团购列表
   await page.route('**/api/v1/group-buys?*', async (route) => {
+    const url = new URL(route.request().url())
+    const hasLocation = url.searchParams.has('latitude') && url.searchParams.has('longitude')
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -92,7 +94,14 @@ async function mockAllEndpoints(page: Page) {
               id: 100, title: '周末阳山水蜜桃社区团', coverImageUrl: null, status: 'published',
               endTime: '2026-07-05T12:00:00', minPriceAmount: 2990, soldCount: 61,
               leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
-              store: { id: 20, name: '王姐社区鲜果店' },
+              store: {
+                id: 20,
+                name: '王姐社区鲜果店',
+                latitude: 30.27,
+                longitude: 120.15,
+                distanceMeters: hasLocation ? 860 : null,
+                distanceText: hasLocation ? '860m' : null,
+              },
             },
           ],
           page: 1, pageSize: 20, total: 1, hasMore: false,
@@ -491,6 +500,29 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
     await expect(page.locator('text=小区群每周开团')).toBeVisible({ timeout: 5000 })
     await expect(page.getByRole('heading', { name: '周末阳山水蜜桃社区团' })).toBeVisible()
+  })
+
+  test('nearby filter requests location parameters and shows distance marker', async ({ page, context }) => {
+    await context.grantPermissions(['geolocation'])
+    await context.setGeolocation({ latitude: 30.2741, longitude: 120.1551 })
+    await page.goto('/')
+    await page.waitForSelector('.van-tabbar', { timeout: 10000 })
+
+    const locationRequestPromise = page.waitForRequest((request) => {
+      const url = new URL(request.url())
+      return url.pathname.endsWith('/api/v1/group-buys')
+        && url.searchParams.get('maxDistanceMeters') === '5000'
+        && url.searchParams.get('sort') === 'distance'
+        && url.searchParams.has('latitude')
+        && url.searchParams.has('longitude')
+    })
+
+    await page.getByText('本地履约').click()
+    await locationRequestPromise
+
+    await expect(page.getByText('已按你的位置展示距离')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('距你 860m')).toBeVisible()
+    await expect(page.getByText('附近可履约')).toBeVisible()
   })
 
   test('unauthenticated click buy redirects to login, logged in user completes flow', async ({ page }) => {

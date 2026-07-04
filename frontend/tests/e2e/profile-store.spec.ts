@@ -42,7 +42,7 @@ async function mockEndpoints(page: Page) {
           data: {
             user: { id: 2, nickname: '团长用户', avatarUrl: null, phone: '13700000000', hasLeader: true, leaderId: 10, storeId: 20 },
             leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
-            store: { id: 20, name: '王姐社区鲜果店', logoUrl: null, status: 'active' },
+            store: { id: 20, name: '王姐社区鲜果店', logoUrl: null, status: 'active', latitude: null, longitude: null },
           },
           traceId: 'e2e_001',
         }),
@@ -107,6 +107,8 @@ async function mockEndpoints(page: Page) {
             logoUrl: body.logoUrl, description: body.description,
             defaultDeliveryType: body.defaultDeliveryType || 'local_delivery',
             distributionEnabled: false, status: 'active',
+            latitude: body.latitude ?? null,
+            longitude: body.longitude ?? null,
           },
         },
         traceId: 'e2e_store',
@@ -130,6 +132,8 @@ async function mockEndpoints(page: Page) {
               logoUrl: body.logoUrl, description: body.description,
               defaultDeliveryType: body.defaultDeliveryType || 'local_delivery',
               distributionEnabled: false, status: 'active',
+              latitude: body.latitude ?? null,
+              longitude: body.longitude ?? null,
             },
           },
           traceId: 'e2e_store_patch',
@@ -154,6 +158,8 @@ async function mockEndpoints(page: Page) {
               logoUrl: null, description: '当季鲜果集中收单，同城配送到社区。',
               defaultDeliveryType: 'local_delivery',
               distributionEnabled: false, status: 'active',
+              latitude: null,
+              longitude: null,
             },
           },
           traceId: 'e2e_store_get',
@@ -284,7 +290,7 @@ test.describe('Profile and store E2E', () => {
     await expect(page).toHaveURL(/#\/store\/create/, { timeout: 5000 })
   })
 
-  test('leader click normal group buy shows action sheet', async ({ page }) => {
+  test('leader click normal group buy goes to publish page', async ({ page }) => {
     await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token_leader_store'))
     await navigateToHash(page, '/open-group')
     await page.waitForTimeout(1500)
@@ -293,9 +299,9 @@ test.describe('Profile and store E2E', () => {
     await page.locator('text=普通团购').click()
     await page.waitForTimeout(1000)
 
-    // Action sheet should show
-    await expect(page.locator('text=发布团购').first()).toBeVisible({ timeout: 5000 })
-    await expect(page.locator('text=管理团购').first()).toBeVisible()
+    // Should go directly to publish page
+    await expect(page).toHaveURL(/#\/leader\/group-buys\/new/, { timeout: 5000 })
+    await expect(page.locator('text=发布团购').first()).toBeVisible()
   })
 
   test('non-MVP group buy cards show toast', async ({ page }) => {
@@ -328,7 +334,7 @@ test.describe('Profile and store E2E', () => {
     await page.waitForTimeout(2000)
 
     // Should show store name
-    await expect(page.locator('text=王姐社区鲜果店')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('王姐社区鲜果店', { exact: true })).toBeVisible({ timeout: 5000 })
     // Should show edit button
     await expect(page.locator('button:has-text("编辑资料")')).toBeVisible()
   })
@@ -346,6 +352,54 @@ test.describe('Profile and store E2E', () => {
 
     // Should see save button in edit mode
     await expect(page.locator('button:has-text("保存")')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('button:has-text("获取当前位置")')).toBeVisible()
+  })
+
+  test('leader store page can save current location', async ({ page, context }) => {
+    await context.grantPermissions(['geolocation'])
+    await context.setGeolocation({ latitude: 30.2741, longitude: 120.1551 })
+    await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token_leader_store'))
+    await navigateToHash(page, '/leader/store')
+    await page.waitForTimeout(2000)
+
+    let patchedLatitude: number | null = null
+    let patchedLongitude: number | null = null
+    await page.route('**/api/v1/my/store', async (route, request) => {
+      if (request.method() === 'PATCH') {
+        const body = request.postDataJSON()
+        patchedLatitude = body.latitude
+        patchedLongitude = body.longitude
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            success: true,
+            data: {
+              leader: { id: 10, displayName: body.name || '王姐鲜果团', avatarUrl: body.logoUrl },
+              store: {
+                id: 20, leaderId: 10, name: body.name || '王姐社区鲜果店',
+                logoUrl: body.logoUrl, description: body.description,
+                defaultDeliveryType: body.defaultDeliveryType || 'local_delivery',
+                distributionEnabled: false, status: 'active',
+                latitude: body.latitude,
+                longitude: body.longitude,
+              },
+            },
+            traceId: 'e2e_store_patch_location',
+          }),
+        })
+        return
+      }
+      await route.fallback()
+    })
+
+    await page.locator('button:has-text("编辑资料")').click()
+    await page.locator('button:has-text("获取当前位置")').click()
+    await expect(page.locator('text=已选择店铺位置')).toBeVisible({ timeout: 5000 })
+    await page.locator('button:has-text("保存")').click()
+
+    await expect.poll(() => patchedLatitude).toBe(30.2741)
+    await expect.poll(() => patchedLongitude).toBe(120.1551)
   })
 
   test('leader store page uploads logo and saves returned url', async ({ page }) => {
@@ -370,6 +424,8 @@ test.describe('Profile and store E2E', () => {
                 logoUrl: body.logoUrl, description: body.description,
                 defaultDeliveryType: body.defaultDeliveryType || 'local_delivery',
                 distributionEnabled: false, status: 'active',
+                latitude: body.latitude ?? null,
+                longitude: body.longitude ?? null,
               },
             },
             traceId: 'e2e_store_patch_upload',
@@ -387,8 +443,7 @@ test.describe('Profile and store E2E', () => {
       buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
     })
 
-    const logoInput = page.locator('input[placeholder="Logo URL（选填，可上传）"]')
-    await expect(logoInput).toHaveValue('http://localhost:8080/uploads/images/e2e-logo.png')
+    await expect(page.locator('input[placeholder="Logo URL（选填，可上传）"]')).toHaveCount(0)
 
     await page.locator('button:has-text("保存")').click()
     await expect.poll(() => patchedLogoUrl).toBe('http://localhost:8080/uploads/images/e2e-logo.png')

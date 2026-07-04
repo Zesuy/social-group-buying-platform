@@ -23,9 +23,10 @@ export async function getLeaderHomepage(
   leaderId: string,
   page = 1,
   pageSize = 20,
+  location?: { latitude?: number; longitude?: number },
 ): Promise<LeaderHomepageData> {
   const res = await request.get(`/leaders/${leaderId}/homepage`, {
-    params: { page, pageSize },
+    params: { page, pageSize, ...location },
   }) as ApiResponse<LeaderHomepageData>
   return res.data
 }

@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 /**
  * Leader homepage response.
  */
@@ -44,5 +46,10 @@ public class LeaderHomepageResponse {
         private String logoUrl;
         private String description;
         private String defaultDeliveryType;
+        private BigDecimal latitude;
+        private BigDecimal longitude;
+        private Long distanceMeters;
+        private String distanceText;
+        private String addressText;
     }
 }

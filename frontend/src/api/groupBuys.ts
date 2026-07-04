@@ -12,6 +12,15 @@ import type {
   GroupBuyDetailData,
 } from '@/types'
 
+export interface ListPublicGroupBuysParams {
+  page?: number
+  pageSize?: number
+  latitude?: number
+  longitude?: number
+  maxDistanceMeters?: number
+  sort?: 'distance'
+}
+
 /**
  * 获取公开团购列表（分页）
  *
@@ -19,11 +28,14 @@ import type {
  * @param pageSize 每页数量，默认 20
  */
 export async function listPublicGroupBuys(
-  page = 1,
+  pageOrParams: number | ListPublicGroupBuysParams = 1,
   pageSize = 20,
 ): Promise<PageResponse<PublicGroupBuyItem>> {
+  const params: ListPublicGroupBuysParams = typeof pageOrParams === 'number'
+    ? { page: pageOrParams, pageSize }
+    : { page: 1, pageSize: 20, ...pageOrParams }
   const res = await request.get('/group-buys', {
-    params: { page, pageSize },
+    params,
   }) as ApiResponse<PageResponse<PublicGroupBuyItem>>
   return res.data
 }
