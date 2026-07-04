@@ -23,6 +23,7 @@ public class Coupon {
     private Long storeId;
     private String name;
     private String couponType;
+    private String claimCondition;
     private Long amount;
     private Long thresholdAmount;
     private Integer totalQuantity;

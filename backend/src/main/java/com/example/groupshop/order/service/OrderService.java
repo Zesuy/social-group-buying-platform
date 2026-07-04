@@ -724,6 +724,7 @@ public class OrderService {
     private AvailableCouponResponse toAvailableCouponResponseFromUserCoupon(UserCoupon userCoupon) {
         return AvailableCouponResponse.builder()
                 .id(userCoupon.getCouponId())
+                .userCouponId(userCoupon.getId())
                 .name(userCoupon.getCouponName())
                 .couponType(userCoupon.getCouponType())
                 .amount(userCoupon.getAmount())

@@ -59,6 +59,16 @@ const uploadedImage = {
   size: 9,
 }
 
+const popupStub = {
+  props: ['show'],
+  template: '<div v-if="show"><slot /></div>',
+}
+
+const globalStubs = {
+  VanPopup: popupStub,
+  'van-popup': popupStub,
+}
+
 async function uploadFirstFile(wrapper: ReturnType<typeof mount>) {
   const input = wrapper.find('input[type="file"]')
   Object.defineProperty(input.element, 'files', {
@@ -112,7 +122,9 @@ describe('upload form wiring', () => {
       },
     })
 
-    const wrapper = mount(CreateStoreView)
+    const wrapper = mount(CreateStoreView, {
+      global: { stubs: globalStubs },
+    })
     await wrapper.find('input[placeholder="请输入店铺名称（必填）"]').setValue('王姐鲜果店')
     await uploadFirstFile(wrapper)
     await wrapper.find('textarea[placeholder="可选，介绍你的店铺"]').setValue('社区水果团')
@@ -169,7 +181,9 @@ describe('upload form wiring', () => {
       },
     })
 
-    const wrapper = mount(LeaderStoreView)
+    const wrapper = mount(LeaderStoreView, {
+      global: { stubs: globalStubs },
+    })
     await flushPromises()
     await wrapper.findAll('button').find((button) => button.text().includes('编辑资料'))?.trigger('click')
     await uploadFirstFile(wrapper)
@@ -201,7 +215,9 @@ describe('upload form wiring', () => {
       },
       items: [],
     })
-    const wrapper = mount(PublishGroupBuyView)
+    const wrapper = mount(PublishGroupBuyView, {
+      global: { stubs: globalStubs },
+    })
 
     await wrapper.find('input[placeholder="团购标题，例如：周末阳山水蜜桃社区团"]').setValue('周末鲜果团')
     await uploadFirstFile(wrapper)

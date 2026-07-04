@@ -559,8 +559,10 @@ export interface OrderPreviewData {
 
 export interface AvailableCouponData {
   id: string
+  userCouponId?: string | null
   name: string
   couponType: string
+  claimCondition?: string
   amount: number
   thresholdAmount: number
   startTime: string
@@ -569,6 +571,82 @@ export interface AvailableCouponData {
   claimedQuantity: number
   perUserLimit: number
   unavailableReason?: string | null
+}
+
+export interface StoreCouponData {
+  id: string
+  storeId: string
+  name: string
+  couponType: string
+  claimCondition: string
+  amount: number
+  thresholdAmount: number
+  totalQuantity: number
+  claimedQuantity: number
+  perUserLimit: number
+  startTime: string
+  endTime: string
+  status: string
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export interface StoreCouponOfferData {
+  id: string
+  name: string
+  couponType: string
+  claimCondition: string
+  amount: number
+  thresholdAmount: number
+  startTime: string
+  endTime: string
+  totalQuantity: number
+  claimedQuantity: number
+  perUserLimit: number
+  status: string
+  claimable: boolean
+  claimed: boolean
+  viewerSubscribed: boolean
+  unavailableReason?: string | null
+}
+
+export interface CreateCouponRequest {
+  name: string
+  couponType: string
+  claimCondition?: string
+  amount: number
+  thresholdAmount?: number
+  totalQuantity: number
+  perUserLimit?: number
+  startTime: string
+  endTime: string
+}
+
+export interface UpdateCouponRequest {
+  name?: string
+  couponType?: string
+  claimCondition?: string
+  amount?: number
+  thresholdAmount?: number
+  totalQuantity?: number
+  perUserLimit?: number
+  startTime?: string
+  endTime?: string
+}
+
+export interface UserCouponData {
+  id: string
+  couponId: string
+  couponName: string
+  couponType: string
+  amount: number
+  thresholdAmount: number
+  status: string
+  lockedOrderId?: string | null
+  claimedAt?: string | null
+  lockedAt?: string | null
+  usedAt?: string | null
+  expiredAt?: string | null
 }
 
 export interface OrderPreviewAddress {

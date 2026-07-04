@@ -127,6 +127,7 @@ const leaderEntries: ProfileGridEntry[] = [
   { label: '团购管理', description: '查看活动状态', icon: 'shop-o', to: '/leader/group-buys' },
   { label: '订单管理', description: '处理发货履约', icon: 'orders-o', to: '/leader/orders' },
   { label: '订阅用户', description: '查看关注你的团员', icon: 'friends-o', to: '/leader/subscribers' },
+  { label: '店铺优惠券', description: '设置订阅新人券', icon: 'coupon-o', to: '/leader/coupons' },
   { label: '商品库', description: '复用商品资料', icon: 'cube-o', to: '/leader/products' },
 ]
 

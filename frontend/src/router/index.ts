@@ -157,6 +157,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '订阅用户' },
       },
       {
+        path: 'coupons',
+        name: 'leaderCoupons',
+        component: () => import('@/views/leader/LeaderCouponsView.vue'),
+        meta: { title: '店铺优惠券' },
+      },
+      {
         path: 'orders/:id',
         name: 'leaderOrderDetail',
         component: () => import('@/views/leader/LeaderOrderDetailView.vue'),

@@ -18,8 +18,11 @@ import java.time.LocalDateTime;
 public class AvailableCouponResponse {
 
     private Long id;
+    /** Claimed user coupon ID; pass this as userCouponId for order preview/create. */
+    private Long userCouponId;
     private String name;
     private String couponType;
+    private String claimCondition;
     private Long amount;
     private Long thresholdAmount;
     private LocalDateTime startTime;

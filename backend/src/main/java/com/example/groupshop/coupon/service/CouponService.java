@@ -1,21 +1,24 @@
 package com.example.groupshop.coupon.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.util.CurrentStoreHelper;
 import com.example.groupshop.coupon.dto.AvailableCouponResponse;
 import com.example.groupshop.coupon.dto.CouponResponse;
 import com.example.groupshop.coupon.dto.CreateCouponRequest;
+import com.example.groupshop.coupon.dto.StoreCouponOfferResponse;
 import com.example.groupshop.coupon.dto.UpdateCouponRequest;
 import com.example.groupshop.coupon.dto.UserCouponResponse;
 import com.example.groupshop.model.entity.Coupon;
 import com.example.groupshop.model.entity.GroupBuy;
+import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.entity.UserCoupon;
 import com.example.groupshop.model.mapper.CouponMapper;
 import com.example.groupshop.model.mapper.GroupBuyMapper;
+import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserCouponMapper;
+import com.example.groupshop.subscription.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,10 +38,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CouponService {
 
+    private static final String CLAIM_CONDITION_GENERAL = "general";
+    private static final String CLAIM_CONDITION_NEW_SUBSCRIBER = "new_subscriber";
+
     private final CouponMapper couponMapper;
     private final UserCouponMapper userCouponMapper;
     private final GroupBuyMapper groupBuyMapper;
+    private final StoreMapper storeMapper;
     private final CurrentStoreHelper currentStoreHelper;
+    private final SubscriptionService subscriptionService;
 
     // ── Store Coupon Management ─────────────────────────────────────────
 
@@ -66,11 +74,13 @@ public class CouponService {
         Long storeId = currentStoreHelper.getLeaderAndStore(userId).getStore().getId();
 
         validateCouponType(request.getCouponType());
+        validateClaimCondition(request.getClaimCondition());
 
         Coupon coupon = new Coupon();
         coupon.setStoreId(storeId);
         coupon.setName(request.getName());
         coupon.setCouponType(request.getCouponType());
+        coupon.setClaimCondition(resolveClaimCondition(request.getClaimCondition()));
         coupon.setAmount(request.getAmount());
         coupon.setThresholdAmount(request.getThresholdAmount() != null ? request.getThresholdAmount() : 0L);
         coupon.setTotalQuantity(request.getTotalQuantity());
@@ -103,6 +113,10 @@ public class CouponService {
         if (request.getCouponType() != null) {
             validateCouponType(request.getCouponType());
             coupon.setCouponType(request.getCouponType());
+        }
+        if (request.getClaimCondition() != null) {
+            validateClaimCondition(request.getClaimCondition());
+            coupon.setClaimCondition(resolveClaimCondition(request.getClaimCondition()));
         }
         if (request.getAmount() != null) coupon.setAmount(request.getAmount());
         if (request.getThresholdAmount() != null) coupon.setThresholdAmount(request.getThresholdAmount());
@@ -158,6 +172,39 @@ public class CouponService {
 
         return coupons.stream()
                 .map(c -> toAvailableCouponResponse(c, null))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * List visible coupon offers for a leader homepage.
+     */
+    public List<StoreCouponOfferResponse> getLeaderHomepageCouponOffers(Long leaderId, Long viewerUserId, String scene) {
+        if (scene != null && !scene.isBlank() && !"homepage".equals(scene)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "仅支持 homepage 领券场景");
+        }
+
+        Store store = storeMapper.selectOne(
+                new LambdaQueryWrapper<Store>()
+                        .eq(Store::getLeaderId, leaderId));
+        if (store == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "团长店铺不存在");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        List<Coupon> coupons = couponMapper.selectList(
+                new LambdaQueryWrapper<Coupon>()
+                        .eq(Coupon::getStoreId, store.getId())
+                        .eq(Coupon::getClaimCondition, CLAIM_CONDITION_NEW_SUBSCRIBER)
+                        .eq(Coupon::getStatus, "active")
+                        .le(Coupon::getStartTime, now)
+                        .ge(Coupon::getEndTime, now)
+                        .orderByDesc(Coupon::getCreatedAt));
+
+        boolean viewerSubscribed = viewerUserId != null
+                && subscriptionService.isSubscribed(viewerUserId, leaderId);
+
+        return coupons.stream()
+                .map(coupon -> toStoreCouponOfferResponse(coupon, viewerUserId, viewerSubscribed))
                 .collect(Collectors.toList());
     }
 
@@ -293,6 +340,7 @@ public class CouponService {
         if (!"active".equals(coupon.getStatus())) {
             throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE, "优惠券已停用");
         }
+        validateClaimConditionForClaim(userId, coupon);
 
         // Validate in time window
         if (now.isBefore(coupon.getStartTime()) || now.isAfter(coupon.getEndTime())) {
@@ -411,6 +459,33 @@ public class CouponService {
         }
     }
 
+    private void validateClaimCondition(String claimCondition) {
+        String resolved = resolveClaimCondition(claimCondition);
+        if (!CLAIM_CONDITION_GENERAL.equals(resolved) && !CLAIM_CONDITION_NEW_SUBSCRIBER.equals(resolved)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "领取条件仅支持 general 和 new_subscriber");
+        }
+    }
+
+    private String resolveClaimCondition(String claimCondition) {
+        return claimCondition == null || claimCondition.isBlank()
+                ? CLAIM_CONDITION_GENERAL
+                : claimCondition;
+    }
+
+    private void validateClaimConditionForClaim(Long userId, Coupon coupon) {
+        if (!CLAIM_CONDITION_NEW_SUBSCRIBER.equals(resolveClaimCondition(coupon.getClaimCondition()))) {
+            return;
+        }
+
+        Store store = storeMapper.selectById(coupon.getStoreId());
+        if (store == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "店铺不存在");
+        }
+        if (!subscriptionService.isSubscribed(userId, store.getLeaderId())) {
+            throw new BusinessException(ErrorCode.COUPON_NOT_AVAILABLE, "订阅店铺后可领取该新人券");
+        }
+    }
+
     /**
      * Lazily expire user coupons that have passed their expiry date.
      */
@@ -422,8 +497,10 @@ public class CouponService {
     private AvailableCouponResponse toAvailableCouponResponse(Coupon coupon, UserCoupon userCoupon) {
         return AvailableCouponResponse.builder()
                 .id(coupon.getId())
+                .userCouponId(userCoupon != null ? userCoupon.getId() : null)
                 .name(coupon.getName())
                 .couponType(coupon.getCouponType())
+                .claimCondition(resolveClaimCondition(coupon.getClaimCondition()))
                 .amount(coupon.getAmount())
                 .thresholdAmount(coupon.getThresholdAmount())
                 .startTime(coupon.getStartTime())
@@ -441,6 +518,7 @@ public class CouponService {
                 .storeId(coupon.getStoreId())
                 .name(coupon.getName())
                 .couponType(coupon.getCouponType())
+                .claimCondition(resolveClaimCondition(coupon.getClaimCondition()))
                 .amount(coupon.getAmount())
                 .thresholdAmount(coupon.getThresholdAmount())
                 .totalQuantity(coupon.getTotalQuantity())
@@ -451,6 +529,47 @@ public class CouponService {
                 .status(coupon.getStatus())
                 .createdAt(coupon.getCreatedAt())
                 .updatedAt(coupon.getUpdatedAt())
+                .build();
+    }
+
+    private StoreCouponOfferResponse toStoreCouponOfferResponse(
+            Coupon coupon,
+            Long viewerUserId,
+            boolean viewerSubscribed) {
+        boolean claimed = viewerUserId != null && userCouponMapper.selectCount(
+                new LambdaQueryWrapper<UserCoupon>()
+                        .eq(UserCoupon::getUserId, viewerUserId)
+                        .eq(UserCoupon::getCouponId, coupon.getId())) > 0;
+        boolean outOfStock = coupon.getClaimedQuantity() >= coupon.getTotalQuantity();
+
+        String unavailableReason = null;
+        if (viewerUserId == null) {
+            unavailableReason = "登录并订阅后可领取";
+        } else if (!viewerSubscribed) {
+            unavailableReason = "订阅店铺后可领取";
+        } else if (claimed) {
+            unavailableReason = "已领取";
+        } else if (outOfStock) {
+            unavailableReason = "已领完";
+        }
+
+        return StoreCouponOfferResponse.builder()
+                .id(coupon.getId())
+                .name(coupon.getName())
+                .couponType(coupon.getCouponType())
+                .claimCondition(resolveClaimCondition(coupon.getClaimCondition()))
+                .amount(coupon.getAmount())
+                .thresholdAmount(coupon.getThresholdAmount())
+                .startTime(coupon.getStartTime())
+                .endTime(coupon.getEndTime())
+                .totalQuantity(coupon.getTotalQuantity())
+                .claimedQuantity(coupon.getClaimedQuantity())
+                .perUserLimit(coupon.getPerUserLimit())
+                .status(coupon.getStatus())
+                .claimable(unavailableReason == null)
+                .claimed(claimed)
+                .viewerSubscribed(viewerSubscribed)
+                .unavailableReason(unavailableReason)
                 .build();
     }
 

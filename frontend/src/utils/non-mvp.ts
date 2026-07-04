@@ -1,7 +1,7 @@
 /**
  * 非 MVP 入口灰态判断工具
  *
- * 覆盖：真实微信支付、优惠券/红包、完整售后退款、帮卖分销、
+ * 覆盖：真实微信支付、完整售后退款、帮卖分销、
  * 积分商城、公众号推送、平台后台等非 MVP 入口。
  *
  * 返回 true 表示该功能"当前不可用"（灰态/禁用），
@@ -23,10 +23,10 @@ export function isCartDisabled(): boolean {
 }
 
 /**
- * 优惠券/红包功能是否可用（MVP 阶段不可用）
+ * 优惠券/红包功能是否可用（P1 已开放店铺券和下单抵扣）
  */
 export function isCouponDisabled(): boolean {
-  return true
+  return false
 }
 
 /**

@@ -1352,6 +1352,7 @@ POST /api/v1/orders/preview
     "availableCoupons": [
       {
         "id": 6001,
+        "userCouponId": 5001,
         "name": "满100减20",
         "couponType": "amount",
         "amount": 2000,
@@ -1378,6 +1379,7 @@ POST /api/v1/orders/preview
     "payAmount": 1990,
     "selectedCoupon": {
       "id": 6001,
+      "userCouponId": 5001,
       "name": "无门槛10元券",
       "couponType": "amount",
       "amount": 1000,
@@ -1388,6 +1390,8 @@ POST /api/v1/orders/preview
   }
 }
 ```
+
+优惠券字段说明：`id` 是店铺券模板 ID；前端在订单预览/下单时必须传 `userCouponId`，不能传模板 `id`。
 
 端点错误码：
 
@@ -2259,6 +2263,7 @@ POST /api/v1/my/store/coupons
 {
   "name": "满100减20",
   "couponType": "amount",
+  "claimCondition": "general",
   "amount": 2000,
   "thresholdAmount": 10000,
   "totalQuantity": 100,
@@ -2271,6 +2276,7 @@ POST /api/v1/my/store/coupons
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `couponType` | `"amount"` / `"red_packet"` | 两者均按固定金额抵扣 |
+| `claimCondition` | `"general"` / `"new_subscriber"` | 领取条件，默认 `general`；`new_subscriber` 表示订阅店铺团长后领取 |
 | `amount` | Long（分） | 抵扣金额 |
 | `thresholdAmount` | Long（分） | 使用门槛，0 = 无门槛 |
 | `totalQuantity` | Integer | 总库存 |
@@ -2286,6 +2292,7 @@ POST /api/v1/my/store/coupons
     "storeId": 20,
     "name": "满100减20",
     "couponType": "amount",
+    "claimCondition": "general",
     "amount": 2000,
     "thresholdAmount": 10000,
     "totalQuantity": 100,
@@ -2337,7 +2344,46 @@ GET /api/v1/group-buys/{groupBuyId}/coupons
 
 返回该团购店铺当前可领取、有库存、未过期的优惠券列表。
 
-### 16.6 领取优惠券
+### 16.6 查看团长主页新人订阅券（公开）
+
+```http
+GET /api/v1/leaders/{leaderId}/coupons?scene=homepage
+```
+
+登录：不需要；若带 `Authorization`，返回当前用户是否已订阅、是否已领取、是否可领取。
+
+第一版只返回店铺 `claimCondition = "new_subscriber"` 的有效券，用于团长主页“订阅后领取店铺券”弹层。
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 6002,
+      "name": "新客订阅立减券",
+      "couponType": "amount",
+      "claimCondition": "new_subscriber",
+      "amount": 1000,
+      "thresholdAmount": 0,
+      "totalQuantity": 100,
+      "claimedQuantity": 8,
+      "perUserLimit": 1,
+      "startTime": "2026-07-01T00:00:00+08:00",
+      "endTime": "2026-08-01T00:00:00+08:00",
+      "status": "active",
+      "claimable": false,
+      "claimed": false,
+      "viewerSubscribed": false,
+      "unavailableReason": "订阅店铺后可领取"
+    }
+  ],
+  "traceId": "req_001"
+}
+```
+
+### 16.7 领取优惠券
 
 ```http
 POST /api/v1/coupons/{couponId}/claim
@@ -2349,6 +2395,7 @@ POST /api/v1/coupons/{couponId}/claim
 
 - 使用行锁（`SELECT … FOR UPDATE`）串行化并发领取，防止超发。
 - 校验优惠券状态为 `active`、在有效期内、有库存、未达每人限领。
+- 若 `claimCondition = "new_subscriber"`，用户必须已订阅该券所属店铺的团长；订阅成功后仍需用户手动点击领取，不自动发券。
 - 领取后 `coupons.claimed_quantity` 原子 +1。
 
 响应：
@@ -2370,7 +2417,7 @@ POST /api/v1/coupons/{couponId}/claim
 }
 ```
 
-### 16.7 我的优惠券列表
+### 16.8 我的优惠券列表
 
 ```http
 GET /api/v1/my/coupons?status=unused
@@ -2384,15 +2431,15 @@ GET /api/v1/my/coupons?status=unused
 
 查询时自动懒过期（将已过期 `unused` 券标记为 `expired`）。
 
-### 16.8 使用优惠券下单
+### 16.9 使用优惠券下单
 
 与订单预览和创建订单共用，传入 `userCouponId` 字段即可。下单锁定后券状态变为 `locked`；支付成功后变为 `used`；取消待支付订单恢复为 `unused`。
 
-### 16.9 常见错误码
+### 16.10 常见错误码
 
 | 错误码 | HTTP | 场景 |
 |---|---|---|
-| `COUPON_NOT_AVAILABLE` | 422 | 优惠券已停用、不在有效期内或未达门槛 |
+| `COUPON_NOT_AVAILABLE` | 422 | 优惠券已停用、不在有效期内、未达门槛或未订阅新人券所属团长 |
 | `COUPON_ALREADY_CLAIMED` | 409 | 已达到每人限领数量 |
 | `COUPON_OUT_OF_STOCK` | 422 | 优惠券已被领完 |
 | `LEADER_REQUIRED` | 403 | 非团长操作管理接口 |
