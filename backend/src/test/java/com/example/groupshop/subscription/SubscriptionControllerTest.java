@@ -63,7 +63,10 @@ class SubscriptionControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.status").value("active"))
-                .andExpect(jsonPath("$.data.leaderId").value(String.valueOf(leaderId)));
+                .andExpect(jsonPath("$.data.leaderId").value(String.valueOf(leaderId)))
+                .andExpect(jsonPath("$.data.leader.id").value(String.valueOf(leaderId)))
+                .andExpect(jsonPath("$.data.leader.displayName").exists())
+                .andExpect(jsonPath("$.data.store.name").value("订阅测试店铺"));
     }
 
     @Test
@@ -165,7 +168,10 @@ class SubscriptionControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.items").isArray())
-                .andExpect(jsonPath("$.data.items[0].leaderId").value(String.valueOf(leaderId)));
+                .andExpect(jsonPath("$.data.items[0].leaderId").value(String.valueOf(leaderId)))
+                .andExpect(jsonPath("$.data.items[0].leader.id").value(String.valueOf(leaderId)))
+                .andExpect(jsonPath("$.data.items[0].leader.displayName").exists())
+                .andExpect(jsonPath("$.data.items[0].store.name").value("订阅测试店铺"));
     }
 
     @Test

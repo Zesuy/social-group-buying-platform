@@ -22,4 +22,26 @@ public class SubscriptionResponse {
     private String source;
     private String subscribedAt;
     private String canceledAt;
+    private LeaderSummary leader;
+    private StoreSummary store;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class LeaderSummary {
+        private Long id;
+        private String displayName;
+        private String avatarUrl;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class StoreSummary {
+        private Long id;
+        private String name;
+        private String logoUrl;
+    }
 }

@@ -660,6 +660,8 @@ export interface SubscriptionData {
   source?: string | null
   subscribedAt?: string | null
   canceledAt?: string | null
+  leader?: { id: string; displayName: string; avatarUrl: string | null } | null
+  store?: { id: string; name: string; logoUrl: string | null } | null
 }
 
 // ── 商品管理 ──

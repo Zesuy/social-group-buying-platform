@@ -60,6 +60,7 @@ class SubscriptionServiceTest extends ServiceTestBase {
         Leader leader = new Leader();
         leader.setUserId(leaderUser.getId());
         leader.setDisplayName("团长");
+        leader.setAvatarUrl("https://static.example.com/leader.png");
         leader.setServiceStatus("normal");
         leader.setMemberCount(0);
         leader.setFollowerCount(0);
@@ -69,6 +70,7 @@ class SubscriptionServiceTest extends ServiceTestBase {
         Store store = new Store();
         store.setLeaderId(leader.getId());
         store.setName("店铺");
+        store.setLogoUrl("https://static.example.com/store.png");
         store.setDefaultDeliveryType("express");
         store.setDistributionEnabled(false);
         store.setStatus("active");
@@ -98,6 +100,12 @@ class SubscriptionServiceTest extends ServiceTestBase {
         assertThat(response.getStatus()).isEqualTo("active");
         assertThat(response.getSource()).isEqualTo("homepage");
         assertThat(response.getSubscribedAt()).isNotNull();
+        assertThat(response.getLeader()).isNotNull();
+        assertThat(response.getLeader().getDisplayName()).isEqualTo("团长");
+        assertThat(response.getLeader().getAvatarUrl()).isEqualTo("https://static.example.com/leader.png");
+        assertThat(response.getStore()).isNotNull();
+        assertThat(response.getStore().getName()).isEqualTo("店铺");
+        assertThat(response.getStore().getLogoUrl()).isEqualTo("https://static.example.com/store.png");
     }
 
     @Test
@@ -196,6 +204,10 @@ class SubscriptionServiceTest extends ServiceTestBase {
         SubscriptionListResponse result = subscriptionService.listMySubscriptions(userId);
         assertThat(result.getItems()).hasSize(1);
         assertThat(result.getItems().get(0).getLeaderId()).isEqualTo(leader2.getId());
+        assertThat(result.getItems().get(0).getLeader()).isNotNull();
+        assertThat(result.getItems().get(0).getLeader().getDisplayName()).isEqualTo("团长2");
+        assertThat(result.getItems().get(0).getStore()).isNotNull();
+        assertThat(result.getItems().get(0).getStore().getName()).isEqualTo("店铺2");
     }
 
     @Test

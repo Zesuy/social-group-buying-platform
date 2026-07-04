@@ -10,7 +10,9 @@
             v-for="sub in items"
             :key="sub.id"
             :subscription="sub"
-            @click="goToLeader(sub.leaderId)"
+            :loading="actionLoadingId === sub.id"
+            @visit="goToLeader(sub.leaderId)"
+            @unsubscribe="onUnsubscribe(sub)"
           />
         </div>
 
@@ -23,13 +25,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showConfirmDialog, showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SubscriptionCard from '@/components/SubscriptionCard.vue'
 import { listMySubscriptions } from '@/api/subscriptions'
+import { unsubscribeLeader } from '@/api/leaders'
 import type { SubscriptionListItem } from '@/types'
 
 const router = useRouter()
@@ -38,6 +41,7 @@ const loading = ref(true)
 const refreshing = ref(false)
 const error = ref<string | null>(null)
 const items = ref<SubscriptionListItem[]>([])
+const actionLoadingId = ref<string | null>(null)
 
 async function fetchSubscriptions() {
   loading.value = true
@@ -70,6 +74,32 @@ async function onRefresh() {
 
 function goToLeader(leaderId: string) {
   router.push(`/leaders/${leaderId}`)
+}
+
+async function onUnsubscribe(subscription: SubscriptionListItem) {
+  if (actionLoadingId.value) return
+  try {
+    await showConfirmDialog({
+      title: '取消订阅',
+      message: `不再接收${subscription.leader?.displayName || '该团长'}的新团购提醒？`,
+      confirmButtonText: '取消订阅',
+      cancelButtonText: '再想想',
+    })
+  } catch {
+    return
+  }
+
+  actionLoadingId.value = subscription.id
+  try {
+    await unsubscribeLeader(subscription.leaderId)
+    items.value = items.value.filter(item => item.id !== subscription.id)
+    showToast('已取消订阅')
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    showToast(apiErr.message || '取消失败')
+  } finally {
+    actionLoadingId.value = null
+  }
 }
 
 function goBack() {
