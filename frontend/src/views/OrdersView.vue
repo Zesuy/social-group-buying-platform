@@ -77,6 +77,7 @@ import AppCard from '@/components/AppCard.vue'
 import OrderListCard from '@/components/OrderListCard.vue'
 import { usePagination } from '@/composables/usePagination'
 import { listMyOrders, cancelOrder } from '@/api/orders'
+import { openChatByOrder } from '@/api/chats'
 import type { OrderData } from '@/types'
 
 const router = useRouter()
@@ -145,6 +146,15 @@ function goHome() {
   router.push('/')
 }
 
+async function openOrderChat(orderId: string) {
+  try {
+    const conversation = await openChatByOrder(orderId)
+    await router.push(`/chats/${conversation.id}`)
+  } catch (err) {
+    showToast((err as { message?: string }).message || '聊天打开失败')
+  }
+}
+
 // ── 操作按钮定义 ──
 function getActionButtons(order: OrderData): Array<{
   text: string
@@ -189,7 +199,7 @@ function getActionButtons(order: OrderData): Array<{
         {
           text: '联系团长',
           variant: 'ghost',
-          onClick: () => showToast('联系团长将在后续开放'),
+          onClick: () => void openOrderChat(order.id),
         },
       ]
     case 'shipped':

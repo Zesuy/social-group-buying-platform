@@ -2,23 +2,41 @@
   <PageLayout show-tab-bar>
     <div class="app-topbar">
       消息
-      <span v-if="unreadCount > 0" class="badge-num">{{ unreadCountText }}</span>
+      <span v-if="totalUnreadCount > 0" class="badge-num">{{ totalUnreadCountText }}</span>
     </div>
+
+    <AppTabs :tabs="primaryTabs" :active="activePrimaryTab" @change="onPrimaryTabChange" />
 
     <section class="messages-hero">
       <div>
-        <h1>站内通知</h1>
-        <p>订单支付、团长发货、订阅和新团购活动都会在这里更新。</p>
+        <h1>{{ activePrimaryTab === 'chats' ? '履约沟通' : '站内通知' }}</h1>
+        <p>{{ activePrimaryTab === 'chats' ? '下单后可和团长沟通备货、发货和售后前置问题。' : '订单支付、团长发货、订阅和新团购活动都会在这里更新。' }}</p>
       </div>
-      <span v-if="unreadCount > 0" class="messages-hero__badge">
-        {{ unreadCountText }} 未读
+      <span v-if="activeUnreadCount > 0" class="messages-hero__badge">
+        {{ activeUnreadText }} 未读
       </span>
       <span v-else class="messages-hero__badge messages-hero__badge--muted">
         已读完
       </span>
     </section>
 
-    <div class="messages-toolbar">
+    <template v-if="activePrimaryTab === 'chats'">
+      <LoadingView v-if="chatLoading && chatConversations.length === 0" text="正在加载聊天..." />
+      <ErrorView v-else-if="chatError" :message="chatError" @retry="loadChatConversations" />
+      <template v-else>
+        <div v-if="chatConversations.length > 0" class="messages-list">
+          <ChatConversationListItem
+            v-for="conversation in chatConversations"
+            :key="conversation.id"
+            :conversation="conversation"
+            @open="openConversation"
+          />
+        </div>
+        <EmptyState v-else image="chat-o" description="暂无聊天，会在下单后自动建立和团长的沟通入口" />
+      </template>
+    </template>
+
+    <div v-else class="messages-toolbar">
       <AppTabs :tabs="tabs" :active="activeTab" scrollable @change="onTabChange" />
       <AppButton
         v-if="hasVisibleUnread"
@@ -32,10 +50,10 @@
       </AppButton>
     </div>
 
-    <LoadingView v-if="loading && notifications.length === 0" text="正在加载消息..." />
-    <ErrorView v-else-if="error" :message="error" @retry="loadNotifications" />
+    <LoadingView v-if="activePrimaryTab === 'notifications' && loading && notifications.length === 0" text="正在加载消息..." />
+    <ErrorView v-else-if="activePrimaryTab === 'notifications' && error" :message="error" @retry="loadNotifications" />
 
-    <template v-else>
+    <template v-else-if="activePrimaryTab === 'notifications'">
       <div v-if="notifications.length > 0" class="messages-list">
         <NotificationListItem
           v-for="notification in notifications"
@@ -65,12 +83,24 @@ import EmptyState from '@/components/EmptyState.vue'
 import AppTabs from '@/components/AppTabs.vue'
 import AppButton from '@/components/AppButton.vue'
 import NotificationListItem from '@/components/NotificationListItem.vue'
+import ChatConversationListItem from '@/components/ChatConversationListItem.vue'
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/notifications'
-import { useNotificationPolling } from '@/composables'
-import type { NotificationData, NotificationListParams } from '@/types'
+import { listChatConversations } from '@/api/chats'
+import { useChatUnreadPolling, useNotificationPolling } from '@/composables'
+import type { ChatConversationData, NotificationData, NotificationListParams } from '@/types'
 
 const router = useRouter()
 const { unreadCount, refreshUnreadCount } = useNotificationPolling()
+const { unreadCount: chatUnreadCount, refreshUnreadCount: refreshChatUnreadCount } = useChatUnreadPolling()
+
+type PrimaryTabKey = 'chats' | 'notifications'
+
+const primaryTabs = [
+  { key: 'chats', label: '聊天' },
+  { key: 'notifications', label: '通知' },
+]
+
+const activePrimaryTab = ref<PrimaryTabKey>('chats')
 
 type TabKey = 'all' | 'unread' | 'order_paid' | 'order_shipped' | 'group_buy_published'
 
@@ -92,8 +122,16 @@ const notifications = ref<NotificationData[]>([])
 const loading = ref(false)
 const error = ref('')
 const markAllLoading = ref(false)
+const chatConversations = ref<ChatConversationData[]>([])
+const chatLoading = ref(false)
+const chatError = ref('')
 
 const unreadCountText = computed(() => unreadCount.value > 99 ? '99+' : String(unreadCount.value))
+const chatUnreadCountText = computed(() => chatUnreadCount.value > 99 ? '99+' : String(chatUnreadCount.value))
+const totalUnreadCount = computed(() => unreadCount.value + chatUnreadCount.value)
+const totalUnreadCountText = computed(() => totalUnreadCount.value > 99 ? '99+' : String(totalUnreadCount.value))
+const activeUnreadCount = computed(() => activePrimaryTab.value === 'chats' ? chatUnreadCount.value : unreadCount.value)
+const activeUnreadText = computed(() => activePrimaryTab.value === 'chats' ? chatUnreadCountText.value : unreadCountText.value)
 const hasVisibleUnread = computed(() => notifications.value.some((item) => item.readStatus === 'unread'))
 
 const emptyDescription = computed(() => {
@@ -124,6 +162,30 @@ async function loadNotifications() {
     error.value = (err as { message?: string }).message || '消息加载失败，请稍后重试'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadChatConversations() {
+  chatLoading.value = true
+  chatError.value = ''
+  try {
+    const data = await listChatConversations({ page: 1, pageSize: 20 })
+    chatConversations.value = data.items
+  } catch (err) {
+    chatError.value = (err as { message?: string }).message || '聊天加载失败，请稍后重试'
+  } finally {
+    chatLoading.value = false
+  }
+}
+
+async function onPrimaryTabChange(key: string) {
+  activePrimaryTab.value = key as PrimaryTabKey
+  if (activePrimaryTab.value === 'chats') {
+    await loadChatConversations()
+    await refreshChatUnreadCount()
+  } else {
+    await loadNotifications()
+    await refreshUnreadCount()
   }
 }
 
@@ -167,8 +229,12 @@ async function onMarkAllRead() {
   }
 }
 
+async function openConversation(conversation: ChatConversationData) {
+  await router.push(`/chats/${conversation.id}`)
+}
+
 onMounted(() => {
-  void loadNotifications()
+  void loadChatConversations()
 })
 </script>
 

@@ -6,6 +6,7 @@ import BottomTabBar from '@/components/BottomTabBar.vue'
 import { useAuthStore } from '@/stores'
 import { showToast } from 'vant'
 import { getUnreadCount } from '@/api/notifications'
+import { getChatUnreadCount } from '@/api/chats'
 
 vi.mock('vant', async () => {
   const actual = await vi.importActual<typeof import('vant')>('vant')
@@ -17,6 +18,10 @@ vi.mock('vant', async () => {
 
 vi.mock('@/api/notifications', () => ({
   getUnreadCount: vi.fn(),
+}))
+
+vi.mock('@/api/chats', () => ({
+  getChatUnreadCount: vi.fn(),
 }))
 
 const router = createRouter({
@@ -62,7 +67,9 @@ describe('BottomTabBar', () => {
     setActivePinia(createPinia())
     vi.mocked(showToast).mockClear()
     vi.mocked(getUnreadCount).mockReset()
+    vi.mocked(getChatUnreadCount).mockReset()
     vi.mocked(getUnreadCount).mockResolvedValue({ unreadCount: 0 })
+    vi.mocked(getChatUnreadCount).mockResolvedValue({ unreadCount: 0 })
   })
 
   afterEach(() => {
@@ -152,6 +159,35 @@ describe('BottomTabBar', () => {
 
     const items = wrapper.findAllComponents({ name: 'VanTabbarItem' })
     expect(items[3].props('badge')).toBe('7')
+  })
+
+  it('should sum notification and chat unread badge on messages tab', async () => {
+    vi.mocked(getUnreadCount).mockResolvedValue({ unreadCount: 7 })
+    vi.mocked(getChatUnreadCount).mockResolvedValue({ unreadCount: 5 })
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const authStore = useAuthStore()
+    authStore.accessToken = 'valid_token'
+    authStore.user = {
+      id: '1',
+      nickname: '买家用户',
+      avatarUrl: null,
+      phone: '13800000000',
+      hasLeader: false,
+      leaderId: null,
+      storeId: null,
+    }
+
+    const wrapper = mount(BottomTabBar, {
+      global: {
+        plugins: [router, pinia],
+      },
+    })
+
+    await flushPromises()
+
+    const items = wrapper.findAllComponents({ name: 'VanTabbarItem' })
+    expect(items[3].props('badge')).toBe('12')
   })
 
   it('should hide unread badge when unread count response is malformed', async () => {

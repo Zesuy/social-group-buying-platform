@@ -8,6 +8,10 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '@/api/notifications'
+import {
+  getChatUnreadCount,
+  listChatConversations,
+} from '@/api/chats'
 import type { NotificationData } from '@/types'
 
 vi.mock('@/api/notifications', () => ({
@@ -15,6 +19,11 @@ vi.mock('@/api/notifications', () => ({
   getUnreadCount: vi.fn().mockResolvedValue({ unreadCount: 2 }),
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
+}))
+
+vi.mock('@/api/chats', () => ({
+  listChatConversations: vi.fn(),
+  getChatUnreadCount: vi.fn().mockResolvedValue({ unreadCount: 0 }),
 }))
 
 vi.mock('vant', async () => {
@@ -50,12 +59,29 @@ function createTestRouter() {
   })
 }
 
+async function switchToNotifications(wrapper: ReturnType<typeof mount>) {
+  const notificationsTab = wrapper.findAll('.app-tabs__item')
+    .find((item) => item.text() === '通知')
+  expect(notificationsTab).toBeDefined()
+  await notificationsTab!.trigger('click')
+  await flushPromises()
+}
+
 describe('MessagesView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.mocked(listNotifications).mockReset()
+    vi.mocked(listChatConversations).mockReset()
+    vi.mocked(getChatUnreadCount).mockClear()
     vi.mocked(markNotificationRead).mockReset()
     vi.mocked(markAllNotificationsRead).mockReset()
+    vi.mocked(listChatConversations).mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      total: 0,
+      hasMore: false,
+    })
     vi.mocked(listNotifications).mockResolvedValue({
       items: [unreadNotification],
       page: 1,
@@ -74,6 +100,7 @@ describe('MessagesView', () => {
     })
 
     await flushPromises()
+    await switchToNotifications(wrapper)
 
     expect(listNotifications).toHaveBeenCalledWith({ page: 1, pageSize: 20 })
     expect(wrapper.text()).toContain('发货通知')
@@ -88,8 +115,12 @@ describe('MessagesView', () => {
       },
     })
     await flushPromises()
+    await switchToNotifications(wrapper)
 
-    await wrapper.findAll('.app-tabs__item')[1].trigger('click')
+    const unreadTab = wrapper.findAll('.app-tabs__item')
+      .find((item) => item.text() === '未读')
+    expect(unreadTab).toBeDefined()
+    await unreadTab!.trigger('click')
     await flushPromises()
 
     expect(listNotifications).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, unreadOnly: true })
@@ -110,6 +141,7 @@ describe('MessagesView', () => {
       },
     })
     await flushPromises()
+    await switchToNotifications(wrapper)
 
     await wrapper.findComponent({ name: 'NotificationListItem' }).vm.$emit('open', unreadNotification)
     await flushPromises()
@@ -128,6 +160,7 @@ describe('MessagesView', () => {
       },
     })
     await flushPromises()
+    await switchToNotifications(wrapper)
 
     await wrapper.find('.messages-toolbar__read-all').trigger('click')
     await flushPromises()

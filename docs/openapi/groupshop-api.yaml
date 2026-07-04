@@ -25,6 +25,7 @@ tags:
   - name: Cart
   - name: Upload
   - name: Notification
+  - name: Chat
 paths:
   /api/v1/health:
     get:
@@ -382,6 +383,208 @@ paths:
                 $ref: '#/components/schemas/EmptySuccessResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/chat-conversations/orders/{orderId}:
+    post:
+      tags:
+        - Chat
+      summary: Open or create the buyer-store chat conversation for an order.
+      operationId: openChatByOrder
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation opened.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatConversationSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/chat-conversations:
+    get:
+      tags:
+        - Chat
+      summary: List current user's chat conversations.
+      operationId: listChatConversations
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - buyer
+              - leader
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Paginated chat conversations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatConversationListSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/chat-conversations/unread-count:
+    get:
+      tags:
+        - Chat
+      summary: Get current user's chat unread count.
+      operationId: getChatUnreadCount
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Chat unread count.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/my/chat-conversations/{conversationId}/messages:
+    get:
+      tags:
+        - Chat
+      summary: List or poll messages in a conversation.
+      operationId: listChatMessages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: afterMessageId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Chat messages.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessageListSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+    post:
+      tags:
+        - Chat
+      summary: Send a text or image message.
+      operationId: sendChatMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendChatMessageRequest'
+      responses:
+        '200':
+          description: Message sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/chat-conversations/{conversationId}/cards:
+    post:
+      tags:
+        - Chat
+      summary: Send an order summary or prepare-done card.
+      operationId: sendChatCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendChatCardRequest'
+      responses:
+        '200':
+          description: Card message sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessageSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/BusinessRuleViolationError'
+  /api/v1/my/chat-conversations/{conversationId}/read:
+    post:
+      tags:
+        - Chat
+      summary: Mark a chat conversation read for current user.
+      operationId: markChatRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Conversation marked read.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/BusinessRuleViolationError'
   # ── Product endpoints ──────────────────────────────────────────────
   /api/v1/my/store/products:
     get:
@@ -2508,6 +2711,269 @@ components:
         unreadCount:
           type: integer
           minimum: 0
+      additionalProperties: false
+    ChatConversationListSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/ChatConversationPageData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ChatConversationSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/ChatConversationData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ChatMessageListSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/ChatMessagePageData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ChatMessageSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/ChatMessageData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    ChatConversationPageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatConversationData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    ChatMessagePageData:
+      type: object
+      required:
+        - items
+        - page
+        - pageSize
+        - total
+        - hasMore
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessageData'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+        hasMore:
+          type: boolean
+      additionalProperties: false
+    ChatConversationData:
+      type: object
+      required:
+        - id
+        - buyerUserId
+        - leaderUserId
+        - storeId
+        - buyerName
+        - leaderName
+        - storeName
+        - currentUserRole
+        - unreadCount
+        - createdAt
+      properties:
+        id:
+          type: string
+        buyerUserId:
+          type: string
+        leaderUserId:
+          type: string
+        storeId:
+          type: string
+        buyerName:
+          type: string
+        buyerAvatarUrl:
+          type: string
+          nullable: true
+        leaderName:
+          type: string
+        leaderAvatarUrl:
+          type: string
+          nullable: true
+        storeName:
+          type: string
+        storeLogoUrl:
+          type: string
+          nullable: true
+        currentUserRole:
+          type: string
+          enum:
+            - buyer
+            - leader
+        unreadCount:
+          type: integer
+        lastMessageId:
+          type: string
+          nullable: true
+        lastMessageText:
+          type: string
+          nullable: true
+        lastMessageType:
+          type: string
+          nullable: true
+        lastMessageAt:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      additionalProperties: false
+    ChatMessageData:
+      type: object
+      required:
+        - id
+        - conversationId
+        - senderRole
+        - messageType
+        - mine
+        - createdAt
+      properties:
+        id:
+          type: string
+        conversationId:
+          type: string
+        senderUserId:
+          type: string
+          nullable: true
+        senderRole:
+          type: string
+          enum:
+            - buyer
+            - leader
+            - system
+        messageType:
+          type: string
+          enum:
+            - text
+            - image
+            - card
+        content:
+          type: string
+          nullable: true
+        imageAssetId:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        cardType:
+          type: string
+          nullable: true
+        cardPayload:
+          type: object
+          nullable: true
+          additionalProperties: true
+        relatedOrderId:
+          type: string
+          nullable: true
+        mine:
+          type: boolean
+        createdAt:
+          type: string
+      additionalProperties: false
+    SendChatMessageRequest:
+      type: object
+      required:
+        - messageType
+        - clientMessageId
+      properties:
+        messageType:
+          type: string
+          enum:
+            - text
+            - image
+        content:
+          type: string
+          maxLength: 1000
+        imageAssetId:
+          type: string
+        imageUrl:
+          type: string
+        clientMessageId:
+          type: string
+          maxLength: 128
+      additionalProperties: false
+    SendChatCardRequest:
+      type: object
+      required:
+        - cardType
+        - orderId
+      properties:
+        cardType:
+          type: string
+          enum:
+            - order_summary
+            - prepare_done
+        orderId:
+          type: string
+        clientMessageId:
+          type: string
+          maxLength: 128
       additionalProperties: false
     # ── Error ─────────────────────────────────────────────────────
     ErrorResponse:

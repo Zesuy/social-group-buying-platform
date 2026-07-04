@@ -147,6 +147,15 @@ describe('Router guards', () => {
     expect(router.currentRoute.value.query.redirect).toBe('/messages')
   })
 
+  it('should redirect /chats/:conversationId to /login when not authenticated', async () => {
+    const router = await setupRouter()
+    await router.push('/chats/1')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/chats/1')
+  })
+
   it('should allow /profile without authentication (now public)', async () => {
     const router = await setupRouter()
     await router.push('/profile')

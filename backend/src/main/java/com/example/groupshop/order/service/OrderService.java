@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.groupshop.address.service.AddressService;
 import com.example.groupshop.cart.service.CartCheckoutPreviewResult;
 import com.example.groupshop.cart.service.CartService;
+import com.example.groupshop.chat.service.ChatService;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.common.response.PageResponse;
@@ -78,6 +79,7 @@ public class OrderService {
     private final MemberLevelRuleService memberLevelRuleService;
     private final AfterSaleMapper afterSaleMapper;
     private final NotificationService notificationService;
+    private final ChatService chatService;
 
     private static final String DB_STATUS_PENDING_PAY = "pending_pay";
     private static final String API_STATUS_PENDING_PAY = "pendingPay";
@@ -399,6 +401,7 @@ public class OrderService {
             cartService.deleteCartItemsByIds(cartItemIdsToDelete);
         }
 
+        chatService.recordOrderCreated(order);
         return toOrderResponse(order, itemDataList);
     }
 
@@ -540,6 +543,7 @@ public class OrderService {
         // Create or update member relation with payAmount
         upsertMemberRelation(order, now);
         notificationService.notifyOrderPaid(order, userId);
+        chatService.recordOrderPaid(order);
 
         return toOrderResponseWithItems(order);
     }
@@ -598,6 +602,7 @@ public class OrderService {
         order.setOrderStatus("completed");
         order.setCompletedAt(now);
         notificationService.notifyOrderCompleted(order, userId);
+        chatService.recordOrderCompleted(order);
 
         return toOrderResponseWithItems(order);
     }

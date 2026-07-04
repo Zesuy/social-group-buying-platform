@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '消息', showTabBar: true, requiresAuth: true },
   },
   {
+    path: '/chats/:conversationId',
+    name: 'chatDetail',
+    component: () => import('@/views/ChatDetailView.vue'),
+    meta: { title: '联系团长', requiresAuth: true },
+  },
+  {
     path: '/profile',
     name: 'profile',
     component: () => import('@/views/ProfileView.vue'),

@@ -73,6 +73,13 @@ public enum ErrorCode {
     // ── Notification errors ─────────────────────────────────────────────
     NOTIFICATION_NOT_FOUND(404, "NOTIFICATION_NOT_FOUND", "通知不存在"),
     NOTIFICATION_FORBIDDEN(403, "NOTIFICATION_FORBIDDEN", "不能操作他人通知"),
+
+    // ── Chat errors ─────────────────────────────────────────────────────
+    CHAT_CONVERSATION_NOT_FOUND(404, "CHAT_CONVERSATION_NOT_FOUND", "会话不存在"),
+    CHAT_FORBIDDEN(403, "CHAT_FORBIDDEN", "不能操作他人会话"),
+    CHAT_MESSAGE_INVALID(400, "CHAT_MESSAGE_INVALID", "消息内容不合法"),
+    CHAT_ASSET_INVALID(422, "CHAT_ASSET_INVALID", "聊天图片不可用"),
+    CHAT_CARD_NOT_ALLOWED(403, "CHAT_CARD_NOT_ALLOWED", "不能发送该消息卡片"),
     ;
 
     private final int httpStatus;
