@@ -8,27 +8,28 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Response DTO for a coupon.
+ * Store homepage coupon offer as seen by a buyer.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CouponResponse {
+public class StoreCouponOfferResponse {
 
     private Long id;
-    private Long storeId;
     private String name;
     private String couponType;
     private String claimCondition;
     private Long amount;
     private Long thresholdAmount;
+    private LocalDateTime startTime;
+    private LocalDateTime endTime;
     private Integer totalQuantity;
     private Integer claimedQuantity;
     private Integer perUserLimit;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
     private String status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Boolean claimable;
+    private Boolean claimed;
+    private Boolean viewerSubscribed;
+    private String unavailableReason;
 }

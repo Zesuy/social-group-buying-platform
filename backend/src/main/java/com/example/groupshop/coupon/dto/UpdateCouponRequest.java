@@ -16,6 +16,9 @@ public class UpdateCouponRequest {
     /** amount / red_packet */
     private String couponType;
 
+    /** general / new_subscriber */
+    private String claimCondition;
+
     /** Discount amount in fen */
     @Positive
     private Long amount;

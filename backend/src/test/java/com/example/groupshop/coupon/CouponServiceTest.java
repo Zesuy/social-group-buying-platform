@@ -13,11 +13,13 @@ import com.example.groupshop.coupon.service.CouponService;
 import com.example.groupshop.model.entity.Coupon;
 import com.example.groupshop.model.entity.Leader;
 import com.example.groupshop.model.entity.Store;
+import com.example.groupshop.model.entity.Subscription;
 import com.example.groupshop.model.entity.User;
 import com.example.groupshop.model.entity.UserCoupon;
 import com.example.groupshop.model.mapper.CouponMapper;
 import com.example.groupshop.model.mapper.LeaderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
+import com.example.groupshop.model.mapper.SubscriptionMapper;
 import com.example.groupshop.model.mapper.UserCouponMapper;
 import com.example.groupshop.model.mapper.UserMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,7 +57,11 @@ class CouponServiceTest extends ServiceTestBase {
     @Autowired
     private StoreMapper storeMapper;
 
+    @Autowired
+    private SubscriptionMapper subscriptionMapper;
+
     private Long storeOwnerUserId;
+    private Long leaderId;
     private Long storeId;
     private Long buyerUserId;
     private Long couponId;
@@ -77,6 +83,7 @@ class CouponServiceTest extends ServiceTestBase {
         leader.setMemberCount(0);
         leader.setFollowerCount(0);
         leaderMapper.insert(leader);
+        leaderId = leader.getId();
 
         Store store = new Store();
         store.setLeaderId(leader.getId());
@@ -129,6 +136,7 @@ class CouponServiceTest extends ServiceTestBase {
         assertThat(response.getId()).isPositive();
         assertThat(response.getName()).isEqualTo("新优惠券");
         assertThat(response.getCouponType()).isEqualTo("amount");
+        assertThat(response.getClaimCondition()).isEqualTo("general");
         assertThat(response.getAmount()).isEqualTo(1000L);
         assertThat(response.getThresholdAmount()).isEqualTo(5000L);
         assertThat(response.getTotalQuantity()).isEqualTo(50);
@@ -177,6 +185,24 @@ class CouponServiceTest extends ServiceTestBase {
     }
 
     @Test
+    void createCoupon_shouldSupportNewSubscriberClaimCondition() {
+        CreateCouponRequest request = new CreateCouponRequest();
+        request.setName("新人订阅券");
+        request.setCouponType("amount");
+        request.setClaimCondition("new_subscriber");
+        request.setAmount(800L);
+        request.setThresholdAmount(0L);
+        request.setTotalQuantity(30);
+        request.setStartTime(LocalDateTime.now().minusDays(1));
+        request.setEndTime(LocalDateTime.now().plusDays(30));
+
+        CouponResponse response = couponService.createCoupon(storeOwnerUserId, request);
+
+        assertThat(response.getClaimCondition()).isEqualTo("new_subscriber");
+        assertThat(couponMapper.selectById(response.getId()).getClaimCondition()).isEqualTo("new_subscriber");
+    }
+
+    @Test
     void getStoreCoupons_shouldReturnList() {
         List<CouponResponse> coupons = couponService.getStoreCoupons(storeOwnerUserId);
 
@@ -197,6 +223,16 @@ class CouponServiceTest extends ServiceTestBase {
         // Unchanged fields should remain
         assertThat(response.getCouponType()).isEqualTo("amount");
         assertThat(response.getThresholdAmount()).isEqualTo(10000L);
+    }
+
+    @Test
+    void updateCoupon_shouldUpdateClaimCondition() {
+        UpdateCouponRequest request = new UpdateCouponRequest();
+        request.setClaimCondition("new_subscriber");
+
+        CouponResponse response = couponService.updateCoupon(storeOwnerUserId, couponId, request);
+
+        assertThat(response.getClaimCondition()).isEqualTo("new_subscriber");
     }
 
     @Test
@@ -257,6 +293,62 @@ class CouponServiceTest extends ServiceTestBase {
         // claimed_quantity incremented
         Coupon coupon = couponMapper.selectById(couponId);
         assertThat(coupon.getClaimedQuantity()).isEqualTo(1);
+    }
+
+    @Test
+    void claimNewSubscriberCoupon_shouldFailBeforeSubscription() {
+        Long newSubscriberCouponId = createNewSubscriberCoupon();
+
+        assertThatThrownBy(() -> couponService.claimCoupon(buyerUserId, newSubscriberCouponId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COUPON_NOT_AVAILABLE);
+    }
+
+    @Test
+    void claimNewSubscriberCoupon_shouldSucceedAfterSubscription() {
+        Long newSubscriberCouponId = createNewSubscriberCoupon();
+        subscribeBuyer();
+
+        UserCouponResponse response = couponService.claimCoupon(buyerUserId, newSubscriberCouponId);
+
+        assertThat(response.getCouponId()).isEqualTo(newSubscriberCouponId);
+        assertThat(response.getStatus()).isEqualTo("unused");
+    }
+
+    @Test
+    void getLeaderHomepageCouponOffers_shouldReturnViewerState() {
+        Long newSubscriberCouponId = createNewSubscriberCoupon();
+
+        assertThat(couponService.getLeaderHomepageCouponOffers(leaderId, buyerUserId, "homepage"))
+                .singleElement()
+                .satisfies(offer -> {
+                    assertThat(offer.getId()).isEqualTo(newSubscriberCouponId);
+                    assertThat(offer.getClaimCondition()).isEqualTo("new_subscriber");
+                    assertThat(offer.getViewerSubscribed()).isFalse();
+                    assertThat(offer.getClaimable()).isFalse();
+                    assertThat(offer.getUnavailableReason()).isEqualTo("订阅店铺后可领取");
+                });
+
+        subscribeBuyer();
+
+        assertThat(couponService.getLeaderHomepageCouponOffers(leaderId, buyerUserId, "homepage"))
+                .singleElement()
+                .satisfies(offer -> {
+                    assertThat(offer.getViewerSubscribed()).isTrue();
+                    assertThat(offer.getClaimable()).isTrue();
+                    assertThat(offer.getUnavailableReason()).isNull();
+                });
+
+        couponService.claimCoupon(buyerUserId, newSubscriberCouponId);
+
+        assertThat(couponService.getLeaderHomepageCouponOffers(leaderId, buyerUserId, "homepage"))
+                .singleElement()
+                .satisfies(offer -> {
+                    assertThat(offer.getClaimed()).isTrue();
+                    assertThat(offer.getClaimable()).isFalse();
+                    assertThat(offer.getUnavailableReason()).isEqualTo("已领取");
+                });
     }
 
     @Test
@@ -454,5 +546,30 @@ class CouponServiceTest extends ServiceTestBase {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+
+    private Long createNewSubscriberCoupon() {
+        CreateCouponRequest request = new CreateCouponRequest();
+        request.setName("订阅新人立减");
+        request.setCouponType("amount");
+        request.setClaimCondition("new_subscriber");
+        request.setAmount(1000L);
+        request.setThresholdAmount(0L);
+        request.setTotalQuantity(20);
+        request.setPerUserLimit(1);
+        request.setStartTime(LocalDateTime.now().minusDays(1));
+        request.setEndTime(LocalDateTime.now().plusDays(30));
+        return couponService.createCoupon(storeOwnerUserId, request).getId();
+    }
+
+    private void subscribeBuyer() {
+        Subscription subscription = new Subscription();
+        subscription.setUserId(buyerUserId);
+        subscription.setLeaderId(leaderId);
+        subscription.setStoreId(storeId);
+        subscription.setStatus("active");
+        subscription.setSource("homepage");
+        subscription.setSubscribedAt(LocalDateTime.now());
+        subscriptionMapper.insert(subscription);
     }
 }

@@ -1,13 +1,16 @@
 package com.example.groupshop.coupon.controller;
 
 import com.example.groupshop.auth.AuthInterceptor;
+import com.example.groupshop.auth.TokenStore;
 import com.example.groupshop.common.response.ApiResponse;
 import com.example.groupshop.coupon.dto.AvailableCouponResponse;
 import com.example.groupshop.coupon.dto.CouponResponse;
 import com.example.groupshop.coupon.dto.CreateCouponRequest;
+import com.example.groupshop.coupon.dto.StoreCouponOfferResponse;
 import com.example.groupshop.coupon.dto.UpdateCouponRequest;
 import com.example.groupshop.coupon.dto.UserCouponResponse;
 import com.example.groupshop.coupon.service.CouponService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,7 +33,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CouponController {
 
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
+
     private final CouponService couponService;
+    private final TokenStore tokenStore;
 
     // ── Store Coupon Management ──────────────────────────────────────────
 
@@ -86,6 +93,18 @@ public class CouponController {
         return ApiResponse.success(couponService.getAvailableCouponsForGroupBuy(groupBuyId));
     }
 
+    /**
+     * List visible coupon offers for a leader homepage.
+     */
+    @GetMapping("/leaders/{leaderId}/coupons")
+    public ApiResponse<List<StoreCouponOfferResponse>> getLeaderHomepageCoupons(
+            @PathVariable Long leaderId,
+            @RequestParam(required = false) String scene,
+            HttpServletRequest request) {
+        return ApiResponse.success(couponService.getLeaderHomepageCouponOffers(
+                leaderId, resolveOptionalUserId(request), scene));
+    }
+
     // ── User Claiming ────────────────────────────────────────────────────
 
     /**
@@ -108,5 +127,17 @@ public class CouponController {
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
             @RequestParam(required = false) String status) {
         return ApiResponse.success(couponService.getMyCoupons(userId, status));
+    }
+
+    private Long resolveOptionalUserId(HttpServletRequest request) {
+        String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+        if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
+            return null;
+        }
+        String token = authHeader.substring(BEARER_PREFIX.length()).trim();
+        if (token.isBlank()) {
+            return null;
+        }
+        return tokenStore.resolveUserId(token);
     }
 }

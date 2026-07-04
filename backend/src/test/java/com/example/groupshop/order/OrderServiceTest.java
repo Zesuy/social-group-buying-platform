@@ -791,6 +791,34 @@ class OrderServiceTest extends ServiceTestBase {
     }
 
     @Test
+    void previewOrder_withClaimedCoupon_shouldReturnUserCouponIdForSelection() {
+        Long templateCouponId = createTestCoupon();
+        UserCouponResponse userCoupon = couponService.claimCoupon(userId, templateCouponId);
+
+        OrderPreviewRequest request = new OrderPreviewRequest();
+        request.setGroupBuyId(groupBuyId);
+        request.setAddressId(addressId);
+        OrderPreviewRequest.OrderItemEntry entry = new OrderPreviewRequest.OrderItemEntry();
+        entry.setGroupBuyItemId(groupBuyItemId);
+        entry.setQuantity(2);
+        request.setItems(List.of(entry));
+
+        OrderPreviewResponse initial = orderService.previewOrder(userId, request);
+        assertThat(initial.getAvailableCoupons()).isNotEmpty();
+        assertThat(initial.getAvailableCoupons().get(0).getId()).isEqualTo(templateCouponId);
+        assertThat(initial.getAvailableCoupons().get(0).getUserCouponId()).isEqualTo(userCoupon.getId());
+
+        request.setUserCouponId(initial.getAvailableCoupons().get(0).getUserCouponId());
+        OrderPreviewResponse selected = orderService.previewOrder(userId, request);
+
+        assertThat(selected.getDiscountAmount()).isEqualTo(1000L);
+        assertThat(selected.getPayAmount()).isEqualTo(2980L);
+        assertThat(selected.getSelectedCoupon()).isNotNull();
+        assertThat(selected.getSelectedCoupon().getId()).isEqualTo(templateCouponId);
+        assertThat(selected.getSelectedCoupon().getUserCouponId()).isEqualTo(userCoupon.getId());
+    }
+
+    @Test
     void createOrder_withCoupon_shouldLockCoupon() {
         // Create and claim a coupon
         Long templateCouponId = createTestCoupon();

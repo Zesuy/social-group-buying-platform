@@ -18,6 +18,7 @@ tags:
   - name: Leader
   - name: StoreOrder
   - name: Subscription
+  - name: Coupon
   - name: MemberCard
   - name: Category
   - name: Favorite
@@ -1361,6 +1362,36 @@ paths:
                 $ref: '#/components/schemas/LeaderHomepageSuccessResponse'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/leaders/{leaderId}/coupons:
+    get:
+      tags:
+        - Coupon
+      summary: List visible coupon offers for a leader homepage.
+      operationId: listLeaderHomepageCoupons
+      parameters:
+        - name: leaderId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+        - name: scene
+          in: query
+          schema:
+            type: string
+            enum:
+              - homepage
+      responses:
+        '200':
+          description: Visible new-subscriber coupon offers for the leader store.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreCouponOfferListSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/my/addresses:
     get:
       tags:
@@ -2056,6 +2087,145 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/coupons:
+    get:
+      tags:
+        - Coupon
+      summary: List current store coupons.
+      operationId: listStoreCoupons
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current leader store coupons.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreCouponListSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+    post:
+      tags:
+        - Coupon
+      summary: Create a store coupon.
+      operationId: createStoreCoupon
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCouponRequest'
+      responses:
+        '200':
+          description: Coupon created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreCouponSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/coupons/{couponId}:
+    patch:
+      tags:
+        - Coupon
+      summary: Update a store coupon.
+      operationId: updateStoreCoupon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: couponId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCouponRequest'
+      responses:
+        '200':
+          description: Coupon updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreCouponSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/my/store/coupons/{couponId}/disable:
+    post:
+      tags:
+        - Coupon
+      summary: Disable a store coupon.
+      operationId: disableStoreCoupon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: couponId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+      responses:
+        '200':
+          description: Coupon disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/coupons/{couponId}/claim:
+    post:
+      tags:
+        - Coupon
+      summary: Claim a coupon.
+      operationId: claimCoupon
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: couponId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+      responses:
+        '200':
+          description: Coupon claimed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCouponSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ResourceConflictError'
+        '422':
+          $ref: '#/components/responses/BusinessRuleViolationError'
   /api/v1/my/member-cards:
     get:
       tags:
@@ -4696,6 +4866,20 @@ components:
         payAmount:
           type: integer
           minimum: 0
+        availableCoupons:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/AvailableCouponData'
+        unavailableCoupons:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/AvailableCouponData'
+        selectedCoupon:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/AvailableCouponData'
       additionalProperties: false
     OrderPreviewAddress:
       type: object
@@ -5107,6 +5291,338 @@ components:
         shippedAt:
           type: string
           nullable: true
+      additionalProperties: false
+    # ── Coupon ────────────────────────────────────────────────────────
+    AvailableCouponData:
+      type: object
+      required:
+        - id
+        - name
+        - couponType
+        - amount
+        - thresholdAmount
+      properties:
+        id:
+          type: string
+          description: 店铺券模板 ID；不能作为下单 userCouponId 使用。
+        userCouponId:
+          type: string
+          nullable: true
+          description: 用户已领取券 ID；订单预览和下单时传该字段。
+        name:
+          type: string
+        couponType:
+          type: string
+          enum: [amount, red_packet]
+        claimCondition:
+          type: string
+          enum: [general, new_subscriber]
+        amount:
+          type: integer
+          format: int64
+        thresholdAmount:
+          type: integer
+          format: int64
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        totalQuantity:
+          type: integer
+        claimedQuantity:
+          type: integer
+        perUserLimit:
+          type: integer
+        unavailableReason:
+          type: string
+          nullable: true
+      additionalProperties: false
+
+    CreateCouponRequest:
+      type: object
+      required:
+        - name
+        - couponType
+        - amount
+        - totalQuantity
+        - startTime
+        - endTime
+      properties:
+        name:
+          type: string
+        couponType:
+          type: string
+          enum: [amount, red_packet]
+        claimCondition:
+          type: string
+          enum: [general, new_subscriber]
+          default: general
+        amount:
+          type: integer
+          format: int64
+          description: Discount amount in fen.
+        thresholdAmount:
+          type: integer
+          format: int64
+          default: 0
+        totalQuantity:
+          type: integer
+        perUserLimit:
+          type: integer
+          default: 1
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+      additionalProperties: false
+    UpdateCouponRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        couponType:
+          type: string
+          enum: [amount, red_packet]
+        claimCondition:
+          type: string
+          enum: [general, new_subscriber]
+        amount:
+          type: integer
+          format: int64
+        thresholdAmount:
+          type: integer
+          format: int64
+        totalQuantity:
+          type: integer
+        perUserLimit:
+          type: integer
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+      additionalProperties: false
+    StoreCouponData:
+      type: object
+      required:
+        - id
+        - storeId
+        - name
+        - couponType
+        - claimCondition
+        - amount
+        - thresholdAmount
+        - totalQuantity
+        - claimedQuantity
+        - perUserLimit
+        - startTime
+        - endTime
+        - status
+      properties:
+        id:
+          type: string
+        storeId:
+          type: string
+        name:
+          type: string
+        couponType:
+          type: string
+        claimCondition:
+          type: string
+          enum: [general, new_subscriber]
+        amount:
+          type: integer
+          format: int64
+        thresholdAmount:
+          type: integer
+          format: int64
+        totalQuantity:
+          type: integer
+        claimedQuantity:
+          type: integer
+        perUserLimit:
+          type: integer
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active, disabled]
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+    StoreCouponOfferData:
+      type: object
+      required:
+        - id
+        - name
+        - couponType
+        - claimCondition
+        - amount
+        - thresholdAmount
+        - totalQuantity
+        - claimedQuantity
+        - perUserLimit
+        - startTime
+        - endTime
+        - status
+        - claimable
+        - claimed
+        - viewerSubscribed
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        couponType:
+          type: string
+        claimCondition:
+          type: string
+          enum: [new_subscriber]
+        amount:
+          type: integer
+          format: int64
+        thresholdAmount:
+          type: integer
+          format: int64
+        totalQuantity:
+          type: integer
+        claimedQuantity:
+          type: integer
+        perUserLimit:
+          type: integer
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [active]
+        claimable:
+          type: boolean
+        claimed:
+          type: boolean
+        viewerSubscribed:
+          type: boolean
+        unavailableReason:
+          type: string
+          nullable: true
+      additionalProperties: false
+    UserCouponData:
+      type: object
+      required:
+        - id
+        - couponId
+        - couponName
+        - couponType
+        - amount
+        - thresholdAmount
+        - status
+      properties:
+        id:
+          type: string
+        couponId:
+          type: string
+        couponName:
+          type: string
+        couponType:
+          type: string
+        amount:
+          type: integer
+          format: int64
+        thresholdAmount:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [unused, locked, used, expired]
+        lockedOrderId:
+          type: string
+          nullable: true
+        claimedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lockedAt:
+          type: string
+          format: date-time
+          nullable: true
+        usedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiredAt:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+    StoreCouponSuccessResponse:
+      type: object
+      required: [success, data, traceId]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/StoreCouponData'
+        traceId:
+          type: string
+      additionalProperties: false
+    StoreCouponListSuccessResponse:
+      type: object
+      required: [success, data, traceId]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoreCouponData'
+        traceId:
+          type: string
+      additionalProperties: false
+    StoreCouponOfferListSuccessResponse:
+      type: object
+      required: [success, data, traceId]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoreCouponOfferData'
+        traceId:
+          type: string
+      additionalProperties: false
+    UserCouponSuccessResponse:
+      type: object
+      required: [success, data, traceId]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/UserCouponData'
+        traceId:
+          type: string
       additionalProperties: false
     # ── Subscription ───────────────────────────────────────────────────
     SubscriptionRequest:

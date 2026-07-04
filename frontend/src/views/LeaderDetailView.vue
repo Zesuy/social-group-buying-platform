@@ -72,6 +72,20 @@
             </div>
           </div>
 
+          <button
+            v-if="showCouponEntry"
+            type="button"
+            class="leader-coupon-entry"
+            @click="openCouponSheet"
+          >
+            <van-icon name="coupon-o" />
+            <span>
+              <b>{{ couponEntryTitle }}</b>
+              <small>{{ couponEntrySubtitle }}</small>
+            </span>
+            <van-icon name="arrow" />
+          </button>
+
           <div class="leader-store-location">
             <van-icon name="location-o" />
             <div>
@@ -145,6 +159,54 @@
         </section>
       </div>
     </template>
+
+    <van-popup
+      v-model:show="couponSheetVisible"
+      position="bottom"
+      round
+      :style="{ maxHeight: '82vh' }"
+      @click-overlay="rememberCouponSheetDismissed"
+    >
+      <div class="leader-coupon-sheet">
+        <div class="leader-coupon-sheet__header">
+          <div>
+            <span>店铺新人福利</span>
+            <h2>订阅后领取店铺券</h2>
+            <p>领取后可在确认订单页选择使用。</p>
+          </div>
+          <button type="button" aria-label="关闭新人券弹窗" @click="closeCouponSheet">
+            <van-icon name="cross" />
+          </button>
+        </div>
+
+        <div class="leader-coupon-sheet__list">
+          <article
+            v-for="coupon in couponOffers"
+            :key="coupon.id"
+            class="leader-coupon-card"
+            :class="{ 'leader-coupon-card--claimed': coupon.claimed }"
+          >
+            <div class="leader-coupon-card__amount">
+              <strong>{{ formatAmount(coupon.amount) }}</strong>
+              <small>{{ coupon.thresholdAmount > 0 ? `满${formatAmount(coupon.thresholdAmount)}可用` : '无门槛' }}</small>
+            </div>
+            <div class="leader-coupon-card__copy">
+              <h3>{{ coupon.name }}</h3>
+              <p>{{ coupon.unavailableReason || '订阅后可立即领取' }}</p>
+              <small>剩余 {{ Math.max(coupon.totalQuantity - coupon.claimedQuantity, 0) }} 张</small>
+            </div>
+            <button
+              type="button"
+              class="leader-coupon-card__button"
+              :disabled="couponActionLoadingId === coupon.id || coupon.claimed"
+              @click="handleCouponAction(coupon)"
+            >
+              {{ couponButtonText(coupon) }}
+            </button>
+          </article>
+        </div>
+      </div>
+    </van-popup>
   </PageLayout>
 </template>
 
@@ -160,7 +222,14 @@ import AppCard from '@/components/AppCard.vue'
 import { useAuthStore } from '@/stores'
 import { getLeaderHomepage, subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { getMyStore } from '@/api/stores'
-import type { LeaderHomepageLeader, LeaderHomepageStore, PublicGroupBuyItem } from '@/types'
+import { claimCoupon, listLeaderHomepageCoupons } from '@/api/coupons'
+import { formatAmount } from '@/utils/format'
+import type {
+  LeaderHomepageLeader,
+  LeaderHomepageStore,
+  PublicGroupBuyItem,
+  StoreCouponOfferData,
+} from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -180,6 +249,10 @@ const hasMore = ref(true)
 const subLoading = ref(false)
 const activeSort = ref('default')
 const locationLineDismissed = ref(false)
+const couponOffers = ref<StoreCouponOfferData[]>([])
+const couponSheetVisible = ref(false)
+const couponActionLoadingId = ref<string | null>(null)
+const couponSheetSessionDismissed = ref(false)
 
 const sortTabs = [
   { key: 'default', label: '默认' },
@@ -235,6 +308,21 @@ const storeLocationMetaText = computed(() => {
   if (hasStoreLocation.value) return '店铺已设置定位'
   return '还没有设置店铺定位'
 })
+const showCouponEntry = computed(() => !isOwnLeader.value && couponOffers.value.length > 0)
+const claimableCouponCount = computed(() => couponOffers.value.filter((coupon) => coupon.claimable).length)
+const unclaimedCouponCount = computed(() => couponOffers.value.filter((coupon) => !coupon.claimed).length)
+const couponEntryTitle = computed(() => {
+  if (!authStore.isLoggedIn) return '订阅可领新人券'
+  if (!subscribed.value) return '订阅后领取新人券'
+  if (claimableCouponCount.value > 0) return `${claimableCouponCount.value} 张新人券待领取`
+  return '新人券'
+})
+const couponEntrySubtitle = computed(() => {
+  const first = couponOffers.value[0]
+  if (!first) return ''
+  if (unclaimedCouponCount.value === 0) return '已领取，可在下单时使用'
+  return `${formatAmount(first.amount)} 起，进店订阅后可领`
+})
 
 function readSavedUserLocation(): { latitude: number; longitude: number } | null {
   try {
@@ -284,11 +372,104 @@ async function fetchData() {
     hasMore.value = data.groupBuys.hasMore
     listPage.value = 1
     await syncOwnStoreLocation()
+    await fetchCouponOffers({ autoOpen: true })
   } catch (err) {
     const apiErr = err as { message?: string }
     error.value = apiErr.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+function couponDismissKey(leaderId = leaderData.value?.id) {
+  return leaderId ? `leader-home:${leaderId}:coupon-sheet-dismissed` : ''
+}
+
+function readCouponSheetDismissed(leaderId: string): boolean {
+  try {
+    return window.sessionStorage.getItem(couponDismissKey(leaderId)) === '1'
+  } catch {
+    return couponSheetSessionDismissed.value
+  }
+}
+
+function rememberCouponSheetDismissed() {
+  couponSheetSessionDismissed.value = true
+  try {
+    const key = couponDismissKey()
+    if (key) window.sessionStorage.setItem(key, '1')
+  } catch {
+    // 会话偏好保存失败不影响领券。
+  }
+}
+
+async function fetchCouponOffers(options: { autoOpen?: boolean } = {}) {
+  if (!leaderData.value || isOwnLeader.value) {
+    couponOffers.value = []
+    return
+  }
+  try {
+    const offers = await listLeaderHomepageCoupons(leaderData.value.id)
+    couponOffers.value = offers
+    const shouldAutoOpen = options.autoOpen
+      && offers.some((coupon) => !coupon.claimed)
+      && !readCouponSheetDismissed(leaderData.value.id)
+    if (shouldAutoOpen) couponSheetVisible.value = true
+  } catch {
+    couponOffers.value = []
+  }
+}
+
+function openCouponSheet() {
+  couponSheetVisible.value = true
+}
+
+function closeCouponSheet() {
+  rememberCouponSheetDismissed()
+  couponSheetVisible.value = false
+}
+
+function couponButtonText(coupon: StoreCouponOfferData) {
+  if (couponActionLoadingId.value === coupon.id) return '处理中'
+  if (coupon.claimed) return '已领取'
+  if (!authStore.isLoggedIn) return '登录订阅'
+  if (!subscribed.value || !coupon.viewerSubscribed) return '订阅领券'
+  if (coupon.claimable) return '立即领取'
+  return coupon.unavailableReason || '暂不可领'
+}
+
+async function handleCouponAction(coupon: StoreCouponOfferData) {
+  if (coupon.claimed) return
+  if (!authStore.isLoggedIn) {
+    router.push(`/login?redirect=${route.fullPath}`)
+    return
+  }
+
+  couponActionLoadingId.value = coupon.id
+  try {
+    const id = route.params.id as string
+    if (!subscribed.value || !coupon.viewerSubscribed) {
+      await subscribeLeader(id, 'homepageCoupon')
+      subscribed.value = true
+      showToast('订阅成功，现在可以领取')
+      await fetchCouponOffers()
+      return
+    }
+
+    await claimCoupon(coupon.id)
+    showToast('优惠券已领取')
+    await fetchCouponOffers()
+  } catch (err) {
+    const apiErr = err as { code?: string; message?: string }
+    if (apiErr.code === 'SUBSCRIPTION_EXISTS') {
+      subscribed.value = true
+      showToast('已订阅，现在可以领取')
+      await fetchCouponOffers()
+    } else {
+      showToast(apiErr.message || '操作失败')
+    }
+  } finally {
+    couponActionLoadingId.value = null
   }
 }
 
@@ -351,16 +532,19 @@ async function toggleSubscribe() {
       await unsubscribeLeader(id)
       subscribed.value = false
       showToast('已取消订阅')
+      await fetchCouponOffers()
     } else {
       await subscribeLeader(id, 'homepage')
       subscribed.value = true
       showToast('订阅成功')
+      await fetchCouponOffers()
     }
   } catch (err) {
     const apiErr = err as { code?: string; message?: string }
     if (apiErr.code === 'SUBSCRIPTION_EXISTS') {
       subscribed.value = true
       showToast('已订阅')
+      await fetchCouponOffers()
     } else {
       showToast(apiErr.message || '操作失败')
     }
@@ -657,6 +841,53 @@ onMounted(() => {
   font-size: var(--font-size-xs);
 }
 
+.leader-coupon-entry {
+  width: calc(100% - 36px);
+  min-height: 64px;
+  margin: 0 18px 12px;
+  border: 1px solid rgba(16, 196, 104, 0.22);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-light);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.leader-coupon-entry > .van-icon:first-child {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--color-primary-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.leader-coupon-entry span {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.leader-coupon-entry b {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.leader-coupon-entry small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+
 .leader-store-location {
   min-height: 64px;
   margin: 0 18px 12px;
@@ -851,6 +1082,132 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.leader-coupon-sheet {
+  padding: 16px 14px calc(var(--safe-area-bottom) + 14px);
+  background: var(--color-bg-card);
+}
+
+.leader-coupon-sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.leader-coupon-sheet__header span {
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.leader-coupon-sheet__header h2 {
+  margin: 4px 0;
+  color: var(--color-text-primary);
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.leader-coupon-sheet__header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.leader-coupon-sheet__header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.leader-coupon-sheet__list {
+  display: grid;
+  gap: 10px;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+
+.leader-coupon-card {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-card);
+  background: #fff;
+}
+
+.leader-coupon-card--claimed {
+  opacity: 0.68;
+}
+
+.leader-coupon-card__amount {
+  min-height: 72px;
+  border-radius: 8px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px;
+}
+
+.leader-coupon-card__amount strong {
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.leader-coupon-card__amount small,
+.leader-coupon-card__copy small,
+.leader-coupon-card__copy p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.leader-coupon-card__copy {
+  min-width: 0;
+}
+
+.leader-coupon-card__copy h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  line-height: 1.35;
+}
+
+.leader-coupon-card__copy p {
+  margin: 4px 0 2px;
+}
+
+.leader-coupon-card__button {
+  min-width: 76px;
+  min-height: 40px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  padding: 0 10px;
+}
+
+.leader-coupon-card__button:disabled {
+  background: var(--color-bg-surface);
+  color: var(--color-text-hint);
+}
+
 @media (max-width: 374px) {
   .leader-topbar {
     gap: 8px;
@@ -867,6 +1224,19 @@ onMounted(() => {
 
   .leader-subscribe-button {
     padding: 0 10px;
+  }
+
+  .leader-coupon-card {
+    grid-template-columns: 1fr;
+  }
+
+  .leader-coupon-card__amount {
+    min-height: 58px;
+  }
+
+  .leader-coupon-card__button {
+    width: 100%;
+    min-height: 44px;
   }
 }
 </style>

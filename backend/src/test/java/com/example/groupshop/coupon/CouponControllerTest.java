@@ -26,6 +26,7 @@ class CouponControllerTest extends MockMvcTestBase {
 
     private String leaderToken;
     private String buyerToken;
+    private Long leaderId;
 
     // ── Helpers ──────────────────────────────────────────────────────
 
@@ -41,6 +42,10 @@ class CouponControllerTest extends MockMvcTestBase {
      * Create a store coupon with a unique name and return its ID.
      */
     private Long createUniqueCoupon() throws Exception {
+        return createUniqueCoupon("general");
+    }
+
+    private Long createUniqueCoupon(String claimCondition) throws Exception {
         testCounter++;
         String name = "测试券" + testCounter;
         String response = mockMvc.perform(post(STORE_COUPONS_URL)
@@ -50,6 +55,7 @@ class CouponControllerTest extends MockMvcTestBase {
                                 {
                                     "name": "%s",
                                     "couponType": "amount",
+                                    "claimCondition": "%s",
                                     "amount": 2000,
                                     "thresholdAmount": 10000,
                                     "totalQuantity": 100,
@@ -57,11 +63,15 @@ class CouponControllerTest extends MockMvcTestBase {
                                     "startTime": "2026-07-01T00:00:00",
                                     "endTime": "2026-08-01T00:00:00"
                                 }
-                                """.formatted(name)))
+                                """.formatted(name, claimCondition)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
         return Long.parseLong(response.split("\"id\":\"")[1].split("\"")[0]);
+    }
+
+    private Long createNewSubscriberCoupon() throws Exception {
+        return createUniqueCoupon("new_subscriber");
     }
 
     @BeforeEach
@@ -80,6 +90,11 @@ class CouponControllerTest extends MockMvcTestBase {
                                     "defaultDeliveryType": "express"
                                 }
                                 """));
+
+        String meResponse = mockMvc.perform(get("/api/v1/me")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andReturn().getResponse().getContentAsString();
+        leaderId = Long.parseLong(meResponse.split("\"leaderId\":")[1].split(",")[0].replace("\"", "").trim());
 
         // Create buyer
         String buyerPhone = "1393002" + String.format("%04d", phoneSuffix);
@@ -169,6 +184,18 @@ class CouponControllerTest extends MockMvcTestBase {
     }
 
     @Test
+    void createNewSubscriberCoupon_shouldExposeClaimCondition() throws Exception {
+        Long couponId = createNewSubscriberCoupon();
+
+        mockMvc.perform(get(STORE_COUPONS_URL)
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data[0].id").value(String.valueOf(couponId)))
+                .andExpect(jsonPath("$.data[0].claimCondition").value("new_subscriber"));
+    }
+
+    @Test
     void disableCoupon_shouldSucceed() throws Exception {
         Long couponId = createUniqueCoupon();
 
@@ -214,6 +241,67 @@ class CouponControllerTest extends MockMvcTestBase {
                         .header("Authorization", "Bearer " + buyerToken))
                 .andExpect(status().isConflict())
                 .andExpectAll(errorResult("COUPON_ALREADY_CLAIMED"));
+    }
+
+    @Test
+    void claimNewSubscriberCoupon_shouldFailBeforeSubscriptionAndSucceedAfterSubscription() throws Exception {
+        Long couponId = createNewSubscriberCoupon();
+
+        mockMvc.perform(post("/api/v1/coupons/" + couponId + "/claim")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpectAll(errorResult("COUPON_NOT_AVAILABLE"));
+
+        mockMvc.perform(post("/api/v1/leaders/" + leaderId + "/subscription")
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("{\"source\":\"homepage\"}"))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult());
+
+        mockMvc.perform(post("/api/v1/coupons/" + couponId + "/claim")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.couponId").value(couponId));
+    }
+
+    @Test
+    void getLeaderHomepageCoupons_shouldReturnViewerState() throws Exception {
+        Long couponId = createNewSubscriberCoupon();
+
+        mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/coupons?scene=homepage"))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data[0].id").value(String.valueOf(couponId)))
+                .andExpect(jsonPath("$.data[0].viewerSubscribed").value(false))
+                .andExpect(jsonPath("$.data[0].claimable").value(false))
+                .andExpect(jsonPath("$.data[0].unavailableReason").value("登录并订阅后可领取"));
+
+        mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/coupons?scene=homepage")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data[0].id").value(String.valueOf(couponId)))
+                .andExpect(jsonPath("$.data[0].claimCondition").value("new_subscriber"))
+                .andExpect(jsonPath("$.data[0].viewerSubscribed").value(false))
+                .andExpect(jsonPath("$.data[0].claimable").value(false))
+                .andExpect(jsonPath("$.data[0].unavailableReason").value("订阅店铺后可领取"));
+
+        mockMvc.perform(post("/api/v1/leaders/" + leaderId + "/subscription")
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("{\"source\":\"homepage\"}"))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult());
+
+        mockMvc.perform(get("/api/v1/leaders/" + leaderId + "/coupons?scene=homepage")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data[0].viewerSubscribed").value(true))
+                .andExpect(jsonPath("$.data[0].claimable").value(true))
+                .andExpect(jsonPath("$.data[0].unavailableReason").doesNotExist());
     }
 
     @Test

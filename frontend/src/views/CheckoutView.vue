@@ -62,26 +62,40 @@
         <CheckoutSection v-if="hasCouponSection" title="优惠券">
           <div class="checkout-coupons">
             <button
+              v-if="selectedCoupon"
+              type="button"
+              class="checkout-coupon checkout-coupon--selected"
+              :disabled="loading"
+              @click="toggleCoupon(selectedCoupon)"
+            >
+              <span class="checkout-coupon__main">
+                <b>{{ selectedCoupon.name }}</b>
+                <small>{{ couponText(selectedCoupon) }}</small>
+              </span>
+              <span class="checkout-coupon__action">已使用</span>
+            </button>
+
+            <button
               v-for="coupon in availableCoupons"
-              :key="coupon.id"
+              :key="coupon.userCouponId || coupon.id"
               type="button"
               class="checkout-coupon"
-              :class="{ 'checkout-coupon--selected': checkoutStore.userCouponId === coupon.id }"
-              :disabled="loading"
-              @click="toggleCoupon(coupon.id)"
+              :class="{ 'checkout-coupon--selected': checkoutStore.userCouponId === coupon.userCouponId }"
+              :disabled="loading || !coupon.userCouponId"
+              @click="toggleCoupon(coupon)"
             >
               <span class="checkout-coupon__main">
                 <b>{{ coupon.name }}</b>
                 <small>{{ couponText(coupon) }}</small>
               </span>
               <span class="checkout-coupon__action">
-                {{ checkoutStore.userCouponId === coupon.id ? '已使用' : '使用' }}
+                {{ checkoutStore.userCouponId === coupon.userCouponId ? '已使用' : '使用' }}
               </span>
             </button>
 
             <div
               v-for="coupon in unavailableCoupons"
-              :key="coupon.id"
+              :key="coupon.userCouponId || coupon.id"
               class="checkout-coupon checkout-coupon--disabled"
             >
               <span class="checkout-coupon__main">
@@ -91,7 +105,7 @@
               <span class="checkout-coupon__reason">{{ coupon.unavailableReason || '暂不可用' }}</span>
             </div>
 
-            <p v-if="availableCoupons.length === 0 && unavailableCoupons.length === 0" class="checkout-coupon-empty">
+            <p v-if="!selectedCoupon && availableCoupons.length === 0 && unavailableCoupons.length === 0" class="checkout-coupon-empty">
               暂无可用优惠券
             </p>
           </div>
@@ -188,7 +202,13 @@ const hasCheckoutContext = computed(() => {
   return !!checkoutStore.groupBuyItemId
 })
 const addressInfo = computed(() => preview.value?.address ?? null)
-const availableCoupons = computed(() => preview.value?.availableCoupons ?? [])
+const selectedCoupon = computed(() => preview.value?.selectedCoupon ?? null)
+const availableCoupons = computed(() => {
+  const selectedUserCouponId = selectedCoupon.value?.userCouponId
+  return (preview.value?.availableCoupons ?? []).filter((coupon) => (
+    !selectedUserCouponId || coupon.userCouponId !== selectedUserCouponId
+  ))
+})
 const unavailableCoupons = computed(() => preview.value?.unavailableCoupons ?? [])
 const hasCouponSection = computed(() => !!preview.value)
 const canSubmit = computed(() => {
@@ -267,7 +287,7 @@ async function doPreview(): Promise<void> {
           items: [{ groupBuyItemId: checkoutStore.groupBuyItemId!, quantity: checkoutStore.quantity }],
         })
     preview.value = data
-    checkoutStore.setCoupon(data.selectedCoupon?.id ?? null)
+    checkoutStore.setCoupon(data.selectedCoupon?.userCouponId ?? null)
     lastPreviewAddressId.value = checkoutStore.selectedAddressId
   } catch (err) {
     const apiErr = err as { message?: string }
@@ -292,8 +312,12 @@ function couponText(coupon: AvailableCouponData): string {
   return `${threshold}，优惠${formatAmount(coupon.amount)}`
 }
 
-async function toggleCoupon(couponId: string): Promise<void> {
-  checkoutStore.setCoupon(checkoutStore.userCouponId === couponId ? null : couponId)
+async function toggleCoupon(coupon: AvailableCouponData): Promise<void> {
+  if (!coupon.userCouponId) {
+    showToast('请先领取该优惠券')
+    return
+  }
+  checkoutStore.setCoupon(checkoutStore.userCouponId === coupon.userCouponId ? null : coupon.userCouponId)
   await rePreview()
 }
 

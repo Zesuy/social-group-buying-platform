@@ -32,6 +32,9 @@
               </div>
             </div>
           </AppFormRow>
+          <AppFormRow label="新人订阅券" arrow clickable @click="router.push('/leader/coupons')">
+            管理进店订阅可领取的店铺券
+          </AppFormRow>
         </AppFormCard>
 
         <AppPageNote variant="info" text="修改店铺资料会同步影响团长主页展示" />

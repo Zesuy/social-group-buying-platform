@@ -20,6 +20,9 @@ public class CreateCouponRequest {
     @NotBlank
     private String couponType;
 
+    /** general / new_subscriber */
+    private String claimCondition = "general";
+
     /** Discount amount in fen */
     @NotNull
     @Positive
