@@ -70,20 +70,12 @@ test.describe('Real E2E: Auth + Public Browsing', () => {
     await navigateToHash(page, '/login')
 
     // 验证登录页显示
+    await page.locator('button:has-text("开发测试账号")').click()
     await expect(page.locator('text=买家测试用户')).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=团长测试用户')).toBeVisible()
 
-    // 点击买家快捷填充
+    // 点击买家快捷登录
     await page.locator('text=买家测试用户').click()
-
-    // 确认表单已填充
-    const phoneInput = page.locator('input[placeholder*="手机号"]')
-    await expect(phoneInput).toBeVisible({ timeout: 5000 })
-    const phoneValue = await phoneInput.inputValue()
-    expect(phoneValue.length).toBe(11)
-
-    // 提交登录
-    await page.locator('button:has-text("登录")').click()
 
     // 登录成功应跳转到 /profile
     await expect(page).toHaveURL(/#\/profile/, { timeout: 10000 })
@@ -95,8 +87,8 @@ test.describe('Real E2E: Auth + Public Browsing', () => {
   test('session restoration works after page refresh', async ({ page }) => {
     // 先通过登录页登录
     await navigateToHash(page, '/login')
+    await page.locator('button:has-text("开发测试账号")').click()
     await page.locator('text=买家测试用户').click()
-    await page.locator('button:has-text("登录")').click()
     await expect(page).toHaveURL(/#\/profile/, { timeout: 10000 })
 
     // 记录当前昵称
@@ -119,8 +111,8 @@ test.describe('Real E2E: Auth + Public Browsing', () => {
   test('logout clears auth state and redirects protected pages', async ({ page }) => {
     // 先登录
     await navigateToHash(page, '/login')
+    await page.locator('button:has-text("开发测试账号")').click()
     await page.locator('text=买家测试用户').click()
-    await page.locator('button:has-text("登录")').click()
     await expect(page).toHaveURL(/#\/profile/, { timeout: 10000 })
 
     // 退出登录

@@ -222,7 +222,7 @@ test.describe('App smoke test', () => {
   test('should show login page with test user shortcuts', async ({ page }) => {
     await navigateToHash(page, '/login')
 
-    // Check for test user shortcut buttons
+    await page.locator('button:has-text("开发测试账号")').click()
     await expect(page.locator('text=买家测试用户')).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=团长测试用户')).toBeVisible()
   })
@@ -230,11 +230,8 @@ test.describe('App smoke test', () => {
   test('should complete mock login flow', async ({ page }) => {
     await navigateToHash(page, '/login')
 
-    // Click buyer test user shortcut
+    await page.locator('button:has-text("开发测试账号")').click()
     await page.locator('text=买家测试用户').click()
-
-    // Click submit button
-    await page.locator('button:has-text("登录")').click()
 
     // Should redirect to /profile after login success
     await expect(page).toHaveURL(/#\/profile/, { timeout: 8000 })

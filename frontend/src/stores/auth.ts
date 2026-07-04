@@ -11,6 +11,10 @@ import { STORAGE_KEYS } from '@/constants'
 import * as authApi from '@/api/auth'
 import type {
   MockLoginRequest,
+  PhoneCodeLoginRequest,
+  PhoneCodeRegisterRequest,
+  SendAuthCodeRequest,
+  SendAuthCodeData,
   CurrentUserSummary,
   LeaderSummary,
   StoreSummary,
@@ -64,31 +68,51 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  /**
-   * 模拟登录
-   *
-   * 成功后保存 token 并调用 fetchMe 刷新完整身份。
-   * 如果 fetchMe 失败则回滚 token 和用户状态，抛出原始错误。
-   */
-  async function login(params: MockLoginRequest): Promise<void> {
+  async function applyLoginData(data: { accessToken: string; user: CurrentUserSummary }): Promise<void> {
+    persistToken(data.accessToken)
+    user.value = data.user
+
+    try {
+      await fetchMe()
+    } catch (err) {
+      clearAuth()
+      throw err
+    }
+  }
+
+  async function runLoginRequest(requester: () => Promise<{ accessToken: string; user: CurrentUserSummary }>): Promise<void> {
     isLoading.value = true
     try {
-      const data = await authApi.mockLogin(params)
-      // 先保存 token（fetchMe 需要它做鉴权）
-      persistToken(data.accessToken)
-      user.value = data.user
-
-      // 调用 fetchMe 获取完整身份（leader / store）
-      // 如果失败则回滚全部状态，避免半登录态
-      try {
-        await fetchMe()
-      } catch (err) {
-        clearAuth()
-        throw err
-      }
+      const data = await requester()
+      await applyLoginData(data)
     } finally {
       isLoading.value = false
     }
+  }
+
+  function sendAuthCode(params: SendAuthCodeRequest): Promise<SendAuthCodeData> {
+    return authApi.sendAuthCode(params)
+  }
+
+  /**
+   * 正式手机号验证码登录。
+   */
+  async function loginWithCode(params: PhoneCodeLoginRequest): Promise<void> {
+    await runLoginRequest(() => authApi.loginWithCode(params))
+  }
+
+  /**
+   * 正式手机号验证码注册。
+   */
+  async function registerWithCode(params: PhoneCodeRegisterRequest): Promise<void> {
+    await runLoginRequest(() => authApi.registerWithCode(params))
+  }
+
+  /**
+   * 开发测试登录。保留给 E2E 和本地调试，不作为正式认证主入口。
+   */
+  async function login(params: MockLoginRequest): Promise<void> {
+    await runLoginRequest(() => authApi.mockLogin(params))
   }
 
   /**
@@ -147,6 +171,9 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     isLeader,
     // 动作
+    sendAuthCode,
+    loginWithCode,
+    registerWithCode,
     login,
     logout,
     fetchMe,

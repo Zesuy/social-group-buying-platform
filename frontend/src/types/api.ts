@@ -80,12 +80,39 @@ export interface UnreadCountData {
 
 /** 模拟登录请求参数 */
 export interface MockLoginRequest {
-  nickname: string
+  nickname?: string
   avatarUrl?: string
   phone: string
 }
 
-/** 模拟登录响应数据 */
+export type AuthCodeScene = 'login' | 'register'
+
+/** 发送验证码请求参数 */
+export interface SendAuthCodeRequest {
+  phone: string
+  scene: AuthCodeScene
+}
+
+/** 发送验证码响应数据 */
+export interface SendAuthCodeData {
+  expiresInSeconds: number
+  devCode?: string | null
+}
+
+/** 手机号验证码登录请求参数 */
+export interface PhoneCodeLoginRequest {
+  phone: string
+  code: string
+}
+
+/** 手机号验证码注册请求参数 */
+export interface PhoneCodeRegisterRequest {
+  phone: string
+  code: string
+  nickname: string
+}
+
+/** 登录响应数据 */
 export interface MockLoginData {
   accessToken: string
   user: CurrentUserSummary

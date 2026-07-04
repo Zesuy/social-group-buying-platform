@@ -8,9 +8,11 @@ import LoginView from '@/views/LoginView.vue'
 interface LoginViewInstance {
   form: {
     phone: string
+    code: string
     nickname: string
-    avatarUrl: string
   }
+  agreementChecked: boolean
+  handleSubmit: () => Promise<void>
 }
 
 function getLoginViewInstance(wrapper: VueWrapper): LoginViewInstance {
@@ -29,6 +31,9 @@ const router = createRouter({
 
 const push = vi.fn()
 const back = vi.fn()
+let routePath = '/login'
+let routeName = 'login'
+let routeQuery: Record<string, string> = {}
 
 vi.mock('vue-router', async () => {
   const actual: Record<string, unknown> = await vi.importActual('vue-router')
@@ -36,16 +41,22 @@ vi.mock('vue-router', async () => {
     ...actual,
     useRouter: () => ({ push, back }),
     useRoute: () => ({
-      query: {},
-      path: '/login',
-      name: 'login',
+      query: routeQuery,
+      path: routePath,
+      name: routeName,
     }),
   }
 })
 
 const mockLogin = vi.fn()
+const mockLoginWithCode = vi.fn()
+const mockRegisterWithCode = vi.fn()
+const mockSendAuthCode = vi.fn()
 vi.mock('@/stores', () => ({
   useAuthStore: () => ({
+    sendAuthCode: mockSendAuthCode,
+    loginWithCode: mockLoginWithCode,
+    registerWithCode: mockRegisterWithCode,
     login: mockLogin,
     isLoggedIn: false,
   }),
@@ -57,39 +68,66 @@ describe('LoginView', () => {
     push.mockClear()
     back.mockClear()
     mockLogin.mockClear()
+    mockLoginWithCode.mockClear()
+    mockRegisterWithCode.mockClear()
+    mockSendAuthCode.mockClear()
+    routePath = '/login'
+    routeName = 'login'
+    routeQuery = {}
   })
 
-  it('should render login form with title', () => {
+  it('should render phone-code login form with title', () => {
     const wrapper = mount(LoginView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
 
-    expect(wrapper.text()).toContain('欢迎登录')
+    expect(wrapper.text()).toContain('登录邻鲜团')
+    expect(wrapper.text()).toContain('获取验证码')
     expect(wrapper.text()).toContain('登录')
   })
 
-  it('should render shortcut fill buttons for both test users', () => {
+  it('should render register mode by route', () => {
+    routePath = '/register'
+    routeName = 'register'
+
     const wrapper = mount(LoginView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
 
+    expect(wrapper.text()).toContain('注册邻鲜团')
+    expect(wrapper.text()).toContain('昵称')
+    expect(wrapper.text()).toContain('注册并进入')
+  })
+
+  it('should keep dev test users behind collapsible section', async () => {
+    const wrapper = mount(LoginView, {
+      global: {
+        plugins: [router, createPinia()],
+      },
+    })
+
+    expect(wrapper.text()).toContain('开发测试账号')
+    expect(wrapper.text()).not.toContain('买家测试用户')
+
+    await wrapper.find('.auth-dev__toggle').trigger('click')
     expect(wrapper.text()).toContain('买家测试用户')
     expect(wrapper.text()).toContain('团长测试用户')
   })
 
-  it('should fill buyer test user data on shortcut click', async () => {
+  it('should login as buyer test user on dev shortcut click', async () => {
+    mockLogin.mockResolvedValue(undefined)
     const wrapper = mount(LoginView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
 
-    const buttons = wrapper.findAllComponents({ name: 'VanButton' })
-    const buyerBtn = buttons.find((b) => b.text().includes('买家测试用户'))
+    await wrapper.find('.auth-dev__toggle').trigger('click')
+    const buyerBtn = wrapper.findAll('button').find((b) => b.text().includes('买家测试用户'))
     expect(buyerBtn).toBeTruthy()
     await buyerBtn!.trigger('click')
 
@@ -97,22 +135,98 @@ describe('LoginView', () => {
     const vm = getLoginViewInstance(wrapper)
     expect(vm.form.phone).toBe('13800000000')
     expect(vm.form.nickname).toBe('买家用户')
+    expect(mockLogin).toHaveBeenCalledWith({
+      phone: '13800000000',
+      nickname: '买家用户',
+    })
   })
 
-  it('should fill leader test user data on shortcut click', async () => {
+  it('should login as leader test user on dev shortcut click', async () => {
+    mockLogin.mockResolvedValue(undefined)
     const wrapper = mount(LoginView, {
       global: {
         plugins: [router, createPinia()],
       },
     })
 
-    const buttons = wrapper.findAllComponents({ name: 'VanButton' })
-    const leaderBtn = buttons.find((b) => b.text().includes('团长测试用户'))
+    await wrapper.find('.auth-dev__toggle').trigger('click')
+    const leaderBtn = wrapper.findAll('button').find((b) => b.text().includes('团长测试用户'))
     expect(leaderBtn).toBeTruthy()
     await leaderBtn!.trigger('click')
 
     const vm = getLoginViewInstance(wrapper)
     expect(vm.form.phone).toBe('13700000000')
     expect(vm.form.nickname).toBe('团长用户')
+    expect(mockLogin).toHaveBeenCalledWith({
+      phone: '13700000000',
+      nickname: '团长用户',
+    })
+  })
+
+  it('should send demo code for current mode', async () => {
+    mockSendAuthCode.mockResolvedValue({
+      expiresInSeconds: 300,
+      devCode: '123456',
+    })
+    const wrapper = mount(LoginView, {
+      global: {
+        plugins: [router, createPinia()],
+      },
+    })
+
+    const vm = getLoginViewInstance(wrapper)
+    vm.form.phone = '13800000000'
+    await wrapper.find('.auth-code-button').trigger('click')
+
+    expect(mockSendAuthCode).toHaveBeenCalledWith({
+      phone: '13800000000',
+      scene: 'login',
+    })
+    expect(wrapper.text()).toContain('演示验证码')
+  })
+
+  it('should submit phone-code login', async () => {
+    mockLoginWithCode.mockResolvedValue(undefined)
+    const wrapper = mount(LoginView, {
+      global: {
+        plugins: [router, createPinia()],
+      },
+    })
+
+    const vm = getLoginViewInstance(wrapper)
+    vm.form.phone = '13800000000'
+    vm.form.code = '123456'
+    vm.agreementChecked = true
+    await vm.handleSubmit()
+
+    expect(mockLoginWithCode).toHaveBeenCalledWith({
+      phone: '13800000000',
+      code: '123456',
+    })
+    expect(push).toHaveBeenCalledWith('/profile')
+  })
+
+  it('should submit phone-code register', async () => {
+    routePath = '/register'
+    routeName = 'register'
+    mockRegisterWithCode.mockResolvedValue(undefined)
+    const wrapper = mount(LoginView, {
+      global: {
+        plugins: [router, createPinia()],
+      },
+    })
+
+    const vm = getLoginViewInstance(wrapper)
+    vm.form.phone = '13800000000'
+    vm.form.code = '123456'
+    vm.form.nickname = '新用户'
+    vm.agreementChecked = true
+    await vm.handleSubmit()
+
+    expect(mockRegisterWithCode).toHaveBeenCalledWith({
+      phone: '13800000000',
+      code: '123456',
+      nickname: '新用户',
+    })
   })
 })
