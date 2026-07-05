@@ -1,74 +1,96 @@
 <template>
   <PageLayout show-tab-bar>
-    <div class="app-topbar">
-      消息
-      <span v-if="totalUnreadCount > 0" class="badge-num">{{ totalUnreadCountText }}</span>
-    </div>
+    <div class="messages-page">
+      <header class="messages-topbar">
+        <button type="button" class="messages-topbar__icon" aria-label="搜索消息" @click="onSearch">
+          <van-icon name="search" />
+        </button>
+        <h1>消息</h1>
+        <button type="button" class="messages-topbar__icon" aria-label="发起沟通" @click="onCreateChat">
+          <van-icon name="plus" />
+        </button>
+      </header>
 
-    <AppTabs :tabs="primaryTabs" :active="activePrimaryTab" @change="onPrimaryTabChange" />
+      <section class="message-shortcuts" aria-label="消息快捷入口">
+        <button
+          v-for="shortcut in shortcuts"
+          :key="shortcut.key"
+          type="button"
+          class="message-shortcut"
+          @click="onShortcutClick(shortcut.key)"
+        >
+          <span class="message-shortcut__icon" :class="`message-shortcut__icon--${shortcut.tone}`">
+            <van-icon :name="shortcut.icon" />
+            <span v-if="shortcut.badge" class="message-shortcut__badge">{{ shortcut.badge }}</span>
+          </span>
+          <span>{{ shortcut.label }}</span>
+        </button>
+      </section>
 
-    <section class="messages-hero">
-      <div>
-        <h1>{{ activePrimaryTab === 'chats' ? '履约沟通' : '站内通知' }}</h1>
-        <p>{{ activePrimaryTab === 'chats' ? '下单后可和团长沟通备货、发货和售后前置问题。' : '订单支付、团长发货、订阅和新团购活动都会在这里更新。' }}</p>
-      </div>
-      <span v-if="activeUnreadCount > 0" class="messages-hero__badge">
-        {{ activeUnreadText }} 未读
-      </span>
-      <span v-else class="messages-hero__badge messages-hero__badge--muted">
-        已读完
-      </span>
-    </section>
-
-    <template v-if="activePrimaryTab === 'chats'">
-      <LoadingView v-if="chatLoading && chatConversations.length === 0" text="正在加载聊天..." />
-      <ErrorView v-else-if="chatError" :message="chatError" @retry="loadChatConversations" />
-      <template v-else>
-        <div v-if="chatConversations.length > 0" class="messages-list">
-          <ChatConversationListItem
-            v-for="conversation in chatConversations"
-            :key="conversation.id"
-            :conversation="conversation"
-            @open="openConversation"
-          />
+      <div class="message-feed-head">
+        <div>
+          <strong>{{ feedTitle }}</strong>
+          <span>{{ feedSubtitle }}</span>
         </div>
-        <EmptyState v-else image="chat-o" description="暂无聊天，会在下单后自动建立和团长的沟通入口" />
-      </template>
-    </template>
-
-    <div v-else class="messages-toolbar">
-      <AppTabs :tabs="tabs" :active="activeTab" scrollable @change="onTabChange" />
-      <AppButton
-        v-if="hasVisibleUnread"
-        class="messages-toolbar__read-all"
-        variant="ghost"
-        icon="passed"
-        :loading="markAllLoading"
-        @click="onMarkAllRead"
-      >
-        全部已读
-      </AppButton>
-    </div>
-
-    <LoadingView v-if="activePrimaryTab === 'notifications' && loading && notifications.length === 0" text="正在加载消息..." />
-    <ErrorView v-else-if="activePrimaryTab === 'notifications' && error" :message="error" @retry="loadNotifications" />
-
-    <template v-else-if="activePrimaryTab === 'notifications'">
-      <div v-if="notifications.length > 0" class="messages-list">
-        <NotificationListItem
-          v-for="notification in notifications"
-          :key="notification.id"
-          :notification="notification"
-          @open="onOpenNotification"
-        />
+        <button
+          v-if="hasVisibleUnread"
+          type="button"
+          class="message-feed-head__action"
+          :disabled="markAllLoading"
+          @click="onMarkAllRead"
+        >
+          {{ markAllLoading ? '处理中' : '全部已读' }}
+        </button>
       </div>
 
-      <EmptyState
-        v-else
-        image="chat-o"
-        :description="emptyDescription"
-      />
-    </template>
+      <LoadingView v-if="initialLoading" text="正在加载消息..." />
+      <ErrorView v-else-if="feedError" :message="feedError" @retry="reloadAll" />
+
+      <template v-else>
+        <div v-if="feedItems.length > 0" class="message-feed">
+          <button
+            v-for="item in feedItems"
+            :key="item.id"
+            type="button"
+            class="message-row"
+            :class="{ 'message-row--unread': item.unreadCount > 0 }"
+            @click="openFeedItem(item)"
+          >
+            <span v-if="item.avatarUrl" class="message-row__avatar">
+              <ImageWithFallback
+                :src="item.avatarUrl"
+                :alt="item.title"
+                width="54px"
+                height="54px"
+                radius="50%"
+                :demo-kind="item.kind === 'chat' ? 'store' : 'cover'"
+              />
+            </span>
+            <span v-else class="message-row__icon" :class="`message-row__icon--${item.tone}`">
+              <van-icon :name="item.icon" />
+            </span>
+
+            <span class="message-row__body">
+              <span class="message-row__title">{{ item.title }}</span>
+              <span class="message-row__summary">{{ item.summary }}</span>
+            </span>
+
+            <span class="message-row__side">
+              <span class="message-row__time">{{ item.timeText }}</span>
+              <span v-if="item.unreadCount > 0" class="message-row__badge">
+                {{ item.unreadCount > 99 ? '99+' : item.unreadCount }}
+              </span>
+            </span>
+          </button>
+        </div>
+
+        <EmptyState
+          v-else
+          image="chat-o"
+          :description="emptyDescription"
+        />
+      </template>
+    </div>
   </PageLayout>
 </template>
 
@@ -80,83 +102,107 @@ import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import AppTabs from '@/components/AppTabs.vue'
-import AppButton from '@/components/AppButton.vue'
-import NotificationListItem from '@/components/NotificationListItem.vue'
-import ChatConversationListItem from '@/components/ChatConversationListItem.vue'
-import { listNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/notifications'
+import ImageWithFallback from '@/components/ImageWithFallback.vue'
+import { listNotifications, markNotificationRead } from '@/api/notifications'
 import { listChatConversations } from '@/api/chats'
 import { useChatUnreadPolling, useNotificationPolling } from '@/composables'
-import type { ChatConversationData, NotificationData, NotificationListParams } from '@/types'
+import type { ChatConversationData, NotificationData } from '@/types'
+
+type ShortcutKey = 'orders' | 'subscriptions'
+type FeedMode = 'all' | 'orders' | 'subscriptions'
+type MessageFeedItem =
+  | ReturnType<typeof toChatFeedItem>
+  | ReturnType<typeof toNotificationFeedItem>
 
 const router = useRouter()
-const { unreadCount, refreshUnreadCount } = useNotificationPolling()
+const { refreshUnreadCount } = useNotificationPolling()
 const { unreadCount: chatUnreadCount, refreshUnreadCount: refreshChatUnreadCount } = useChatUnreadPolling()
 
-type PrimaryTabKey = 'chats' | 'notifications'
-
-const primaryTabs = [
-  { key: 'chats', label: '聊天' },
-  { key: 'notifications', label: '通知' },
-]
-
-const activePrimaryTab = ref<PrimaryTabKey>('chats')
-
-type TabKey = 'all' | 'unread' | 'order_paid' | 'order_shipped' | 'group_buy_published'
-
-interface MessageTab {
-  key: TabKey
-  label: string
-}
-
-const tabs: MessageTab[] = [
-  { key: 'all', label: '全部' },
-  { key: 'unread', label: '未读' },
-  { key: 'order_paid', label: '支付' },
-  { key: 'order_shipped', label: '发货' },
-  { key: 'group_buy_published', label: '活动' },
-]
-
-const activeTab = ref<TabKey>('all')
 const notifications = ref<NotificationData[]>([])
-const loading = ref(false)
-const error = ref('')
-const markAllLoading = ref(false)
 const chatConversations = ref<ChatConversationData[]>([])
+const loading = ref(false)
 const chatLoading = ref(false)
+const error = ref('')
 const chatError = ref('')
+const markAllLoading = ref(false)
+const feedMode = ref<FeedMode>('all')
 
-const unreadCountText = computed(() => unreadCount.value > 99 ? '99+' : String(unreadCount.value))
-const chatUnreadCountText = computed(() => chatUnreadCount.value > 99 ? '99+' : String(chatUnreadCount.value))
-const totalUnreadCount = computed(() => unreadCount.value + chatUnreadCount.value)
-const totalUnreadCountText = computed(() => totalUnreadCount.value > 99 ? '99+' : String(totalUnreadCount.value))
-const activeUnreadCount = computed(() => activePrimaryTab.value === 'chats' ? chatUnreadCount.value : unreadCount.value)
-const activeUnreadText = computed(() => activePrimaryTab.value === 'chats' ? chatUnreadCountText.value : unreadCountText.value)
-const hasVisibleUnread = computed(() => notifications.value.some((item) => item.readStatus === 'unread'))
-
-const emptyDescription = computed(() => {
-  if (activeTab.value === 'unread') return '暂无未读消息'
-  if (activeTab.value === 'order_paid') return '暂无支付消息'
-  if (activeTab.value === 'order_shipped') return '暂无发货消息'
-  if (activeTab.value === 'group_buy_published') return '暂无活动消息'
-  return '暂无消息'
+const subscriptionUnreadCount = computed(() => notifications.value.filter((item) => (
+  item.type === 'subscription_created' && item.readStatus === 'unread'
+)).length)
+const orderUnreadCount = computed(() => notifications.value.filter((item) => (
+  isOrderNotification(item) && item.readStatus === 'unread'
+)).length)
+const visibleUnreadNotifications = computed(() => visibleNotifications.value.filter((item) => item.readStatus === 'unread'))
+const visibleFeedUnreadCount = computed(() => (
+  feedMode.value === 'all'
+    ? chatUnreadCount.value + visibleUnreadNotifications.value.length
+    : visibleUnreadNotifications.value.length
+))
+const hasVisibleUnread = computed(() => visibleUnreadNotifications.value.length > 0)
+const initialLoading = computed(() => (
+  (loading.value || chatLoading.value)
+  && notifications.value.length === 0
+  && chatConversations.value.length === 0
+))
+const feedError = computed(() => chatError.value || error.value)
+const feedTitle = computed(() => {
+  if (feedMode.value === 'orders') return '订单消息'
+  if (feedMode.value === 'subscriptions') return '新增订阅'
+  return '最近消息'
 })
-
-function buildParams(): NotificationListParams {
-  const params: NotificationListParams = { page: 1, pageSize: 20 }
-  if (activeTab.value === 'unread') {
-    params.unreadOnly = true
-  } else if (activeTab.value !== 'all') {
-    params.type = activeTab.value
+const feedSubtitle = computed(() => {
+  if (feedMode.value === 'orders') return '支付、发货和订单状态更新'
+  if (feedMode.value === 'subscriptions') return '订阅关系变动会收在这里'
+  if (visibleFeedUnreadCount.value > 0) return `${visibleFeedUnreadCount.value > 99 ? '99+' : visibleFeedUnreadCount.value} 条未读`
+  return '聊天和履约通知都会在这里'
+})
+const emptyDescription = computed(() => (
+  feedMode.value === 'orders'
+    ? '暂无订单消息'
+    : feedMode.value === 'subscriptions'
+      ? '暂无新增订阅消息'
+      : '暂无消息，下单后会自动建立和团长的沟通入口'
+))
+const shortcuts = computed(() => [
+  {
+    key: 'orders' as const,
+    label: '订单消息',
+    icon: 'orders-o',
+    tone: 'orange',
+    badge: orderUnreadCount.value > 0 ? String(Math.min(orderUnreadCount.value, 99)) : '',
+  },
+  {
+    key: 'subscriptions' as const,
+    label: '新增订阅',
+    icon: 'friends',
+    tone: 'blue',
+    badge: subscriptionUnreadCount.value > 0 ? String(Math.min(subscriptionUnreadCount.value, 99)) : '',
+  },
+])
+const visibleNotifications = computed(() => notifications.value.filter((item) => (
+  feedMode.value === 'orders'
+    ? isOrderNotification(item)
+    : feedMode.value === 'subscriptions'
+      ? item.type === 'subscription_created'
+      : item.type !== 'subscription_created' && !isOrderNotification(item)
+)))
+const feedItems = computed(() => {
+  const noticeItems = visibleNotifications.value.map(toNotificationFeedItem)
+  if (feedMode.value === 'subscriptions') {
+    return noticeItems.sort((a, b) => b.timestamp - a.timestamp)
   }
-  return params
-}
+  return [
+    ...chatConversations.value.map(toChatFeedItem),
+    ...noticeItems,
+  ].sort((a, b) => b.timestamp - a.timestamp)
+})
 
 async function loadNotifications() {
   loading.value = true
   error.value = ''
   try {
-    const data = await listNotifications(buildParams())
+    const data = await listNotifications({ page: 1, pageSize: 20 })
     notifications.value = data.items
   } catch (err) {
     error.value = (err as { message?: string }).message || '消息加载失败，请稍后重试'
@@ -178,20 +224,34 @@ async function loadChatConversations() {
   }
 }
 
-async function onPrimaryTabChange(key: string) {
-  activePrimaryTab.value = key as PrimaryTabKey
-  if (activePrimaryTab.value === 'chats') {
-    await loadChatConversations()
-    await refreshChatUnreadCount()
-  } else {
-    await loadNotifications()
-    await refreshUnreadCount()
-  }
+async function reloadAll() {
+  await Promise.all([
+    loadChatConversations(),
+    loadNotifications(),
+    refreshUnreadCount(),
+    refreshChatUnreadCount(),
+  ])
 }
 
-async function onTabChange(key: string) {
-  activeTab.value = key as TabKey
-  await loadNotifications()
+function onShortcutClick(key: ShortcutKey) {
+  const nextMode = key === 'orders' ? 'orders' : 'subscriptions'
+  feedMode.value = feedMode.value === nextMode ? 'all' : nextMode
+}
+
+function onSearch() {
+  showToast('消息搜索暂未接入')
+}
+
+function onCreateChat() {
+  showToast('下单后会自动建立履约沟通')
+}
+
+async function openFeedItem(item: MessageFeedItem) {
+  if (item.kind === 'chat') {
+    await router.push(`/chats/${item.raw.id}`)
+    return
+  }
+  await onOpenNotification(item.raw)
 }
 
 async function onOpenNotification(notification: NotificationData) {
@@ -212,14 +272,14 @@ async function onOpenNotification(notification: NotificationData) {
 }
 
 async function onMarkAllRead() {
+  const unreadItems = visibleUnreadNotifications.value
+  if (unreadItems.length === 0) return
+
   markAllLoading.value = true
   try {
-    await markAllNotificationsRead()
-    notifications.value = notifications.value.map((item) => ({
-      ...item,
-      readStatus: 'read',
-      readAt: item.readAt || new Date().toISOString(),
-    }))
+    const updatedItems = await Promise.all(unreadItems.map((item) => markNotificationRead(item.id)))
+    const updatedMap = new Map(updatedItems.map((item) => [item.id, item]))
+    notifications.value = notifications.value.map((item) => updatedMap.get(item.id) ?? item)
     await refreshUnreadCount()
     showToast('已全部标为已读')
   } catch (err) {
@@ -229,100 +289,369 @@ async function onMarkAllRead() {
   }
 }
 
-async function openConversation(conversation: ChatConversationData) {
-  await router.push(`/chats/${conversation.id}`)
+function toChatFeedItem(conversation: ChatConversationData) {
+  const lastAt = conversation.lastMessageAt || conversation.createdAt
+  const counterpart = conversation.currentUserRole === 'leader'
+    ? `买家 ${conversation.buyerName}`
+    : `团长 ${conversation.leaderName}`
+  return {
+    id: `chat:${conversation.id}`,
+    kind: 'chat' as const,
+    raw: conversation,
+    title: conversation.storeName || counterpart,
+    summary: chatSummary(conversation, counterpart),
+    timeText: formatFeedTime(lastAt),
+    timestamp: timeValue(lastAt),
+    unreadCount: conversation.unreadCount,
+    avatarUrl: conversation.storeLogoUrl || conversation.leaderAvatarUrl || null,
+    icon: 'chat-o',
+    tone: 'blue',
+  }
+}
+
+function toNotificationFeedItem(notification: NotificationData) {
+  return {
+    id: `notification:${notification.id}`,
+    kind: 'notification' as const,
+    raw: notification,
+    title: notification.title,
+    summary: notification.summary,
+    timeText: formatFeedTime(notification.createdAt),
+    timestamp: timeValue(notification.createdAt),
+    unreadCount: notification.readStatus === 'unread' ? 1 : 0,
+    avatarUrl: null,
+    icon: notificationIcon(notification),
+    tone: notificationTone(notification),
+  }
+}
+
+function chatSummary(conversation: ChatConversationData, counterpart: string): string {
+  if (conversation.lastMessageType === 'image') return `${counterpart} 发来了一张图片`
+  if (conversation.lastMessageType === 'card') return conversation.lastMessageText || `${counterpart} 发来订单卡片`
+  return conversation.lastMessageText || `${counterpart} 的履约沟通入口`
+}
+
+function notificationIcon(notification: NotificationData): string {
+  if (notification.type === 'order_shipped') return 'logistics'
+  if (notification.type === 'order_paid') return 'paid'
+  if (notification.type === 'group_buy_published') return 'shop-o'
+  if (notification.type === 'subscription_created') return 'friends-o'
+  return 'bell'
+}
+
+function notificationTone(notification: NotificationData): string {
+  if (notification.type === 'order_paid') return 'orange'
+  if (notification.type === 'subscription_created') return 'blue'
+  if (notification.type === 'group_buy_published') return 'green'
+  return 'gray'
+}
+
+function isOrderNotification(notification: NotificationData): boolean {
+  return notification.type.startsWith('order_')
+}
+
+function formatFeedTime(value?: string | null): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const now = new Date()
+  const sameYear = date.getFullYear() === now.getFullYear()
+  const sameDay = sameYear && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()
+  if (sameDay) return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  if (sameYear) return `${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function timeValue(value?: string | null): number {
+  if (!value) return 0
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? 0 : time
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
 }
 
 onMounted(() => {
-  void loadChatConversations()
+  void reloadAll()
 })
 </script>
 
 <style scoped>
-.messages-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 12px 14px;
-  padding: 14px;
-  border-radius: var(--radius-card);
-  background: var(--color-bg-card);
-  box-shadow: var(--shadow-card);
+.messages-page {
+  min-height: 100%;
+  background: var(--color-bg);
+  padding-bottom: calc(var(--safe-area-bottom) + 18px);
 }
 
-.messages-hero h1 {
+.messages-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  min-height: 58px;
+  padding: 6px 14px;
+  background: color-mix(in srgb, var(--color-bg-card) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.messages-topbar h1 {
   margin: 0;
   color: var(--color-text-primary);
   font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.messages-topbar__icon {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 25px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.message-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px;
+}
+
+.message-shortcut {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 112px;
+  border: 1px solid rgba(237, 240, 242, 0.82);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-card);
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 800;
   line-height: 1.35;
+  cursor: pointer;
 }
 
-.messages-hero p {
-  margin: 5px 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-md);
-  line-height: 1.5;
-}
-
-.messages-hero__badge {
-  flex-shrink: 0;
+.message-shortcut__icon {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+  border-radius: 18px;
+  font-size: 32px;
+}
+
+.message-shortcut__icon--rose {
+  background: var(--color-price-light);
+  color: var(--color-price);
+}
+
+.message-shortcut__icon--blue {
   background: var(--color-primary-light);
   color: var(--color-primary);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-  white-space: nowrap;
 }
 
-.messages-hero__badge--muted {
-  background: var(--color-bg-surface);
-  color: var(--color-text-hint);
-}
-
-.messages-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--color-bg-card);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.messages-toolbar :deep(.app-tabs) {
-  border-bottom: 0;
-}
-
-.messages-toolbar__read-all {
+.message-shortcut__badge {
   position: absolute;
-  right: 10px;
-  top: 8px;
-  min-height: 36px;
-  padding: 0 12px;
-  font-size: var(--font-size-sm);
-  background: var(--color-bg-card);
+  top: -7px;
+  right: -7px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-price);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 22px;
 }
 
-.messages-list {
+.message-feed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px 8px;
+}
+
+.message-feed-head div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.message-feed-head strong {
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.message-feed-head span {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.message-feed-head__action {
+  min-width: 78px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 800;
+  font-family: inherit;
+}
+
+.message-feed {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 14px 18px;
+  padding: 0 14px 18px;
+}
+
+.message-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  min-height: 88px;
+  padding: 12px;
+  border: 1px solid rgba(237, 240, 242, 0.86);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+  color: inherit;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.message-row:active {
+  background: var(--color-bg-surface);
+}
+
+.message-row__avatar,
+.message-row__icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.message-row__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 27px;
+}
+
+.message-row__icon--blue {
+  background: var(--color-primary);
+}
+
+.message-row__icon--green {
+  background: var(--color-primary);
+}
+
+.message-row__icon--orange {
+  background: var(--color-price);
+}
+
+.message-row__icon--gray {
+  background: var(--color-text-secondary);
+}
+
+.message-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.message-row__title {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-row__summary {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-row__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 9px;
+  min-width: 54px;
+}
+
+.message-row__time {
+  color: var(--color-text-hint);
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.message-row__badge {
+  min-width: 10px;
+  height: 10px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--color-price);
+  color: transparent;
+  font-size: 0;
+}
+
+.message-row--unread .message-row__title {
+  font-weight: 900;
 }
 
 @media (max-width: 360px) {
-  .messages-hero {
-    flex-direction: column;
+  .message-shortcuts {
+    padding-inline: 12px;
   }
 
-  .messages-toolbar__read-all {
-    position: static;
-    width: calc(100% - 28px);
-    margin: 0 14px 10px;
+  .message-row {
+    grid-template-columns: 50px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding-inline: 14px;
+  }
+
+  .message-row__avatar,
+  .message-row__icon {
+    width: 50px;
+    height: 50px;
   }
 }
 </style>

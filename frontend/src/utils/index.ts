@@ -45,6 +45,13 @@ export {
 } from './share'
 export type { SystemShareResult } from './share'
 export {
+  NATIVE_APP_RESUME_EVENT,
+  isNativeApp,
+  requestCurrentLocation,
+  setupNativeAppBridge,
+} from './native'
+export type { NativeLocation } from './native'
+export {
   NEARBY_DISTANCE_METERS,
   groupBuyCategoryKeywords,
   isNearbyGroupBuy,

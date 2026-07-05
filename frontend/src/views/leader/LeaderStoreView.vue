@@ -113,7 +113,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { getMyStore, updateMyStore } from '@/api/stores'
-import { resolveDisplayImageUrl } from '@/utils'
+import { requestCurrentLocation, resolveDisplayImageUrl } from '@/utils'
 import { getDeliveryTypeText } from '@/utils/status'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -212,38 +212,10 @@ async function handleSave() {
   }
 }
 
-function isValidCoordinate(latitude: number, longitude: number) {
-  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
-}
-
-function requestBrowserLocation(): Promise<{ latitude: number; longitude: number }> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('当前浏览器不支持定位'))
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        const location = {
-          latitude: Number(position.coords.latitude.toFixed(7)),
-          longitude: Number(position.coords.longitude.toFixed(7)),
-        }
-        if (!isValidCoordinate(location.latitude, location.longitude)) {
-          reject(new Error('定位坐标异常，请稍后重试'))
-          return
-        }
-        resolve(location)
-      },
-      () => reject(new Error('未获得定位权限，请检查浏览器设置')),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },
-    )
-  })
-}
-
 async function locateStore() {
   locating.value = true
   try {
-    const location = await requestBrowserLocation()
+    const location = await requestCurrentLocation({ enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 })
     editForm.latitude = location.latitude
     editForm.longitude = location.longitude
     showToast('已获取店铺位置')
