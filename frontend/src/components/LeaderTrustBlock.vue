@@ -2,10 +2,14 @@
   <div class="leader-trust-block" @click="$emit('click')">
     <div class="leader-trust-block__header">
       <img
-        :src="leader.avatarUrl || undefined"
+        v-if="leaderAvatarUrl"
+        :src="leaderAvatarUrl"
         class="leader-trust-block__avatar"
         alt=""
       />
+      <div v-else class="leader-trust-block__avatar leader-trust-block__avatar--fallback">
+        {{ leader.displayName.slice(0, 1) || store.name.slice(0, 1) }}
+      </div>
       <div class="leader-trust-block__info">
         <div class="leader-trust-block__name-row">
           <span class="leader-trust-block__name">{{ leader.displayName }}</span>
@@ -39,14 +43,22 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { resolveDisplayImageUrl } from '@/utils'
 import type { LeaderDetail, StoreDetail, LeaderHomepageLeader, LeaderHomepageStore } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   leader: LeaderDetail | LeaderHomepageLeader
   store: StoreDetail | LeaderHomepageStore
 }>()
 
 defineEmits<{ click: [] }>()
+
+const leaderAvatarUrl = computed(() => resolveDisplayImageUrl(
+  props.leader.avatarUrl,
+  props.leader.displayName,
+  'avatar',
+))
 </script>
 
 <style scoped>
@@ -73,6 +85,15 @@ defineEmits<{ click: [] }>()
   border-radius: 10px;
   flex-shrink: 0;
   object-fit: cover;
+}
+
+.leader-trust-block__avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #f3b45a, #55aa5d);
+  color: #fff;
+  font-weight: 900;
 }
 
 .leader-trust-block__info {

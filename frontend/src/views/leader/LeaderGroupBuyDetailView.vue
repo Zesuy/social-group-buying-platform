@@ -41,7 +41,7 @@
           </div>
 
           <div v-if="detail.groupBuy.introduction && !editing" class="intro-text">{{ detail.groupBuy.introduction }}</div>
-          <img v-if="detail.groupBuy.coverImageUrl && !editing" :src="detail.groupBuy.coverImageUrl" class="cover-img" />
+          <img v-if="displayCoverImageUrl && !editing" :src="displayCoverImageUrl" class="cover-img" />
         </AppCard>
 
         <!-- 2. 商品列表 -->
@@ -104,7 +104,7 @@ import AppStatusPill from '@/components/AppStatusPill.vue'
 import PriceText from '@/components/PriceText.vue'
 import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
 import { getMyGroupBuy, updateMyGroupBuy, endGroupBuy, getMyGroupBuyShareCard } from '@/api/leaderGroupBuys'
-import { buildShareTokenUrl, getGroupBuyStatusText, getDeliveryTypeText } from '@/utils'
+import { buildShareTokenUrl, getGroupBuyStatusText, getDeliveryTypeText, resolveDisplayImageUrl } from '@/utils'
 import type { GroupBuyManageDetailData, ShareCardData } from '@/types'
 
 const route = useRoute()
@@ -120,6 +120,11 @@ const shareSheetVisible = ref(false)
 const shareCard = ref<ShareCardData | null>(null)
 const editForm = reactive({ title: '', introduction: '', coverImageUrl: '', deliveryType: 'express', shippingTime: '', startTime: '', endTime: '' })
 const shareUrl = computed(() => shareCard.value ? buildShareTokenUrl(shareCard.value.shareToken) : '')
+const displayCoverImageUrl = computed(() => resolveDisplayImageUrl(
+  detail.value?.groupBuy.coverImageUrl,
+  detail.value?.groupBuy.title || '团购封面',
+  'cover',
+))
 const sharePayload = computed<GroupBuySharePayload>(() => ({
   title: shareCard.value?.title || detail.value?.groupBuy.title || '团购分享',
   coverImageUrl: shareCard.value?.coverImageUrl ?? detail.value?.groupBuy.coverImageUrl ?? null,
