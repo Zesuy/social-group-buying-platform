@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "build:android": "vite build --mode android",
     "preview": "vite preview",
     "typecheck": "vue-tsc -b --noEmit",
     "typecheck:e2e": "vue-tsc --noEmit -p tsconfig.e2e.json",
@@ -13,9 +14,13 @@
     "format": "prettier --write \"src/**/*.{ts,js,vue,css,scss,json}\"",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "test:e2e:live": "playwright test --config playwright.live.config.ts"
+    "test:e2e:live": "playwright test --config playwright.live.config.ts",
+    "cap:sync:android": "npm run build:android && npx cap sync android",
+    "apk:debug": "npm run cap:sync:android && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@vant/area-data": "^2.1.0",
     "axios": "^1.7.9",
     "pinia": "^3.0.2",
@@ -25,6 +30,7 @@
     "vue-router": "^4.5.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
     "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.52.0",
     "@types/node": "^24.13.2",

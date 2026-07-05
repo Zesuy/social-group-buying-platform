@@ -2,8 +2,8 @@
   <div class="store-summary-card" @click="$emit('click')">
     <div class="store-summary-card__content">
       <img
-        v-if="store.logoUrl"
-        :src="store.logoUrl"
+        v-if="storeLogoUrl"
+        :src="storeLogoUrl"
         class="store-summary-card__logo"
         alt=""
       />
@@ -23,13 +23,17 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { resolveDisplayImageUrl } from '@/utils'
 import type { StoreDetail, LeaderHomepageStore } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   store: StoreDetail | LeaderHomepageStore
 }>()
 
 defineEmits<{ click: [] }>()
+
+const storeLogoUrl = computed(() => resolveDisplayImageUrl(props.store.logoUrl, props.store.name, 'store'))
 </script>
 
 <style scoped>

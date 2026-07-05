@@ -3,7 +3,7 @@ import vueTsEslintConfig from '@vue/eslint-config-typescript'
 
 export default [
   {
-    ignores: ['dist/', 'node_modules/', '*.local'],
+    ignores: ['android/', 'dist/', 'node_modules/', '*.local'],
   },
   ...pluginVue.configs['flat/essential'],
   ...vueTsEslintConfig(),

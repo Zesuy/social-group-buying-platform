@@ -60,6 +60,18 @@ export function normalizeLocalUploadUrl(src?: string | null): string | null {
   return src
 }
 
+function resolveUploadAssetUrl(src: string): string {
+  const apiBaseUrl = import.meta.env.MODE === 'android'
+    ? import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
+    : ''
+
+  if (apiBaseUrl && src.startsWith('/uploads/')) {
+    return `${apiBaseUrl}${src}`
+  }
+
+  return src
+}
+
 function isUsableImageUrl(src: string): boolean {
   if (src.startsWith('/') || src.startsWith('data:') || src.startsWith('blob:')) return true
 
@@ -79,7 +91,7 @@ export function resolveDisplayImageUrl(
   const normalizedSrc = normalizeLocalUploadUrl(src)
   if (!normalizedSrc) return null
   if (!isUsableImageUrl(normalizedSrc)) return getDemoImage(kind, seed)
-  if (!isExampleImageUrl(normalizedSrc)) return normalizedSrc
+  if (!isExampleImageUrl(normalizedSrc)) return resolveUploadAssetUrl(normalizedSrc)
 
   const pathname = new URL(normalizedSrc).pathname.toLowerCase()
   const namedImage = NAMED_DEMO_IMAGES.find(([pattern]) => pattern.test(`${pathname} ${seed}`))
