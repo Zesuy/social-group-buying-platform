@@ -192,6 +192,7 @@ import {
   NEARBY_DISTANCE_METERS,
   buildGroupBuyShareUrl,
   matchesGroupBuyCategory,
+  requestCurrentLocation,
   shareBySystem,
 } from '@/utils'
 import type { PublicGroupBuyItem } from '@/types'
@@ -288,6 +289,10 @@ function matchesActiveCategory(item: PublicGroupBuyItem): boolean {
   return matchesGroupBuyCategory(item, activeCategory.value)
 }
 
+function isValidCoordinate(latitude: number, longitude: number): boolean {
+  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
+}
+
 function readSavedLocation(): UserLocation | null {
   try {
     const raw = window.localStorage.getItem('index:user-location')
@@ -322,39 +327,11 @@ function dismissLocationBanner() {
   }
 }
 
-function isValidCoordinate(latitude: number, longitude: number) {
-  return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180
-}
-
-function requestBrowserLocation(): Promise<UserLocation> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('当前浏览器不支持定位，暂时无法筛选附近团购'))
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        const nextLocation = {
-          latitude: Number(position.coords.latitude.toFixed(7)),
-          longitude: Number(position.coords.longitude.toFixed(7)),
-        }
-        if (!isValidCoordinate(nextLocation.latitude, nextLocation.longitude)) {
-          reject(new Error('定位坐标异常，请稍后重试'))
-          return
-        }
-        resolve(nextLocation)
-      },
-      () => reject(new Error('未获得定位权限，无法筛选附近团购')),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 },
-    )
-  })
-}
-
 async function enableLocation(): Promise<boolean> {
   locating.value = true
   locationError.value = null
   try {
-    const location = await requestBrowserLocation()
+    const location = await requestCurrentLocation({ enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 })
     userLocation.value = location
     saveLocation(location)
     locationBannerDismissed.value = false

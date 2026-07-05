@@ -1,6 +1,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { getChatUnreadCount } from '@/api/chats'
 import { useAuthStore } from '@/stores'
+import { NATIVE_APP_RESUME_EVENT } from '@/utils/native'
 
 export function useChatUnreadPolling(intervalMs = 30000) {
   const authStore = useAuthStore()
@@ -51,14 +52,20 @@ export function useChatUnreadPolling(intervalMs = 30000) {
     }
   }
 
+  function onNativeAppResume() {
+    startPolling()
+  }
+
   onMounted(() => {
     startPolling()
     document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener(NATIVE_APP_RESUME_EVENT, onNativeAppResume)
   })
 
   onUnmounted(() => {
     stopPolling()
     document.removeEventListener('visibilitychange', onVisibilityChange)
+    window.removeEventListener(NATIVE_APP_RESUME_EVENT, onNativeAppResume)
   })
 
   watch(() => authStore.isLoggedIn, () => {
