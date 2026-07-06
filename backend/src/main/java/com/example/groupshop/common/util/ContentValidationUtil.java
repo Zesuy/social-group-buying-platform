@@ -75,9 +75,9 @@ public class ContentValidationUtil {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                         fieldLabel + " 第 " + (i + 1) + " 项 URL 长度不能超过 " + MAX_URL_LENGTH);
             }
-            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            if (!isAllowedImageUrl(url)) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                        fieldLabel + " 第 " + (i + 1) + " 项只允许 http:// 或 https:// URL");
+                        fieldLabel + " 第 " + (i + 1) + " 项只允许 http://、https:// 或 /uploads/ 图片 URL");
             }
             if (containsHtml(url)) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR,
@@ -149,9 +149,9 @@ public class ContentValidationUtil {
                     throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                             "contentBlocks 第 " + (index + 1) + " 块 image.url 长度不能超过 " + MAX_IMAGE_URL_LENGTH);
                 }
-                if (!block.getUrl().startsWith("http://") && !block.getUrl().startsWith("https://")) {
+                if (!isAllowedImageUrl(block.getUrl())) {
                     throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                            "contentBlocks 第 " + (index + 1) + " 块 image.url 只允许 http:// 或 https://");
+                            "contentBlocks 第 " + (index + 1) + " 块 image.url 只允许 http://、https:// 或 /uploads/");
                 }
                 if (containsHtml(block.getUrl())) {
                     throw new BusinessException(ErrorCode.VALIDATION_ERROR,
@@ -220,6 +220,12 @@ public class ContentValidationUtil {
             return true;
         }
         return false;
+    }
+
+    private static boolean isAllowedImageUrl(String url) {
+        return url.startsWith("http://")
+                || url.startsWith("https://")
+                || url.startsWith("/uploads/");
     }
 
     private static void checkMaxLength(String text, int max, String label) {
