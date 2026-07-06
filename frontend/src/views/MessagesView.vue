@@ -32,19 +32,10 @@
           <strong>{{ feedTitle }}</strong>
           <span>{{ feedSubtitle }}</span>
         </div>
-        <button
-          v-if="hasVisibleUnread"
-          type="button"
-          class="message-feed-head__action"
-          :disabled="markAllLoading"
-          @click="onMarkAllRead"
-        >
-          {{ markAllLoading ? '处理中' : '全部已读' }}
-        </button>
       </div>
 
-      <LoadingView v-if="initialLoading" text="正在加载消息..." />
-      <ErrorView v-else-if="feedError" :message="feedError" @retry="reloadAll" />
+      <LoadingView v-if="chatLoading && chatConversations.length === 0" text="正在加载聊天..." />
+      <ErrorView v-else-if="chatError" :message="chatError" @retry="reloadChats" />
 
       <template v-else>
         <div v-if="feedItems.length > 0" class="message-feed">
@@ -63,10 +54,10 @@
                 width="54px"
                 height="54px"
                 radius="50%"
-                :demo-kind="item.kind === 'chat' ? 'store' : 'cover'"
+                demo-kind="store"
               />
             </span>
-            <span v-else class="message-row__icon" :class="`message-row__icon--${item.tone}`">
+            <span v-else class="message-row__icon message-row__icon--blue">
               <van-icon :name="item.icon" />
             </span>
 
@@ -103,16 +94,13 @@ import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
-import { listNotifications, markNotificationRead } from '@/api/notifications'
 import { listChatConversations } from '@/api/chats'
+import { listNotifications } from '@/api/notifications'
 import { useChatUnreadPolling, useNotificationPolling } from '@/composables'
 import type { ChatConversationData, NotificationData } from '@/types'
 
 type ShortcutKey = 'orders' | 'subscriptions'
-type FeedMode = 'all' | 'orders' | 'subscriptions'
-type MessageFeedItem =
-  | ReturnType<typeof toChatFeedItem>
-  | ReturnType<typeof toNotificationFeedItem>
+type MessageFeedItem = ReturnType<typeof toChatFeedItem>
 
 const router = useRouter()
 const { refreshUnreadCount } = useNotificationPolling()
@@ -120,12 +108,8 @@ const { unreadCount: chatUnreadCount, refreshUnreadCount: refreshChatUnreadCount
 
 const notifications = ref<NotificationData[]>([])
 const chatConversations = ref<ChatConversationData[]>([])
-const loading = ref(false)
 const chatLoading = ref(false)
-const error = ref('')
 const chatError = ref('')
-const markAllLoading = ref(false)
-const feedMode = ref<FeedMode>('all')
 
 const subscriptionUnreadCount = computed(() => notifications.value.filter((item) => (
   item.type === 'subscription_created' && item.readStatus === 'unread'
@@ -133,43 +117,18 @@ const subscriptionUnreadCount = computed(() => notifications.value.filter((item)
 const orderUnreadCount = computed(() => notifications.value.filter((item) => (
   isOrderNotification(item) && item.readStatus === 'unread'
 )).length)
-const visibleUnreadNotifications = computed(() => visibleNotifications.value.filter((item) => item.readStatus === 'unread'))
-const visibleFeedUnreadCount = computed(() => (
-  feedMode.value === 'all'
-    ? chatUnreadCount.value + visibleUnreadNotifications.value.length
-    : visibleUnreadNotifications.value.length
-))
-const hasVisibleUnread = computed(() => visibleUnreadNotifications.value.length > 0)
-const initialLoading = computed(() => (
-  (loading.value || chatLoading.value)
-  && notifications.value.length === 0
-  && chatConversations.value.length === 0
-))
-const feedError = computed(() => chatError.value || error.value)
-const feedTitle = computed(() => {
-  if (feedMode.value === 'orders') return '订单消息'
-  if (feedMode.value === 'subscriptions') return '新增订阅'
-  return '最近消息'
-})
+const feedTitle = computed(() => '聊天消息')
 const feedSubtitle = computed(() => {
-  if (feedMode.value === 'orders') return '支付、发货和订单状态更新'
-  if (feedMode.value === 'subscriptions') return '订阅关系变动会收在这里'
-  if (visibleFeedUnreadCount.value > 0) return `${visibleFeedUnreadCount.value > 99 ? '99+' : visibleFeedUnreadCount.value} 条未读`
-  return '聊天和履约通知都会在这里'
+  if (chatUnreadCount.value > 0) return `${chatUnreadCount.value > 99 ? '99+' : chatUnreadCount.value} 条未读`
+  return '下单后的履约沟通会收在这里'
 })
-const emptyDescription = computed(() => (
-  feedMode.value === 'orders'
-    ? '暂无订单消息'
-    : feedMode.value === 'subscriptions'
-      ? '暂无新增订阅消息'
-      : '暂无消息，下单后会自动建立和团长的沟通入口'
-))
+const emptyDescription = computed(() => '暂无聊天，下单后会自动建立和团长的沟通入口')
 const shortcuts = computed(() => [
   {
     key: 'orders' as const,
     label: '订单消息',
     icon: 'orders-o',
-    tone: 'orange',
+    tone: 'rose',
     badge: orderUnreadCount.value > 0 ? String(Math.min(orderUnreadCount.value, 99)) : '',
   },
   {
@@ -180,38 +139,18 @@ const shortcuts = computed(() => [
     badge: subscriptionUnreadCount.value > 0 ? String(Math.min(subscriptionUnreadCount.value, 99)) : '',
   },
 ])
-const visibleNotifications = computed(() => notifications.value.filter((item) => (
-  feedMode.value === 'orders'
-    ? isOrderNotification(item)
-    : feedMode.value === 'subscriptions'
-      ? item.type === 'subscription_created'
-      : item.type !== 'subscription_created' && !isOrderNotification(item)
-)))
-const feedItems = computed(() => {
-  const noticeItems = visibleNotifications.value.map(toNotificationFeedItem)
-  if (feedMode.value === 'subscriptions') {
-    return noticeItems.sort((a, b) => b.timestamp - a.timestamp)
-  }
-  return [
-    ...chatConversations.value.map(toChatFeedItem),
-    ...noticeItems,
-  ].sort((a, b) => b.timestamp - a.timestamp)
-})
+const feedItems = computed(() => chatConversations.value.map(toChatFeedItem).sort((a, b) => b.timestamp - a.timestamp))
 
 async function loadNotifications() {
-  loading.value = true
-  error.value = ''
   try {
-    const data = await listNotifications({ page: 1, pageSize: 20 })
+    const data = await listNotifications({ page: 1, pageSize: 50, unreadOnly: true })
     notifications.value = data.items
-  } catch (err) {
-    error.value = (err as { message?: string }).message || '消息加载失败，请稍后重试'
-  } finally {
-    loading.value = false
+  } catch {
+    notifications.value = []
   }
 }
 
-async function loadChatConversations() {
+async function reloadChats() {
   chatLoading.value = true
   chatError.value = ''
   try {
@@ -226,7 +165,7 @@ async function loadChatConversations() {
 
 async function reloadAll() {
   await Promise.all([
-    loadChatConversations(),
+    reloadChats(),
     loadNotifications(),
     refreshUnreadCount(),
     refreshChatUnreadCount(),
@@ -234,8 +173,8 @@ async function reloadAll() {
 }
 
 function onShortcutClick(key: ShortcutKey) {
-  const nextMode = key === 'orders' ? 'orders' : 'subscriptions'
-  feedMode.value = feedMode.value === nextMode ? 'all' : nextMode
+  const path = key === 'orders' ? '/messages/orders' : '/messages/subscriptions'
+  void router.push(path)
 }
 
 function onSearch() {
@@ -247,46 +186,7 @@ function onCreateChat() {
 }
 
 async function openFeedItem(item: MessageFeedItem) {
-  if (item.kind === 'chat') {
-    await router.push(`/chats/${item.raw.id}`)
-    return
-  }
-  await onOpenNotification(item.raw)
-}
-
-async function onOpenNotification(notification: NotificationData) {
-  if (notification.readStatus === 'unread') {
-    try {
-      const updated = await markNotificationRead(notification.id)
-      notifications.value = notifications.value.map((item) => item.id === updated.id ? updated : item)
-      await refreshUnreadCount()
-    } catch (err) {
-      showToast((err as { message?: string }).message || '标记已读失败')
-      return
-    }
-  }
-
-  if (notification.actionUrl?.startsWith('/')) {
-    await router.push(notification.actionUrl)
-  }
-}
-
-async function onMarkAllRead() {
-  const unreadItems = visibleUnreadNotifications.value
-  if (unreadItems.length === 0) return
-
-  markAllLoading.value = true
-  try {
-    const updatedItems = await Promise.all(unreadItems.map((item) => markNotificationRead(item.id)))
-    const updatedMap = new Map(updatedItems.map((item) => [item.id, item]))
-    notifications.value = notifications.value.map((item) => updatedMap.get(item.id) ?? item)
-    await refreshUnreadCount()
-    showToast('已全部标为已读')
-  } catch (err) {
-    showToast((err as { message?: string }).message || '操作失败，请稍后重试')
-  } finally {
-    markAllLoading.value = false
-  }
+  await router.push(`/chats/${item.raw.id}`)
 }
 
 function toChatFeedItem(conversation: ChatConversationData) {
@@ -305,23 +205,6 @@ function toChatFeedItem(conversation: ChatConversationData) {
     unreadCount: conversation.unreadCount,
     avatarUrl: conversation.storeLogoUrl || conversation.leaderAvatarUrl || null,
     icon: 'chat-o',
-    tone: 'blue',
-  }
-}
-
-function toNotificationFeedItem(notification: NotificationData) {
-  return {
-    id: `notification:${notification.id}`,
-    kind: 'notification' as const,
-    raw: notification,
-    title: notification.title,
-    summary: notification.summary,
-    timeText: formatFeedTime(notification.createdAt),
-    timestamp: timeValue(notification.createdAt),
-    unreadCount: notification.readStatus === 'unread' ? 1 : 0,
-    avatarUrl: null,
-    icon: notificationIcon(notification),
-    tone: notificationTone(notification),
   }
 }
 
@@ -329,21 +212,6 @@ function chatSummary(conversation: ChatConversationData, counterpart: string): s
   if (conversation.lastMessageType === 'image') return `${counterpart} 发来了一张图片`
   if (conversation.lastMessageType === 'card') return conversation.lastMessageText || `${counterpart} 发来订单卡片`
   return conversation.lastMessageText || `${counterpart} 的履约沟通入口`
-}
-
-function notificationIcon(notification: NotificationData): string {
-  if (notification.type === 'order_shipped') return 'logistics'
-  if (notification.type === 'order_paid') return 'paid'
-  if (notification.type === 'group_buy_published') return 'shop-o'
-  if (notification.type === 'subscription_created') return 'friends-o'
-  return 'bell'
-}
-
-function notificationTone(notification: NotificationData): string {
-  if (notification.type === 'order_paid') return 'orange'
-  if (notification.type === 'subscription_created') return 'blue'
-  if (notification.type === 'group_buy_published') return 'green'
-  return 'gray'
 }
 
 function isOrderNotification(notification: NotificationData): boolean {

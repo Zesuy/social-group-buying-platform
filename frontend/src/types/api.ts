@@ -834,7 +834,33 @@ export interface CreateGroupBuyRequest {
   shippingTime?: string | null
   startTime?: string | null
   endTime?: string | null
+  contentBlocks?: ContentBlockData[]
   items: CreateGroupBuyItemRequest[]
+}
+
+export interface GroupBuyAiPolishItemContext {
+  productId?: string
+  displayName: string
+  groupPriceAmount: number
+  groupStock: number
+  description?: string | null
+}
+
+export interface GroupBuyAiPolishRequest {
+  title?: string
+  introduction?: string
+  deliveryType?: string
+  startTime?: string | null
+  endTime?: string | null
+  shippingTime?: string | null
+  items?: GroupBuyAiPolishItemContext[]
+}
+
+export interface GroupBuyAiPolishResponse {
+  title: string
+  introduction: string
+  contentBlocks: ContentBlockData[]
+  source: 'local' | string
 }
 
 export interface UpdateGroupBuyRequest {

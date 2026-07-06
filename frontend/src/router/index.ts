@@ -27,6 +27,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '消息', showTabBar: true, requiresAuth: true },
   },
   {
+    path: '/messages/orders',
+    name: 'messageOrders',
+    component: () => import('@/views/MessageNotificationCategoryView.vue'),
+    meta: { title: '订单消息', requiresAuth: true },
+  },
+  {
+    path: '/messages/subscriptions',
+    name: 'messageSubscriptions',
+    component: () => import('@/views/MessageNotificationCategoryView.vue'),
+    meta: { title: '新增订阅', requiresAuth: true },
+  },
+  {
     path: '/chats/:conversationId',
     name: 'chatDetail',
     component: () => import('@/views/ChatDetailView.vue'),

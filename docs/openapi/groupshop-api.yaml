@@ -874,6 +874,33 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/group-buys/ai-polish:
+    post:
+      tags:
+        - GroupBuy
+      summary: Generate local AI-style copy suggestions for the publish form.
+      operationId: polishGroupBuyCopy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupBuyAiPolishRequest'
+      responses:
+        '200':
+          description: Copy suggestion generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupBuyAiPolishSuccessResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
   /api/v1/my/store/group-buys/{groupBuyId}:
     get:
       tags:
@@ -3978,6 +4005,91 @@ components:
           items:
             type: string
           nullable: true
+      additionalProperties: false
+    GroupBuyAiPolishSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/GroupBuyAiPolishData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    GroupBuyAiPolishRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          nullable: true
+        introduction:
+          type: string
+          nullable: true
+        deliveryType:
+          type: string
+          nullable: true
+        startTime:
+          type: string
+          nullable: true
+        endTime:
+          type: string
+          nullable: true
+        shippingTime:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupBuyAiPolishItemContext'
+      additionalProperties: false
+    GroupBuyAiPolishItemContext:
+      type: object
+      properties:
+        productId:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        groupPriceAmount:
+          type: integer
+          nullable: true
+          minimum: 0
+        groupStock:
+          type: integer
+          nullable: true
+          minimum: 0
+        description:
+          type: string
+          nullable: true
+      additionalProperties: false
+    GroupBuyAiPolishData:
+      type: object
+      required:
+        - title
+        - introduction
+        - contentBlocks
+        - source
+      properties:
+        title:
+          type: string
+        introduction:
+          type: string
+        contentBlocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentBlockEntry'
+        source:
+          type: string
+          enum:
+            - local
       additionalProperties: false
     CreateGroupBuyItemEntry:
       type: object

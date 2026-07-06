@@ -5,10 +5,13 @@ import com.example.groupshop.common.response.ApiResponse;
 import com.example.groupshop.common.response.PageResponse;
 import com.example.groupshop.groupbuy.dto.CreateDraftGroupBuyRequest;
 import com.example.groupshop.groupbuy.dto.CreateGroupBuyRequest;
+import com.example.groupshop.groupbuy.dto.GroupBuyAiPolishRequest;
+import com.example.groupshop.groupbuy.dto.GroupBuyAiPolishResponse;
 import com.example.groupshop.groupbuy.dto.GroupBuyResponse;
 import com.example.groupshop.groupbuy.dto.ShareCardResponse;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyPermissionRequest;
 import com.example.groupshop.groupbuy.dto.UpdateGroupBuyRequest;
+import com.example.groupshop.groupbuy.service.GroupBuyAiPolishService;
 import com.example.groupshop.groupbuy.service.GroupBuyService;
 import com.example.groupshop.publicbrowsing.dto.GroupBuyDetailResponse;
 import jakarta.validation.Valid;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GroupBuyController {
 
     private final GroupBuyService groupBuyService;
+    private final GroupBuyAiPolishService groupBuyAiPolishService;
 
     /**
      * Create and publish a group buy (MVP compatible — direct publish).
@@ -44,6 +48,17 @@ public class GroupBuyController {
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
             @Valid @RequestBody CreateGroupBuyRequest request) {
         GroupBuyResponse response = groupBuyService.createGroupBuy(userId, request);
+        return ApiResponse.success(response);
+    }
+
+    /**
+     * Generate a local AI-style copy suggestion for the publish form.
+     */
+    @PostMapping("/my/store/group-buys/ai-polish")
+    public ApiResponse<GroupBuyAiPolishResponse> polishGroupBuyCopy(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @Valid @RequestBody(required = false) GroupBuyAiPolishRequest request) {
+        GroupBuyAiPolishResponse response = groupBuyAiPolishService.polish(userId, request);
         return ApiResponse.success(response);
     }
 
