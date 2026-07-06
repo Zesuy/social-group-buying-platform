@@ -154,7 +154,7 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'leaderDashboard',
         component: () => import('@/views/leader/LeaderDashboardView.vue'),
-        meta: { title: '团长仪表盘' },
+        meta: { title: '商家工作台' },
       },
       {
         path: 'orders',
@@ -173,6 +173,24 @@ const routes: RouteRecordRaw[] = [
         name: 'leaderCoupons',
         component: () => import('@/views/leader/LeaderCouponsView.vue'),
         meta: { title: '店铺优惠券' },
+      },
+      {
+        path: 'after-sales',
+        name: 'leaderAfterSales',
+        component: () => import('@/views/leader/LeaderAfterSalesView.vue'),
+        meta: { title: '售后管理' },
+      },
+      {
+        path: 'after-sales/:id',
+        name: 'leaderAfterSaleDetail',
+        component: () => import('@/views/leader/LeaderAfterSaleDetailView.vue'),
+        meta: { title: '售后详情' },
+      },
+      {
+        path: 'chats',
+        name: 'leaderChats',
+        component: () => import('@/views/leader/LeaderChatsView.vue'),
+        meta: { title: '客服工作台' },
       },
       {
         path: 'orders/:id',

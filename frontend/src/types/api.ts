@@ -926,6 +926,42 @@ export interface ShipResponse {
   shipment: ShipmentData
 }
 
+// ── 店铺售后管理 ──
+export interface AfterSaleData {
+  id: string
+  orderId: string
+  orderNo: string
+  userId: string
+  leaderId: string
+  storeId: string
+  type: 'refund' | string
+  reason: string
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | string
+  amount: number
+  originalOrderStatus: string
+  orderStatus: string
+  payStatus: string
+  rejectReason?: string | null
+  buyerNickname?: string | null
+  buyerAvatarUrl?: string | null
+  receiverName?: string | null
+  receiverPhone?: string | null
+  fullAddress?: string | null
+  items?: OrderItemData[]
+  createdAt: string
+  approvedAt?: string | null
+  rejectedAt?: string | null
+  refundedAt?: string | null
+}
+
+export interface AfterSaleListParams extends PaginationParams {
+  status?: string
+}
+
+export interface RejectAfterSaleRequest {
+  rejectReason: string
+}
+
 // ── 订阅列表 ──
 export interface SubscriptionListItem {
   id: string
