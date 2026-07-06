@@ -338,8 +338,9 @@ test.describe('App smoke test', () => {
     })
     await page.reload()
     await navigateToHash(page, '/messages')
-    await page.locator('.app-tabs__item', { hasText: '通知' }).click()
+    await page.locator('.message-shortcut', { hasText: '订单消息' }).click()
 
+    await expect(page).toHaveURL(/#\/messages\/orders/, { timeout: 5000 })
     await expect(page.locator('text=发货通知')).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=团长已填写物流')).toBeVisible()
   })

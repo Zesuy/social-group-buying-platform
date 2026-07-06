@@ -1130,6 +1130,65 @@ POST /api/v1/my/store/group-buys
 
 响应：返回团购和团购商品列表（含团购活动内容字段和内联商品详情图）。
 
+### 8.1.1 发布前 AI 润色建议
+
+```http
+POST /api/v1/my/store/group-buys/ai-polish
+```
+
+登录：需要团长身份。
+
+说明：该接口只生成发布页文案建议，不创建团购、不修改商品价格、库存、配送方式或时间。当前版本使用本地规则生成，`source=local`；后续可替换为外部模型供应商。
+
+请求：
+
+```json
+{
+  "title": "周末蜜桃",
+  "introduction": "香甜多汁",
+  "deliveryType": "express",
+  "endTime": "2026-07-01T12:00:00+08:00",
+  "items": [
+    {
+      "displayName": "白玉蜜桃 5 斤装",
+      "groupPriceAmount": 2990,
+      "groupStock": 20,
+      "description": "山东蒙阴产地直发"
+    }
+  ]
+}
+```
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "title": "周末蜜桃团购",
+    "introduction": "这次给大家整理了白玉蜜桃 5 斤装，适合家庭日常囤货和社群一起拼团。本团共 1 个商品，价格和库存以下单页展示为准。配送方式为快递配送，截单和发货时间请以页面展示为准。",
+    "contentBlocks": [
+      {
+        "type": "paragraph",
+        "text": "这次给大家整理了白玉蜜桃 5 斤装，适合家庭日常囤货和社群一起拼团。"
+      },
+      {
+        "type": "list",
+        "items": ["白玉蜜桃 5 斤装，团购价 ¥29.90，限量 20 份"]
+      },
+      {
+        "type": "deliveryNote",
+        "text": "配送方式：快递配送；截单时间以页面结束时间为准。"
+      }
+    ],
+    "source": "local"
+  },
+  "traceId": "req_001"
+}
+```
+
+前端采用建议后，把返回的 `title`、`introduction`、`contentBlocks` 写入发布表单；取消则保持原表单不变。
+
 复用已有商品时的请求项（可作为多商品数组中的一项）：
 
 ```json
