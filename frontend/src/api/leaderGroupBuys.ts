@@ -11,6 +11,8 @@ import type {
   GroupBuyManageData,
   GroupBuyManageDetailData,
   CreateGroupBuyRequest,
+  GroupBuyAiPolishRequest,
+  GroupBuyAiPolishResponse,
   UpdateGroupBuyRequest,
   EndGroupBuyData,
   ShareCardData,
@@ -43,6 +45,14 @@ export async function getMyGroupBuy(groupBuyId: string): Promise<GroupBuyManageD
  */
 export async function createGroupBuy(data: CreateGroupBuyRequest): Promise<GroupBuyManageDetailData> {
   const res = await request.post('/my/store/group-buys', data) as ApiResponse<GroupBuyManageDetailData>
+  return res.data
+}
+
+/**
+ * Generate a local AI-style copy suggestion for the publish form.
+ */
+export async function polishGroupBuyCopy(data: GroupBuyAiPolishRequest): Promise<GroupBuyAiPolishResponse> {
+  const res = await request.post('/my/store/group-buys/ai-polish', data) as ApiResponse<GroupBuyAiPolishResponse>
   return res.data
 }
 

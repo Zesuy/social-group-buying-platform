@@ -224,6 +224,7 @@ import { getLeaderHomepage, subscribeLeader, unsubscribeLeader } from '@/api/lea
 import { getMyStore } from '@/api/stores'
 import { claimCoupon, listLeaderHomepageCoupons } from '@/api/coupons'
 import { formatAmount } from '@/utils/format'
+import { resolveDisplayImageUrl } from '@/utils/demo-images'
 import type {
   LeaderHomepageLeader,
   LeaderHomepageStore,
@@ -264,7 +265,11 @@ const avatarText = computed(() => {
   const name = storeData.value?.name || leaderData.value?.displayName || '团'
   return name.slice(0, 1)
 })
-const leaderAvatarUrl = computed(() => leaderData.value?.avatarUrl || storeData.value?.logoUrl || null)
+const leaderAvatarUrl = computed(() => resolveDisplayImageUrl(
+  leaderData.value?.avatarUrl || storeData.value?.logoUrl,
+  leaderData.value?.displayName || storeData.value?.name || '团长',
+  'avatar',
+))
 const isOwnLeader = computed(() => (
   authStore.leader?.id != null
   && leaderData.value?.id != null

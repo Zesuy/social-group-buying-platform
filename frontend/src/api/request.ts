@@ -4,8 +4,12 @@ import { STORAGE_KEYS } from '@/constants'
 import type { ApiError } from '@/types'
 import type { AxiosResponse } from 'axios'
 
+const configuredApiBaseUrl = import.meta.env.MODE === 'android'
+  ? import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '')
+  : ''
+
 const request = axios.create({
-  baseURL: '/api/v1',
+  baseURL: configuredApiBaseUrl ? `${configuredApiBaseUrl}/api/v1` : '/api/v1',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',

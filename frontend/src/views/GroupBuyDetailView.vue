@@ -44,8 +44,8 @@
           <div v-if="leader && store" class="leader-overlay">
             <button type="button" class="leader-strip" @click="goToLeader">
               <img
-                v-if="leader.avatarUrl"
-                :src="leader.avatarUrl"
+                v-if="leaderAvatarUrl"
+                :src="leaderAvatarUrl"
                 class="leader-avatar"
                 :alt="`${leader.displayName}头像`"
               />
@@ -327,6 +327,7 @@ import { getGroupBuyDetailByShareToken, getPublicGroupBuyDetail } from '@/api/gr
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { addCartItem } from '@/api/cart'
 import { buildGroupBuyShareUrl, buildShareTokenUrl, getDeliveryTypeText, getGroupBuyStatusText } from '@/utils'
+import { resolveDisplayImageUrl } from '@/utils/demo-images'
 import type {
   GroupBuyDetail,
   LeaderDetail,
@@ -384,6 +385,11 @@ const featuredItem = computed(() => {
   return [...items.value].sort((a, b) => b.soldCount - a.soldCount || a.sortOrder - b.sortOrder)[0] ?? null
 })
 const leaderAvatarText = computed(() => leader.value?.displayName.slice(0, 1) || store.value?.name.slice(0, 1) || '团')
+const leaderAvatarUrl = computed(() => resolveDisplayImageUrl(
+  leader.value?.avatarUrl,
+  leader.value?.displayName || store.value?.name || '团长',
+  'avatar',
+))
 const introText = computed(() => groupBuy.value?.introduction?.trim() || '团长正在组织这次短周期团购，集中收单后按约定方式履约。')
 const heroImageUrl = computed(() => {
   return groupBuy.value?.coverImageUrl

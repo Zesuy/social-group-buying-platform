@@ -245,6 +245,73 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                 .andExpectAll(errorResult("VALIDATION_ERROR"));
     }
 
+    // ── POST /api/v1/my/store/group-buys/ai-polish ───────────────────
+
+    @Test
+    void polishGroupBuyCopy_shouldSucceed() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL + "/ai-polish")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "title": "周末蜜桃",
+                                    "introduction": "全网最低，香甜多汁",
+                                    "deliveryType": "express",
+                                    "endTime": "2026-07-01T12:00:00+08:00",
+                                    "items": [
+                                        {
+                                            "displayName": "白玉蜜桃 5 斤装",
+                                            "groupPriceAmount": 2990,
+                                            "groupStock": 20,
+                                            "description": "山东蒙阴产地直发"
+                                        }
+                                    ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.source").value("local"))
+                .andExpect(jsonPath("$.data.title").value("周末蜜桃团购"))
+                .andExpect(jsonPath("$.data.introduction").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("全网最低"))))
+                .andExpect(jsonPath("$.data.contentBlocks").isArray())
+                .andExpect(jsonPath("$.data.contentBlocks[0].type").value("paragraph"));
+    }
+
+    @Test
+    void polishGroupBuyCopy_shouldReturnFallbackWhenContextEmpty() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL + "/ai-polish")
+                        .header("Authorization", "Bearer " + leaderToken)
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.title").value("本周社区精选团购"))
+                .andExpect(jsonPath("$.data.introduction").isString())
+                .andExpect(jsonPath("$.data.contentBlocks").isArray());
+    }
+
+    @Test
+    void polishGroupBuyCopy_shouldFailWhenNotAuthenticated() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL + "/ai-polish")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isUnauthorized())
+                .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
+    @Test
+    void polishGroupBuyCopy_shouldFailWhenNotLeader() throws Exception {
+        mockMvc.perform(post(GROUP_BUYS_URL + "/ai-polish")
+                        .header("Authorization", "Bearer " + regularUserToken)
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("LEADER_REQUIRED"));
+    }
+
     // ── GET /api/v1/my/store/group-buys ───────────────────────────────
 
     @Test

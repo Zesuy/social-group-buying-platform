@@ -118,6 +118,96 @@ async function mockEndpoints(page: Page) {
     })
   })
 
+  await page.route('**/api/v1/my/store/orders**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: { items: [], page: 1, pageSize: 1, total: 2, hasMore: false },
+        traceId: 'e2e_store_orders',
+      }),
+    })
+  })
+
+  await page.route('**/api/v1/my/store/after-sales**', async (route) => {
+    const url = route.request().url()
+    if (/\/after-sales\/[^/?]+/.test(url)) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            id: 1001,
+            orderId: 9001,
+            orderNo: '202607060001',
+            userId: 1,
+            leaderId: 10,
+            storeId: 20,
+            type: 'refund',
+            reason: '商品质量问题',
+            status: 'pending',
+            amount: 2990,
+            originalOrderStatus: 'paid',
+            orderStatus: 'afterSale',
+            payStatus: 'paid',
+            rejectReason: null,
+            createdAt: '2026-07-06T10:00:00',
+          },
+          traceId: 'e2e_after_sale_detail',
+        }),
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          items: [
+            {
+              id: 1001,
+              orderId: 9001,
+              orderNo: '202607060001',
+              userId: 1,
+              leaderId: 10,
+              storeId: 20,
+              type: 'refund',
+              reason: '商品质量问题',
+              status: 'pending',
+              amount: 2990,
+              originalOrderStatus: 'paid',
+              orderStatus: 'afterSale',
+              payStatus: 'paid',
+              rejectReason: null,
+              createdAt: '2026-07-06T10:00:00',
+            },
+          ],
+          page: 1,
+          pageSize: 50,
+          total: 1,
+          hasMore: false,
+        },
+        traceId: 'e2e_after_sales',
+      }),
+    })
+  })
+
+  await page.route('**/api/v1/my/store/group-buys**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: { items: [], page: 1, pageSize: 1, total: 3, hasMore: false },
+        traceId: 'e2e_group_buys',
+      }),
+    })
+  })
+
   // POST /api/v1/stores
   await page.route('**/api/v1/stores', async (route) => {
     const body = route.request().postDataJSON()
@@ -250,7 +340,7 @@ test.describe('Profile and store E2E', () => {
     await expect(page.locator('button:has-text("退出登录")')).toBeVisible()
   })
 
-  test('logged-in leader profile shows leader entries', async ({ page }) => {
+  test('logged-in leader profile funnels merchant features into workbench', async ({ page }) => {
     await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token_leader_store'))
     await page.evaluate(() => localStorage.setItem('profileFeatureRole', 'leader'))
     await navigateToHash(page, '/profile')
@@ -258,12 +348,37 @@ test.describe('Profile and store E2E', () => {
 
     // Should show leader info
     await expect(page.locator('text=团长用户')).toBeVisible({ timeout: 5000 })
-    // Should show leader-specific entries
-    await expect(page.locator('text=发布团购')).toBeVisible()
-    await expect(page.locator('text=团购管理')).toBeVisible()
-    await expect(page.locator('text=商品库')).toBeVisible()
-    await expect(page.locator('text=订单管理')).toBeVisible()
-    await expect(page.locator('text=我的店铺')).toBeVisible()
+    // Merchant operations are grouped behind the workbench.
+    await expect(page.locator('text=进入商家工作台')).toBeVisible()
+    await expect(page.getByRole('button', { name: /商家工作台/ }).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: /团长主页/ }).first()).toBeVisible()
+    await expect(page.locator('text=发布团购')).toHaveCount(0)
+    await expect(page.locator('text=订单管理')).toHaveCount(0)
+
+    await page.locator('button:has-text("进入商家工作台")').click()
+    await expect(page).toHaveURL(/#\/leader\/dashboard/, { timeout: 5000 })
+    await expect(page.getByRole('heading', { name: '王姐社区鲜果店' })).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('text=待发货订单')).toBeVisible()
+    await expect(page.locator('text=售后待处理')).toBeVisible()
+    await expect(page.locator('text=未读客服消息')).toBeVisible()
+    await expect(page.locator('text=进行中团购')).toBeVisible()
+  })
+
+  test('leader workbench opens merchant after-sales and chat entries', async ({ page }) => {
+    await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token_leader_store'))
+    await navigateToHash(page, '/leader/dashboard')
+    await page.waitForTimeout(1500)
+
+    await expect(page.locator('text=商家工作台').first()).toBeVisible({ timeout: 5000 })
+
+    await page.locator('button:has-text("售后")').last().click()
+    await expect(page).toHaveURL(/#\/leader\/after-sales/, { timeout: 5000 })
+    await expect(page.locator('text=售后单 1001')).toBeVisible({ timeout: 5000 })
+
+    await navigateToHash(page, '/leader/dashboard')
+    await page.getByRole('button', { name: /客服 买家会话/ }).click()
+    await expect(page).toHaveURL(/#\/leader\/chats/, { timeout: 5000 })
+    await expect(page.locator('text=暂无买家咨询')).toBeVisible({ timeout: 5000 })
   })
 
   test('profile login click goes to login page', async ({ page }) => {

@@ -4,9 +4,10 @@ import CreateStoreView from '@/views/CreateStoreView.vue'
 import LeaderStoreView from '@/views/leader/LeaderStoreView.vue'
 import PublishGroupBuyView from '@/views/leader/PublishGroupBuyView.vue'
 import { createStore, getMyStore, updateMyStore } from '@/api/stores'
-import { createGroupBuy } from '@/api/leaderGroupBuys'
+import { createGroupBuy, polishGroupBuyCopy } from '@/api/leaderGroupBuys'
 import { uploadImage } from '@/api/uploads'
 import { listProducts } from '@/api/products'
+import { showToast } from 'vant'
 
 const push = vi.fn()
 const back = vi.fn()
@@ -33,6 +34,7 @@ vi.mock('@/api/stores', () => ({
 
 vi.mock('@/api/leaderGroupBuys', () => ({
   createGroupBuy: vi.fn(),
+  polishGroupBuyCopy: vi.fn(),
 }))
 
 vi.mock('@/api/uploads', () => ({
@@ -89,8 +91,10 @@ describe('upload form wiring', () => {
     vi.mocked(getMyStore).mockReset()
     vi.mocked(updateMyStore).mockReset()
     vi.mocked(createGroupBuy).mockReset()
+    vi.mocked(polishGroupBuyCopy).mockReset()
     vi.mocked(uploadImage).mockReset()
     vi.mocked(listProducts).mockReset()
+    vi.mocked(showToast).mockClear()
     vi.mocked(uploadImage).mockResolvedValue(uploadedImage)
     vi.mocked(listProducts).mockResolvedValue({
       items: [],
@@ -248,5 +252,105 @@ describe('upload form wiring', () => {
       ],
     }))
     expect(push).toHaveBeenCalledWith('/leader/group-buys')
+  })
+
+  it('previews and applies AI polished group buy copy before submit', async () => {
+    vi.mocked(polishGroupBuyCopy).mockResolvedValue({
+      title: '周末鲜果团购',
+      introduction: '这次给大家整理了适合家庭囤货的鲜果团。',
+      source: 'local',
+      contentBlocks: [
+        {
+          type: 'paragraph',
+          text: '这次给大家整理了适合家庭囤货的鲜果团。',
+        },
+        {
+          type: 'list',
+          items: ['白玉蜜桃 5 斤装，团购价 ¥29.90，限量 20 份'],
+        },
+      ],
+    })
+    vi.mocked(createGroupBuy).mockResolvedValue({
+      groupBuy: {
+        id: '101',
+        storeId: '20',
+        leaderId: '10',
+        title: '周末鲜果团购',
+        introduction: '这次给大家整理了适合家庭囤货的鲜果团。',
+        coverImageUrl: uploadedImage.url,
+        groupType: 'normal',
+        deliveryType: 'express',
+        shippingTime: null,
+        startTime: null,
+        endTime: null,
+        visibility: 'public',
+        status: 'published',
+      },
+      items: [],
+    })
+
+    const wrapper = mount(PublishGroupBuyView, {
+      global: { stubs: globalStubs },
+    })
+
+    await wrapper.find('input[placeholder="团购标题，例如：周末阳山水蜜桃社区团"]').setValue('周末鲜果')
+    await wrapper.find('textarea[placeholder="说明规格、口感、截单时间、发货方式和售后口径"]').setValue('香甜多汁')
+    await wrapper.findAll('.seg button')[1].trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('新增商品'))?.trigger('click')
+    await wrapper.find('input[placeholder="商品名称"]').setValue('白玉蜜桃')
+    await wrapper.find('input[placeholder="0.00"]').setValue('29.90')
+    await wrapper.find('input[placeholder="库存数量"]').setValue('20')
+
+    await wrapper.findAll('.seg button')[0].trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('AI 润色'))?.trigger('click')
+    await flushPromises()
+
+    expect(polishGroupBuyCopy).toHaveBeenCalledWith(expect.objectContaining({
+      title: '周末鲜果',
+      introduction: '香甜多汁',
+      items: [
+        expect.objectContaining({
+          displayName: '白玉蜜桃',
+          groupPriceAmount: 2990,
+          groupStock: 20,
+        }),
+      ],
+    }))
+    expect(wrapper.text()).toContain('AI 润色建议')
+    expect(wrapper.text()).toContain('周末鲜果团购')
+
+    await wrapper.findAll('button').find((button) => button.text().includes('采用建议'))?.trigger('click')
+    await wrapper.findAll('.seg button')[2].trigger('click')
+    await wrapper.find('.checkbox-circle').trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('发布团购'))?.trigger('click')
+    await flushPromises()
+
+    expect(createGroupBuy).toHaveBeenCalledWith(expect.objectContaining({
+      title: '周末鲜果团购',
+      introduction: '这次给大家整理了适合家庭囤货的鲜果团。',
+      contentBlocks: [
+        expect.objectContaining({
+          type: 'paragraph',
+          text: '这次给大家整理了适合家庭囤货的鲜果团。',
+        }),
+        expect.objectContaining({
+          type: 'list',
+          items: ['白玉蜜桃 5 斤装，团购价 ¥29.90，限量 20 份'],
+        }),
+      ],
+    }))
+  })
+
+  it('shows toast when AI polish fails', async () => {
+    vi.mocked(polishGroupBuyCopy).mockRejectedValue(new Error('服务暂不可用'))
+
+    const wrapper = mount(PublishGroupBuyView, {
+      global: { stubs: globalStubs },
+    })
+
+    await wrapper.findAll('button').find((button) => button.text().includes('AI 润色'))?.trigger('click')
+    await flushPromises()
+
+    expect(showToast).toHaveBeenCalledWith('服务暂不可用')
   })
 })

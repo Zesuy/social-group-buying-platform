@@ -1,3 +1,5 @@
+import { shareByNative } from './native'
+
 const PUBLIC_SHARE_ORIGIN = 'https://shop.zesuy.top'
 
 export type SystemShareResult = 'shared' | 'unsupported' | 'aborted' | 'failed'
@@ -18,6 +20,9 @@ export function buildShareTokenUrl(shareToken: string): string {
 }
 
 export async function shareBySystem(data: ShareData): Promise<SystemShareResult> {
+  const nativeResult = await shareByNative(data)
+  if (nativeResult) return nativeResult
+
   if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
     return 'unsupported'
   }

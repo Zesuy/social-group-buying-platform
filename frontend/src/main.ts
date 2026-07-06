@@ -6,6 +6,7 @@ import 'vant/lib/index.css'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from '@/stores'
+import { setupNativeAppBridge } from '@/utils/native'
 
 async function bootstrap() {
   const app = createApp(App)
@@ -21,6 +22,8 @@ async function bootstrap() {
 
   app.use(router)
   app.mount('#app')
+
+  void setupNativeAppBridge(router)
 }
 
 bootstrap()

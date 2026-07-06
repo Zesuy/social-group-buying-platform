@@ -27,7 +27,8 @@ class ContentValidationUtilTest extends ServiceTestBase {
     void validateImageUrls_shouldAcceptValidUrls() {
         contentValidationUtil.validateImageUrls(List.of(
                 "https://example.com/1.jpg",
-                "http://example.com/2.png"
+                "http://example.com/2.png",
+                "/uploads/images/2026/07/local-upload.jpg"
         ), 9, "galleryImageUrls");
         // no exception
     }
@@ -88,7 +89,7 @@ class ContentValidationUtilTest extends ServiceTestBase {
 
         ContentBlockRequest img = new ContentBlockRequest();
         img.setType("image");
-        img.setUrl("https://example.com/photo.png");
+        img.setUrl("/uploads/images/2026/07/photo.png");
         img.setCaption("图片说明");
 
         ContentBlockRequest list = new ContentBlockRequest();

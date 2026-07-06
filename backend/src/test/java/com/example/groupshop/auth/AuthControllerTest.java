@@ -5,9 +5,11 @@ import com.example.groupshop.base.MockMvcTestBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.ResultActions;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,6 +22,23 @@ class AuthControllerTest extends MockMvcTestBase {
     private static final String ME_URL = "/api/v1/me";
 
     // ── POST /api/v1/auth/codes ──────────────────────────────────────
+
+    @Test
+    void sendAuthCodeCorsPreflight_shouldAllowLocalDevOrigin() throws Exception {
+        mockMvc.perform(options(AUTH_CODES_URL)
+                        .with(request -> {
+                            request.setScheme("https");
+                            request.setServerName("shop.zesuy.top");
+                            request.setServerPort(443);
+                            return request;
+                        })
+                        .header("Origin", "http://localhost")
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "content-type"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost"))
+                .andExpect(header().string("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS"));
+    }
 
     @Test
     void sendAuthCode_shouldReturnDemoCode() throws Exception {

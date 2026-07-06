@@ -23,10 +23,10 @@
             <button
               v-if="isLoggedIn && isLeader"
               type="button"
-              class="profile-link-btn"
-              @click.stop="router.push('/leader/store')"
+              class="profile-link-btn profile-link-btn--primary"
+              @click.stop="router.push('/leader/dashboard')"
             >
-              我的店铺
+              进入商家工作台
               <van-icon name="arrow" />
             </button>
             <button
@@ -59,7 +59,7 @@
 
       <ProfileFeatureGrid
         v-if="isLeader"
-        title="团长经营"
+        title="商家经营"
         :entries="leaderEntries"
         @item-click="handleFeatureClick"
       />
@@ -122,14 +122,10 @@ const buyerEntries: ProfileGridEntry[] = [
   { label: '会员卡', description: '复购关系和成长值', icon: 'card', to: '/member-cards' },
 ]
 
-const leaderEntries: ProfileGridEntry[] = [
-  { label: '发布团购', description: '创建新的活动', icon: 'add-o', to: '/leader/group-buys/new' },
-  { label: '团购管理', description: '查看活动状态', icon: 'shop-o', to: '/leader/group-buys' },
-  { label: '订单管理', description: '处理发货履约', icon: 'orders-o', to: '/leader/orders' },
-  { label: '订阅用户', description: '查看关注你的团员', icon: 'friends-o', to: '/leader/subscribers' },
-  { label: '店铺优惠券', description: '设置订阅新人券', icon: 'coupon-o', to: '/leader/coupons' },
-  { label: '商品库', description: '复用商品资料', icon: 'cube-o', to: '/leader/products' },
-]
+const leaderEntries = computed<ProfileGridEntry[]>(() => [
+  { label: '商家工作台', description: '待办、履约和常用入口', icon: 'apps-o', to: '/leader/dashboard' },
+  { label: '团长主页', description: '查看买家看到的店铺', icon: 'wap-home-o', to: leader.value?.id ? `/leaders/${leader.value.id}` : '/leader/dashboard' },
+])
 
 const storeEntries: ProfileGridEntry[] = [
   { label: '创建店铺', description: '成为团长后发布团购', icon: 'shop-o', to: '/store/create' },

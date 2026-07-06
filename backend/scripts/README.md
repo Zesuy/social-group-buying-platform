@@ -2,7 +2,30 @@
 
 本目录放本地开发 / 联调用的数据脚本，不属于 Flyway migration。
 
-## 重置当前业务数据
+## API 驱动重建真实演示数据
+
+推荐使用这一套脚本重建本地演示数据。清库只负责删除本地业务表数据；账号、店铺、图片、商品、团购、订单和消息等业务数据由真实 API 创建。
+
+前置条件：
+
+- MySQL 容器已启动。
+- 后端服务已启动并可访问 `http://localhost:8080/api/v1/health`。
+- 本地只针对开发库执行，不要对共享库或生产库执行。
+
+```bash
+docker exec -i groupshop-mysql mysql -uroot -proot groupshop < backend/scripts/reset-dev-data.sql
+zsh -ic 'cd /home/zesuy/work/Engnerring_train-dev1 && node backend/scripts/seed-realistic-demo.mjs'
+```
+
+如果后端 API 地址不是默认值：
+
+```bash
+API_BASE_URL=http://localhost:8080/api/v1 zsh -ic 'cd /home/zesuy/work/Engnerring_train-dev1 && node backend/scripts/seed-realistic-demo.mjs'
+```
+
+脚本会创建 4 个商家、约 20 个商品、12 个团购、8 个买家和一组不同状态的订单；图片通过 `POST /api/v1/my/uploads/images` 上传，返回的 `/uploads/...` URL 会继续用于店铺、商品和团购创建。
+
+## 重置当前业务数据（旧 SQL 直插）
 
 在后端 schema 已经由 Flyway 创建完成后执行：
 

@@ -834,7 +834,33 @@ export interface CreateGroupBuyRequest {
   shippingTime?: string | null
   startTime?: string | null
   endTime?: string | null
+  contentBlocks?: ContentBlockData[]
   items: CreateGroupBuyItemRequest[]
+}
+
+export interface GroupBuyAiPolishItemContext {
+  productId?: string
+  displayName: string
+  groupPriceAmount: number
+  groupStock: number
+  description?: string | null
+}
+
+export interface GroupBuyAiPolishRequest {
+  title?: string
+  introduction?: string
+  deliveryType?: string
+  startTime?: string | null
+  endTime?: string | null
+  shippingTime?: string | null
+  items?: GroupBuyAiPolishItemContext[]
+}
+
+export interface GroupBuyAiPolishResponse {
+  title: string
+  introduction: string
+  contentBlocks: ContentBlockData[]
+  source: 'local' | string
 }
 
 export interface UpdateGroupBuyRequest {
@@ -898,6 +924,42 @@ export interface ShipmentData {
 export interface ShipResponse {
   order: { id: string; orderStatus: string; payStatus: string }
   shipment: ShipmentData
+}
+
+// ── 店铺售后管理 ──
+export interface AfterSaleData {
+  id: string
+  orderId: string
+  orderNo: string
+  userId: string
+  leaderId: string
+  storeId: string
+  type: 'refund' | string
+  reason: string
+  status: 'pending' | 'approved' | 'rejected' | 'completed' | string
+  amount: number
+  originalOrderStatus: string
+  orderStatus: string
+  payStatus: string
+  rejectReason?: string | null
+  buyerNickname?: string | null
+  buyerAvatarUrl?: string | null
+  receiverName?: string | null
+  receiverPhone?: string | null
+  fullAddress?: string | null
+  items?: OrderItemData[]
+  createdAt: string
+  approvedAt?: string | null
+  rejectedAt?: string | null
+  refundedAt?: string | null
+}
+
+export interface AfterSaleListParams extends PaginationParams {
+  status?: string
+}
+
+export interface RejectAfterSaleRequest {
+  rejectReason: string
 }
 
 // ── 订阅列表 ──

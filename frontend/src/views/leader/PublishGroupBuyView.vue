@@ -23,7 +23,22 @@
       </div>
 
       <div v-show="activeTab === 0" class="tab-panel">
-        <AppFormCard title="团购信息">
+        <AppFormCard>
+          <template #title>
+            <div class="card-title-row">
+              <h3>团购信息</h3>
+              <button
+                type="button"
+                class="text-action text-action--ai"
+                :disabled="aiPolishing || submitting"
+                @click="requestAiPolish"
+              >
+                <van-icon name="edit" />
+                {{ aiPolishing ? '润色中' : 'AI 润色' }}
+              </button>
+            </div>
+          </template>
+
           <div class="form-section">
             <label class="form-field">
               <span>标题</span>
@@ -209,6 +224,70 @@
       </div>
     </div>
 
+    <van-popup
+      v-model:show="aiPolishVisible"
+      position="bottom"
+      round
+      class="ai-polish-popup"
+      :style="{ maxHeight: '82vh' }"
+    >
+      <section class="ai-polish-sheet">
+        <header class="ai-polish-sheet__header">
+          <div>
+            <h3>AI 润色建议</h3>
+            <p>采用后会更新标题、介绍和活动正文，不会修改价格、库存和配送设置。</p>
+          </div>
+          <span class="ai-polish-sheet__tag">本地生成</span>
+        </header>
+
+        <p v-if="form.items.length === 0" class="ai-polish-note">
+          补充商品后再润色，文案会更具体。
+        </p>
+
+        <div v-if="polishSuggestion" class="ai-polish-preview">
+          <section class="ai-polish-preview__section">
+            <span>建议标题</span>
+            <strong>{{ polishSuggestion.title }}</strong>
+          </section>
+
+          <section class="ai-polish-preview__section">
+            <span>建议介绍</span>
+            <p>{{ polishSuggestion.introduction }}</p>
+          </section>
+
+          <section class="ai-polish-preview__section">
+            <span>活动正文</span>
+            <div class="ai-block-list">
+              <article
+                v-for="(block, index) in polishSuggestion.contentBlocks"
+                :key="`${block.type}-${index}`"
+                class="ai-block"
+              >
+                <b>{{ contentBlockLabel(block.type) }}</b>
+                <strong v-if="block.title">{{ block.title }}</strong>
+                <p v-if="block.text">{{ block.text }}</p>
+                <ul v-if="block.items?.length">
+                  <li v-for="item in block.items" :key="item">{{ item }}</li>
+                </ul>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <footer class="ai-polish-sheet__actions">
+          <AppButton variant="ghost" :disabled="aiPolishing" @click="aiPolishVisible = false">
+            取消
+          </AppButton>
+          <AppButton variant="plain" :loading="aiPolishing" @click="requestAiPolish">
+            重新生成
+          </AppButton>
+          <AppButton :disabled="!polishSuggestion" @click="applyAiPolish">
+            采用建议
+          </AppButton>
+        </footer>
+      </section>
+    </van-popup>
+
     <template #action>
       <AppFixedActions single>
         <AppButton variant="primary" :loading="submitting" @click="handleSubmit">
@@ -229,10 +308,10 @@ import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
-import { createGroupBuy } from '@/api/leaderGroupBuys'
+import { createGroupBuy, polishGroupBuyCopy } from '@/api/leaderGroupBuys'
 import { listProducts } from '@/api/products'
 import { amountToYuan, formatAmount, getDemoProductImage } from '@/utils'
-import type { ProductData } from '@/types'
+import type { ContentBlockData, GroupBuyAiPolishResponse, ProductData } from '@/types'
 
 const router = useRouter()
 
@@ -243,6 +322,9 @@ const productsLoading = ref(false)
 const productsError = ref('')
 const productKeyword = ref('')
 const products = ref<ProductData[]>([])
+const aiPolishing = ref(false)
+const aiPolishVisible = ref(false)
+const polishSuggestion = ref<GroupBuyAiPolishResponse | null>(null)
 let localItemId = 0
 
 const deliveryOptions = [
@@ -283,6 +365,7 @@ const form = reactive({
   startTime: '',
   endTime: '',
   agreed: false,
+  contentBlocks: [] as ContentBlockData[],
   items: [] as ItemForm[],
 })
 
@@ -329,6 +412,63 @@ function addProductFromLibrary(product: ProductData) {
 
 function removeItem(index: number) {
   form.items.splice(index, 1)
+}
+
+function contentBlockLabel(type: string): string {
+  if (type === 'paragraph') return '说明'
+  if (type === 'section') return '段落'
+  if (type === 'list') return '要点'
+  if (type === 'deliveryNote') return '履约'
+  if (type === 'image') return '图片'
+  return '正文'
+}
+
+function normalizeContentBlocks(blocks: ContentBlockData[] | undefined): ContentBlockData[] {
+  return (blocks || []).map((block) => ({
+    type: block.type,
+    text: block.text || null,
+    title: block.title || null,
+    url: block.url || null,
+    caption: block.caption || null,
+    items: block.items || null,
+  }))
+}
+
+async function requestAiPolish() {
+  if (aiPolishing.value) return
+  aiPolishing.value = true
+  try {
+    polishSuggestion.value = await polishGroupBuyCopy({
+      title: form.title,
+      introduction: form.introduction,
+      deliveryType: form.deliveryType,
+      startTime: toISOWithTZ(form.startTime),
+      endTime: toISOWithTZ(form.endTime),
+      shippingTime: null,
+      items: form.items.map((item) => ({
+        productId: item.productId,
+        displayName: item.displayName,
+        groupPriceAmount: item.groupPriceAmount,
+        groupStock: item.groupStock,
+        description: item.description || null,
+      })),
+    })
+    aiPolishVisible.value = true
+  } catch (err) {
+    const apiErr = err as { message?: string }
+    showToast(apiErr.message || 'AI 润色失败')
+  } finally {
+    aiPolishing.value = false
+  }
+}
+
+function applyAiPolish() {
+  if (!polishSuggestion.value) return
+  form.title = polishSuggestion.value.title
+  form.introduction = polishSuggestion.value.introduction
+  form.contentBlocks = normalizeContentBlocks(polishSuggestion.value.contentBlocks)
+  aiPolishVisible.value = false
+  showToast('已采用润色文案')
 }
 
 function toISOWithTZ(dt: string): string | null {
@@ -391,6 +531,7 @@ async function handleSubmit() {
       deliveryType: form.deliveryType,
       startTime: toISOWithTZ(form.startTime),
       endTime: toISOWithTZ(form.endTime),
+      contentBlocks: form.contentBlocks.length > 0 ? form.contentBlocks : undefined,
       items: form.items.map((item, index) => ({
         ...(item.productId
           ? { productId: item.productId }
@@ -562,6 +703,10 @@ onMounted(() => {
 }
 
 .text-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   min-height: 36px;
   padding: 0 10px;
   border: 1px solid var(--color-border);
@@ -571,6 +716,150 @@ onMounted(() => {
   font-family: inherit;
   font-size: var(--font-size-sm);
   font-weight: 700;
+}
+
+.text-action:disabled {
+  opacity: 0.55;
+}
+
+.text-action--ai {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.ai-polish-popup {
+  overflow: hidden;
+}
+
+.ai-polish-sheet {
+  display: flex;
+  max-height: 82vh;
+  flex-direction: column;
+  background: var(--color-bg-page);
+}
+
+.ai-polish-sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+}
+
+.ai-polish-sheet__header h3 {
+  margin: 0 0 6px;
+  color: var(--color-text-primary);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.ai-polish-sheet__header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+}
+
+.ai-polish-sheet__tag {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.ai-polish-note {
+  margin: 12px 14px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-warning-light, #fff7e8);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.ai-polish-preview {
+  display: flex;
+  overflow-y: auto;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.ai-polish-preview__section {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.ai-polish-preview__section > span,
+.ai-block b {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--color-text-hint);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.ai-polish-preview__section > strong,
+.ai-block strong {
+  display: block;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.ai-polish-preview__section p,
+.ai-block p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.65;
+}
+
+.ai-block-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-block {
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-bg-surface);
+}
+
+.ai-block ul {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 18px;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.55;
+}
+
+.ai-polish-sheet__actions {
+  display: grid;
+  grid-template-columns: 0.85fr 1fr 1fr;
+  gap: 8px;
+  padding: 10px 14px calc(var(--safe-area-bottom) + 12px);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+}
+
+.ai-polish-sheet__actions :deep(.app-button) {
+  min-width: 0;
+  padding: 0 10px;
 }
 
 .search-field {
