@@ -11,6 +11,7 @@ import type {
   UpdateStoreRequest,
   StoreResponseData,
   MyStoreResponseData,
+  StoreWorkbenchSummaryData,
 } from '@/types'
 
 /**
@@ -31,6 +32,11 @@ export async function createStore(data: CreateStoreRequest): Promise<StoreRespon
 export async function getMyStore(): Promise<MyStoreResponseData> {
   const res = await request.get('/my/store') as ApiResponse<MyStoreResponseData>
   return res.data ?? null
+}
+
+export async function getStoreWorkbenchSummary(): Promise<StoreWorkbenchSummaryData> {
+  const res = await request.get('/my/store/workbench-summary') as ApiResponse<StoreWorkbenchSummaryData>
+  return res.data
 }
 
 /**

@@ -18,6 +18,7 @@ class StoreControllerTest extends MockMvcTestBase {
     private static final String MOCK_LOGIN_URL = "/api/v1/auth/mock-login";
     private static final String STORES_URL = "/api/v1/stores";
     private static final String MY_STORE_URL = "/api/v1/my/store";
+    private static final String WORKBENCH_SUMMARY_URL = "/api/v1/my/store/workbench-summary";
 
     // ── Helpers ──────────────────────────────────────────────────────
 
@@ -237,6 +238,34 @@ class StoreControllerTest extends MockMvcTestBase {
         mockMvc.perform(get(MY_STORE_URL))
                 .andExpect(status().isUnauthorized())
                 .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
+    @Test
+    void getWorkbenchSummary_shouldReturnCurrentStoreCounts() throws Exception {
+        String token = loginAndGetToken("13800002003");
+
+        mockMvc.perform(post(STORES_URL)
+                .header("Authorization", "Bearer " + token)
+                .contentType("application/json")
+                .content("""
+                        {
+                            "name": "桌面运营店",
+                            "logoUrl": "https://example.com/store.png",
+                            "defaultDeliveryType": "express"
+                        }
+                        """));
+
+        mockMvc.perform(get(WORKBENCH_SUMMARY_URL)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.store.name").value("桌面运营店"))
+                .andExpect(jsonPath("$.data.store.status").value("active"))
+                .andExpect(jsonPath("$.data.todos.paidOrders").value(0))
+                .andExpect(jsonPath("$.data.statusCounts.orders.paid").value(0))
+                .andExpect(jsonPath("$.data.statusCounts.afterSales.pending").value(0))
+                .andExpect(jsonPath("$.data.statusCounts.groupBuys.published").value(0));
     }
 
     // ── PATCH /api/v1/my/store ───────────────────────────────────────

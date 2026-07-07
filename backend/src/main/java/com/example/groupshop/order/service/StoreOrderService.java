@@ -54,6 +54,13 @@ public class StoreOrderService {
      * List orders for the current user's store with optional status filter.
      */
     public PageResponse<OrderResponse> getStoreOrders(Long userId, String status, int page, int pageSize) {
+        return getStoreOrders(userId, status, null, page, pageSize);
+    }
+
+    /**
+     * List orders for the current user's store with optional status and keyword filters.
+     */
+    public PageResponse<OrderResponse> getStoreOrders(Long userId, String status, String keyword, int page, int pageSize) {
         var ls = currentStoreHelper.getLeaderAndStore(userId);
         Store store = ls.getStore();
 
@@ -64,6 +71,14 @@ public class StoreOrderService {
 
         if (status != null && !status.isEmpty()) {
             wrapper.eq(Order::getOrderStatus, toDbOrderStatus(status));
+        }
+        if (keyword != null && !keyword.isBlank()) {
+            String normalized = keyword.trim();
+            wrapper.and(w -> w.like(Order::getOrderNo, normalized)
+                    .or()
+                    .like(Order::getReceiverName, normalized)
+                    .or()
+                    .like(Order::getReceiverPhone, normalized));
         }
 
         Page<Order> result = orderMapper.selectPage(pageObj, wrapper);

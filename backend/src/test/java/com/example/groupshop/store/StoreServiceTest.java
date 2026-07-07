@@ -4,15 +4,25 @@ import com.example.groupshop.base.ServiceTestBase;
 import com.example.groupshop.common.enums.ErrorCode;
 import com.example.groupshop.common.exception.BusinessException;
 import com.example.groupshop.model.entity.Leader;
+import com.example.groupshop.model.entity.AfterSale;
+import com.example.groupshop.model.entity.ChatConversation;
+import com.example.groupshop.model.entity.GroupBuy;
+import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.entity.Store;
 import com.example.groupshop.model.entity.User;
+import com.example.groupshop.model.mapper.AfterSaleMapper;
+import com.example.groupshop.model.mapper.ChatConversationMapper;
+import com.example.groupshop.model.mapper.GroupBuyMapper;
 import com.example.groupshop.model.mapper.LeaderMapper;
+import com.example.groupshop.model.mapper.OrderMapper;
 import com.example.groupshop.model.mapper.StoreMapper;
 import com.example.groupshop.model.mapper.UserMapper;
 import com.example.groupshop.store.dto.CreateStoreRequest;
 import com.example.groupshop.store.dto.StoreResponse;
+import com.example.groupshop.store.dto.StoreWorkbenchSummaryResponse;
 import com.example.groupshop.store.dto.UpdateStoreRequest;
 import com.example.groupshop.store.service.StoreService;
+import com.example.groupshop.store.service.StoreWorkbenchService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +43,9 @@ class StoreServiceTest extends ServiceTestBase {
     private StoreService storeService;
 
     @Autowired
+    private StoreWorkbenchService storeWorkbenchService;
+
+    @Autowired
     private UserMapper userMapper;
 
     @Autowired
@@ -40,6 +53,18 @@ class StoreServiceTest extends ServiceTestBase {
 
     @Autowired
     private StoreMapper storeMapper;
+
+    @Autowired
+    private OrderMapper orderMapper;
+
+    @Autowired
+    private AfterSaleMapper afterSaleMapper;
+
+    @Autowired
+    private GroupBuyMapper groupBuyMapper;
+
+    @Autowired
+    private ChatConversationMapper chatConversationMapper;
 
     private Long userId;
 
@@ -176,6 +201,78 @@ class StoreServiceTest extends ServiceTestBase {
         assertThat(response.getStore().getName()).isEqualTo("我的店铺");
         assertThat(response.getStore().getDefaultDeliveryType()).isEqualTo("express");
         assertThat(response.getStore().getStatus()).isEqualTo("active");
+    }
+
+    @Test
+    void getWorkbenchSummary_shouldCountOnlyCurrentStoreTodos() {
+        CreateStoreRequest request = new CreateStoreRequest();
+        request.setName("我的店铺");
+        request.setDefaultDeliveryType(com.example.groupshop.common.enums.DeliveryType.EXPRESS);
+        StoreResponse storeResponse = storeService.createStore(userId, request);
+
+        Long storeId = storeResponse.getStore().getId();
+        Long leaderId = storeResponse.getLeader().getId();
+        Leader leader = leaderMapper.selectById(leaderId);
+
+        GroupBuy groupBuy = new GroupBuy();
+        groupBuy.setStoreId(storeId);
+        groupBuy.setLeaderId(leaderId);
+        groupBuy.setTitle("进行中团购");
+        groupBuy.setDeliveryType("express");
+        groupBuy.setVisibility("public");
+        groupBuy.setStatus("published");
+        groupBuyMapper.insert(groupBuy);
+
+        Order paidOrder = new Order();
+        paidOrder.setOrderNo("NO-PAID");
+        paidOrder.setUserId(userId);
+        paidOrder.setLeaderId(leaderId);
+        paidOrder.setStoreId(storeId);
+        paidOrder.setGroupBuyId(groupBuy.getId());
+        paidOrder.setAddressId(1L);
+        paidOrder.setReceiverName("测试买家");
+        paidOrder.setReceiverPhone("13800000000");
+        paidOrder.setProvince("广东省");
+        paidOrder.setCity("深圳市");
+        paidOrder.setDistrict("南山区");
+        paidOrder.setDetail("科技园");
+        paidOrder.setFullAddress("广东省深圳市南山区科技园");
+        paidOrder.setPayStatus("paid");
+        paidOrder.setOrderStatus("paid");
+        paidOrder.setTotalAmount(1000L);
+        paidOrder.setDiscountAmount(0L);
+        paidOrder.setPayAmount(1000L);
+        orderMapper.insert(paidOrder);
+
+        AfterSale afterSale = new AfterSale();
+        afterSale.setOrderId(paidOrder.getId());
+        afterSale.setUserId(userId);
+        afterSale.setLeaderId(leaderId);
+        afterSale.setStoreId(storeId);
+        afterSale.setType("refund");
+        afterSale.setReason("质量问题");
+        afterSale.setStatus("pending");
+        afterSale.setAmount(1000L);
+        afterSale.setOriginalOrderStatus("paid");
+        afterSaleMapper.insert(afterSale);
+
+        ChatConversation conversation = new ChatConversation();
+        conversation.setBuyerUserId(userId);
+        conversation.setLeaderUserId(leader.getUserId());
+        conversation.setStoreId(storeId);
+        conversation.setBuyerUnreadCount(0);
+        conversation.setLeaderUnreadCount(4);
+        chatConversationMapper.insert(conversation);
+
+        StoreWorkbenchSummaryResponse summary = storeWorkbenchService.getSummary(userId);
+
+        assertThat(summary.getTodos().getPaidOrders()).isEqualTo(1);
+        assertThat(summary.getTodos().getPendingAfterSales()).isEqualTo(1);
+        assertThat(summary.getTodos().getPublishedGroupBuys()).isEqualTo(1);
+        assertThat(summary.getTodos().getUnreadLeaderChats()).isEqualTo(4);
+        assertThat(summary.getStatusCounts().getOrders().get("paid")).isEqualTo(1);
+        assertThat(summary.getStatusCounts().getAfterSales().get("pending")).isEqualTo(1);
+        assertThat(summary.getStatusCounts().getGroupBuys().get("published")).isEqualTo(1);
     }
 
     // ── Update store ────────────────────────────────────────────────

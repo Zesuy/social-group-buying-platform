@@ -4,8 +4,10 @@ import com.example.groupshop.auth.AuthInterceptor;
 import com.example.groupshop.common.response.ApiResponse;
 import com.example.groupshop.store.dto.CreateStoreRequest;
 import com.example.groupshop.store.dto.StoreResponse;
+import com.example.groupshop.store.dto.StoreWorkbenchSummaryResponse;
 import com.example.groupshop.store.dto.UpdateStoreRequest;
 import com.example.groupshop.store.service.StoreService;
+import com.example.groupshop.store.service.StoreWorkbenchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StoreController {
 
     private final StoreService storeService;
+    private final StoreWorkbenchService storeWorkbenchService;
 
     /**
      * Create a store for the current user.
@@ -54,6 +57,12 @@ public class StoreController {
             return ApiResponse.success();
         }
         return ApiResponse.success(response);
+    }
+
+    @GetMapping("/my/store/workbench-summary")
+    public ApiResponse<StoreWorkbenchSummaryResponse> getWorkbenchSummary(
+            @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId) {
+        return ApiResponse.success(storeWorkbenchService.getSummary(userId));
     }
 
     /**

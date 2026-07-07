@@ -9,6 +9,7 @@ import type {
   ApiResponse,
   PageResponse,
   LeaderOrderData,
+  LeaderOrderListParams,
   ShipRequest,
   ShipResponse,
 } from '@/types'
@@ -20,9 +21,18 @@ export async function listLeaderOrders(
   status?: string,
   page = 1,
   pageSize = 20,
+  keyword?: string,
 ): Promise<PageResponse<LeaderOrderData>> {
   const params: Record<string, string | number> = { page, pageSize }
   if (status) params.status = status
+  if (keyword) params.keyword = keyword
+  const res = await request.get('/my/store/orders', { params }) as ApiResponse<PageResponse<LeaderOrderData>>
+  return res.data
+}
+
+export async function listLeaderOrdersByParams(
+  params: LeaderOrderListParams = {},
+): Promise<PageResponse<LeaderOrderData>> {
   const res = await request.get('/my/store/orders', { params }) as ApiResponse<PageResponse<LeaderOrderData>>
   return res.data
 }

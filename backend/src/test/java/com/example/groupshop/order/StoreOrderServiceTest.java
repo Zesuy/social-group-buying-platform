@@ -185,6 +185,22 @@ class StoreOrderServiceTest extends ServiceTestBase {
     }
 
     @Test
+    void getStoreOrders_shouldFilterByKeyword() {
+        Order order = orderMapper.selectById(orderId);
+
+        PageResponse<OrderResponse> byOrderNo = storeOrderService.getStoreOrders(
+                leaderUserId, null, order.getOrderNo().substring(0, 6), 1, 20);
+        PageResponse<OrderResponse> byReceiver = storeOrderService.getStoreOrders(
+                leaderUserId, null, "买家李四", 1, 20);
+        PageResponse<OrderResponse> byPhone = storeOrderService.getStoreOrders(
+                leaderUserId, null, "13800000002", 1, 20);
+
+        assertThat(byOrderNo.getItems()).extracting(OrderResponse::getId).contains(orderId);
+        assertThat(byReceiver.getItems()).extracting(OrderResponse::getId).contains(orderId);
+        assertThat(byPhone.getItems()).extracting(OrderResponse::getId).contains(orderId);
+    }
+
+    @Test
     void getStoreOrders_shouldFailForNonLeader() {
         assertThatThrownBy(() -> storeOrderService.getStoreOrders(buyerUserId, null, 1, 20))
                 .isInstanceOf(BusinessException.class)

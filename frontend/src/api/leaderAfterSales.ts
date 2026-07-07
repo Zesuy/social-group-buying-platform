@@ -16,9 +16,10 @@ import type {
 export async function listLeaderAfterSales(
   params: AfterSaleListParams = {},
 ): Promise<PageResponse<AfterSaleData>> {
-  const requestParams: Record<string, number> = {}
+  const requestParams: Record<string, number | string> = {}
   if (params.page !== undefined) requestParams.page = params.page
   if (params.pageSize !== undefined) requestParams.pageSize = params.pageSize
+  if (params.status) requestParams.status = params.status
   const res = await request.get('/my/store/after-sales', { params: requestParams }) as ApiResponse<PageResponse<AfterSaleData>>
   return res.data
 }

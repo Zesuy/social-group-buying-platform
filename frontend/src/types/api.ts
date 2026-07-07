@@ -782,6 +782,12 @@ export interface UpdateProductRequest {
   status?: string
 }
 
+export interface ProductListParams extends PaginationParams {
+  keyword?: string
+  categoryId?: string
+  status?: string
+}
+
 // ── 团购管理 ──
 export interface GroupBuyManageItem {
   id: string
@@ -924,6 +930,40 @@ export interface ShipmentData {
 export interface ShipResponse {
   order: { id: string; orderStatus: string; payStatus: string }
   shipment: ShipmentData
+}
+
+export interface LeaderOrderListParams extends PaginationParams {
+  status?: string
+  keyword?: string
+}
+
+export interface StoreWorkbenchTodos {
+  paidOrders: number
+  pendingAfterSales: number
+  unreadLeaderChats: number
+  publishedGroupBuys: number
+}
+
+export interface StoreWorkbenchStatusCounts {
+  orders: Record<'paid' | 'shipped' | 'completed' | 'afterSale' | 'canceled', number>
+  afterSales: Record<'pending' | 'approved' | 'rejected' | 'completed', number>
+  groupBuys: Record<'draft' | 'published' | 'ended', number>
+}
+
+export interface StoreWorkbenchSummaryData {
+  store: {
+    id: string
+    name: string
+    logoUrl: string | null
+    status: string
+  }
+  leader: {
+    id: string
+    displayName: string
+    avatarUrl: string | null
+  }
+  todos: StoreWorkbenchTodos
+  statusCounts: StoreWorkbenchStatusCounts
 }
 
 // ── 店铺售后管理 ──

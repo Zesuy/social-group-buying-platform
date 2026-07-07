@@ -44,9 +44,10 @@ public class StoreOrderController {
     public ApiResponse<PageResponse<OrderResponse>> listStoreOrders(
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        return ApiResponse.success(storeOrderService.getStoreOrders(userId, status, page, pageSize));
+        return ApiResponse.success(storeOrderService.getStoreOrders(userId, status, keyword, page, pageSize));
     }
 
     /**

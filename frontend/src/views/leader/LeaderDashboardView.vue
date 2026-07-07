@@ -80,11 +80,7 @@ import ErrorView from '@/components/ErrorView.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppStatusPill from '@/components/AppStatusPill.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
-import { listChatConversations } from '@/api/chats'
-import { listMyGroupBuys } from '@/api/leaderGroupBuys'
-import { listLeaderAfterSales } from '@/api/leaderAfterSales'
-import { listLeaderOrders } from '@/api/leaderOrders'
-import { getMyStore } from '@/api/stores'
+import { getStoreWorkbenchSummary } from '@/api/stores'
 import type { MyStoreResponseData } from '@/types'
 
 const router = useRouter()
@@ -138,23 +134,25 @@ const quickEntries = [
 
 async function loadDashboard() {
   loading.value = true
-  error.value = ''
+    error.value = ''
   try {
-    storeData.value = await getMyStore()
-    const [orders, afterSales, chats, groupBuys] = await Promise.allSettled([
-      listLeaderOrders('paid', 1, 1),
-      listLeaderAfterSales({ page: 1, pageSize: 50 }),
-      listChatConversations({ role: 'leader', page: 1, pageSize: 20 }),
-      listMyGroupBuys('published', 1, 1),
-    ])
-    paidOrderCount.value = orders.status === 'fulfilled' ? orders.value.total : 0
-    pendingAfterSaleCount.value = afterSales.status === 'fulfilled'
-      ? afterSales.value.items.filter((item) => item.status === 'pending').length
-      : 0
-    leaderUnreadCount.value = chats.status === 'fulfilled'
-      ? chats.value.items.reduce((sum, item) => sum + item.unreadCount, 0)
-      : 0
-    publishedGroupBuyCount.value = groupBuys.status === 'fulfilled' ? groupBuys.value.total : 0
+    const summary = await getStoreWorkbenchSummary()
+    storeData.value = {
+      leader: summary.leader,
+      store: {
+        ...summary.store,
+        leaderId: summary.leader.id,
+        description: null,
+        defaultDeliveryType: 'local_delivery',
+        distributionEnabled: false,
+        latitude: null,
+        longitude: null,
+      },
+    } as MyStoreResponseData
+    paidOrderCount.value = summary.todos.paidOrders
+    pendingAfterSaleCount.value = summary.todos.pendingAfterSales
+    leaderUnreadCount.value = summary.todos.unreadLeaderChats
+    publishedGroupBuyCount.value = summary.todos.publishedGroupBuys
   } catch (err) {
     error.value = (err as { message?: string }).message || '商家工作台加载失败'
   } finally {

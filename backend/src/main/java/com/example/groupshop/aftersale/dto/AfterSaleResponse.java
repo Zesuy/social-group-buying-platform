@@ -41,4 +41,11 @@ public class AfterSaleResponse {
 
     /** Current pay status */
     private String payStatus;
+
+    /** Buyer and address snapshots for store-side processing */
+    private String buyerNickname;
+    private String buyerAvatarUrl;
+    private String receiverName;
+    private String receiverPhone;
+    private String fullAddress;
 }
