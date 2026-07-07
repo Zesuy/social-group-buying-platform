@@ -244,6 +244,25 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '403':
           $ref: '#/components/responses/LeaderRequiredError'
+  /api/v1/my/store/workbench-summary:
+    get:
+      tags:
+        - Store
+      summary: Get current store workbench summary.
+      operationId: getStoreWorkbenchSummary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current store workbench todo and status counts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreWorkbenchSummarySuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/LeaderRequiredError'
   /api/v1/my/uploads/images:
     post:
       tags:
@@ -637,7 +656,6 @@ paths:
           required: false
           schema:
             type: string
-          description: active / inactive / deleted
         - name: page
           in: query
           schema:
@@ -1759,6 +1777,11 @@ paths:
           required: false
           schema:
             type: string
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
         - name: page
           in: query
           schema:
@@ -2279,6 +2302,11 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
         - name: page
           in: query
           schema:
@@ -2307,6 +2335,11 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
         - name: page
           in: query
           schema:
@@ -3650,6 +3683,150 @@ components:
           $ref: '#/components/schemas/LeaderInfo'
         store:
           $ref: '#/components/schemas/StoreInfo'
+      additionalProperties: false
+    StoreWorkbenchSummarySuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+        data:
+          $ref: '#/components/schemas/StoreWorkbenchSummaryData'
+        traceId:
+          type: string
+          minLength: 1
+      additionalProperties: false
+    StoreWorkbenchSummaryData:
+      type: object
+      required:
+        - store
+        - leader
+        - todos
+        - statusCounts
+      properties:
+        store:
+          $ref: '#/components/schemas/StoreWorkbenchStoreInfo'
+        leader:
+          $ref: '#/components/schemas/LeaderInfo'
+        todos:
+          $ref: '#/components/schemas/StoreWorkbenchTodos'
+        statusCounts:
+          $ref: '#/components/schemas/StoreWorkbenchStatusCounts'
+      additionalProperties: false
+    StoreWorkbenchStoreInfo:
+      type: object
+      required:
+        - id
+        - name
+        - status
+      properties:
+        id:
+          type: string
+          description: 雪花ID（字符串防JS精度丢失）
+        name:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+      additionalProperties: false
+    StoreWorkbenchTodos:
+      type: object
+      required:
+        - paidOrders
+        - pendingAfterSales
+        - unreadLeaderChats
+        - publishedGroupBuys
+      properties:
+        paidOrders:
+          type: integer
+          minimum: 0
+        pendingAfterSales:
+          type: integer
+          minimum: 0
+        unreadLeaderChats:
+          type: integer
+          minimum: 0
+        publishedGroupBuys:
+          type: integer
+          minimum: 0
+      additionalProperties: false
+    StoreWorkbenchStatusCounts:
+      type: object
+      required:
+        - orders
+        - afterSales
+        - groupBuys
+      properties:
+        orders:
+          type: object
+          required:
+            - paid
+            - shipped
+            - completed
+            - afterSale
+            - canceled
+          properties:
+            paid:
+              type: integer
+              minimum: 0
+            shipped:
+              type: integer
+              minimum: 0
+            completed:
+              type: integer
+              minimum: 0
+            afterSale:
+              type: integer
+              minimum: 0
+            canceled:
+              type: integer
+              minimum: 0
+          additionalProperties: false
+        afterSales:
+          type: object
+          required:
+            - pending
+            - approved
+            - rejected
+            - completed
+          properties:
+            pending:
+              type: integer
+              minimum: 0
+            approved:
+              type: integer
+              minimum: 0
+            rejected:
+              type: integer
+              minimum: 0
+            completed:
+              type: integer
+              minimum: 0
+          additionalProperties: false
+        groupBuys:
+          type: object
+          required:
+            - draft
+            - published
+            - ended
+          properties:
+            draft:
+              type: integer
+              minimum: 0
+            published:
+              type: integer
+              minimum: 0
+            ended:
+              type: integer
+              minimum: 0
+          additionalProperties: false
       additionalProperties: false
     LeaderInfo:
       type: object
@@ -6440,6 +6617,21 @@ components:
           type: string
         payStatus:
           type: string
+        buyerNickname:
+          type: string
+          nullable: true
+        buyerAvatarUrl:
+          type: string
+          nullable: true
+        receiverName:
+          type: string
+          nullable: true
+        receiverPhone:
+          type: string
+          nullable: true
+        fullAddress:
+          type: string
+          nullable: true
         rejectReason:
           type: string
           nullable: true

@@ -9,6 +9,7 @@ import type {
   ApiResponse,
   PageResponse,
   ProductData,
+  ProductListParams,
   CreateProductRequest,
   UpdateProductRequest,
 } from '@/types'
@@ -20,8 +21,17 @@ export async function listProducts(
   page = 1,
   pageSize = 20,
 ): Promise<PageResponse<ProductData>> {
+  return listProductsByParams({ page, pageSize })
+}
+
+/**
+ * 按条件获取商品列表
+ */
+export async function listProductsByParams(
+  params: ProductListParams = {},
+): Promise<PageResponse<ProductData>> {
   const res = await request.get('/my/store/products', {
-    params: { page, pageSize },
+    params,
   }) as ApiResponse<PageResponse<ProductData>>
   return res.data
 }

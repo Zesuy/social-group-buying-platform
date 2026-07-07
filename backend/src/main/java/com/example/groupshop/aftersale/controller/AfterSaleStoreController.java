@@ -33,9 +33,10 @@ public class AfterSaleStoreController {
     @GetMapping
     public ApiResponse<PageResponse<AfterSaleResponse>> listStoreAfterSales(
             @RequestAttribute(AuthInterceptor.USER_ID_ATTR) Long userId,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        return ApiResponse.success(afterSaleService.getStoreAfterSales(userId, page, pageSize));
+        return ApiResponse.success(afterSaleService.getStoreAfterSales(userId, status, page, pageSize));
     }
 
     /**

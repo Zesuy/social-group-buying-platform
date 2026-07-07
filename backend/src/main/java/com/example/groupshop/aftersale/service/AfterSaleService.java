@@ -16,11 +16,13 @@ import com.example.groupshop.model.entity.GroupBuyItem;
 import com.example.groupshop.model.entity.MemberRelation;
 import com.example.groupshop.model.entity.Order;
 import com.example.groupshop.model.entity.OrderItem;
+import com.example.groupshop.model.entity.User;
 import com.example.groupshop.model.mapper.AfterSaleMapper;
 import com.example.groupshop.model.mapper.GroupBuyItemMapper;
 import com.example.groupshop.model.mapper.MemberRelationMapper;
 import com.example.groupshop.model.mapper.OrderItemMapper;
 import com.example.groupshop.model.mapper.OrderMapper;
+import com.example.groupshop.model.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,7 @@ public class AfterSaleService {
     private final OrderItemMapper orderItemMapper;
     private final GroupBuyItemMapper groupBuyItemMapper;
     private final MemberRelationMapper memberRelationMapper;
+    private final UserMapper userMapper;
     private final MemberLevelRuleService memberLevelRuleService;
     private final CurrentStoreHelper currentStoreHelper;
 
@@ -175,6 +178,13 @@ public class AfterSaleService {
      * List after-sales for the current user's store, most recent first.
      */
     public PageResponse<AfterSaleResponse> getStoreAfterSales(Long userId, int page, int pageSize) {
+        return getStoreAfterSales(userId, null, page, pageSize);
+    }
+
+    /**
+     * List after-sales for the current user's store, most recent first.
+     */
+    public PageResponse<AfterSaleResponse> getStoreAfterSales(Long userId, String status, int page, int pageSize) {
         var ls = currentStoreHelper.getLeaderAndStore(userId);
         Long storeId = ls.getStore().getId();
 
@@ -182,6 +192,9 @@ public class AfterSaleService {
         LambdaQueryWrapper<AfterSale> wrapper = new LambdaQueryWrapper<AfterSale>()
                 .eq(AfterSale::getStoreId, storeId)
                 .orderByDesc(AfterSale::getCreatedAt);
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(AfterSale::getStatus, status.trim());
+        }
 
         Page<AfterSale> result = afterSaleMapper.selectPage(pageObj, wrapper);
 
@@ -485,7 +498,16 @@ public class AfterSaleService {
         if (order != null) {
             builder.orderNo(order.getOrderNo())
                     .orderStatus(toApiOrderStatus(order.getOrderStatus()))
-                    .payStatus(order.getPayStatus());
+                    .payStatus(order.getPayStatus())
+                    .receiverName(order.getReceiverName())
+                    .receiverPhone(order.getReceiverPhone())
+                    .fullAddress(order.getFullAddress());
+        }
+
+        User buyer = userMapper.selectById(afterSale.getUserId());
+        if (buyer != null) {
+            builder.buyerNickname(buyer.getNickname())
+                    .buyerAvatarUrl(buyer.getAvatarUrl());
         }
 
         return builder.build();

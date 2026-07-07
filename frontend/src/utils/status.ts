@@ -43,6 +43,7 @@ const storeStatusMap: Record<string, string> = {
 }
 
 const groupBuyStatusMap: Record<string, string> = {
+  draft: '草稿',
   published: '进行中',
   ended: '已结束',
 }
@@ -58,6 +59,8 @@ const orderStatusMap: Record<string, string> = {
   shipped: '已发货',
   completed: '已完成',
   canceled: '已取消',
+  after_sale: '售后中',
+  afterSale: '售后中',
 }
 
 const deliveryTypeMap: Record<string, string> = {

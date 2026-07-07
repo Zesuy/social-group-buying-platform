@@ -122,6 +122,17 @@ class StoreOrderControllerTest extends MockMvcTestBase {
     }
 
     @Test
+    void listStoreOrders_shouldFilterByKeyword() throws Exception {
+        mockMvc.perform(get(STORE_ORDERS_URL)
+                        .param("keyword", "收货人")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items[0].id").value(String.valueOf(orderId)));
+    }
+
+    @Test
     void listStoreOrders_shouldFailForNonLeader() throws Exception {
         mockMvc.perform(get(STORE_ORDERS_URL)
                         .header("Authorization", "Bearer " + buyerToken))

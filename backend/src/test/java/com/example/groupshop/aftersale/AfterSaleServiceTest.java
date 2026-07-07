@@ -317,6 +317,23 @@ class AfterSaleServiceTest extends ServiceTestBase {
     }
 
     @Test
+    void getStoreAfterSales_shouldFilterByStatus() {
+        Long orderId = createPaidOrder();
+
+        CreateAfterSaleRequest request = new CreateAfterSaleRequest();
+        request.setType("refund");
+        request.setReason("质量问题");
+        AfterSaleResponse created = afterSaleService.createAfterSale(userId, orderId, request);
+        afterSaleService.approveAfterSale(leaderUserId, created.getId());
+
+        PageResponse<AfterSaleResponse> approved = afterSaleService.getStoreAfterSales(leaderUserId, "approved", 1, 20);
+        PageResponse<AfterSaleResponse> pending = afterSaleService.getStoreAfterSales(leaderUserId, "pending", 1, 20);
+
+        assertThat(approved.getItems()).extracting(AfterSaleResponse::getId).contains(created.getId());
+        assertThat(pending.getItems()).extracting(AfterSaleResponse::getId).doesNotContain(created.getId());
+    }
+
+    @Test
     void getStoreAfterSale_shouldReturnDetail() {
         Long orderId = createPaidOrder();
 

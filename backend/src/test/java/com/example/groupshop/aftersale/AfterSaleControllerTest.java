@@ -221,6 +221,21 @@ class AfterSaleControllerTest extends MockMvcTestBase {
     }
 
     @Test
+    void listStoreAfterSales_shouldFilterByStatus() throws Exception {
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/after-sales")
+                .header("Authorization", "Bearer " + buyerToken)
+                .contentType("application/json")
+                .content("{\"type\":\"refund\",\"reason\":\"问题\"}"));
+
+        mockMvc.perform(get(STORE_AFTER_SALES_URL)
+                        .param("status", "pending")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isOk())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.items[0].status").value("pending"));
+    }
+
+    @Test
     void getStoreAfterSale_shouldSucceed() throws Exception {
         String createResponse = mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/after-sales")
                         .header("Authorization", "Bearer " + buyerToken)

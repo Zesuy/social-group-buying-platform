@@ -707,7 +707,41 @@ PATCH /api/v1/my/store
 
 响应：返回更新后的店铺。
 
-### 6.4 上传公开图片
+### 6.4 商家工作台摘要
+
+```http
+GET /api/v1/my/store/workbench-summary
+```
+
+登录：需要团长身份。
+
+用途：当前登录团长自己的店铺运营台聚合摘要；客户端不得传 `storeId`。
+
+响应：
+
+```json
+{
+  "success": true,
+  "data": {
+    "store": { "id": 20, "name": "王姐社区鲜果店", "logoUrl": "/uploads/images/store.jpg", "status": "active" },
+    "leader": { "id": 10, "displayName": "王姐", "avatarUrl": "/uploads/images/avatar.jpg" },
+    "todos": {
+      "paidOrders": 3,
+      "pendingAfterSales": 1,
+      "unreadLeaderChats": 4,
+      "publishedGroupBuys": 5
+    },
+    "statusCounts": {
+      "orders": { "paid": 3, "shipped": 8, "completed": 21, "afterSale": 1, "canceled": 2 },
+      "afterSales": { "pending": 1, "approved": 2, "rejected": 1, "completed": 6 },
+      "groupBuys": { "draft": 2, "published": 5, "ended": 9 }
+    }
+  },
+  "traceId": "req_001"
+}
+```
+
+### 6.5 上传公开图片
 
 ```http
 POST /api/v1/my/uploads/images
@@ -1717,8 +1751,8 @@ GET /api/v1/my/store/orders
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| groupBuyId | number | 按团购筛选 |
 | status | string | 订单状态 |
+| keyword | string | 按订单号、收货人或收货手机号模糊搜索 |
 | page | number | 页码 |
 | pageSize | number | 每页数量 |
 
@@ -2645,6 +2679,7 @@ GET /api/v1/my/after-sales
 
 | 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
+| status | string | - | 按售后状态筛选：`pending`、`approved`、`rejected`、`completed` |
 | page | number | 1 | 页码 |
 | pageSize | number | 20 | 每页数量 |
 

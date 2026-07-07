@@ -118,6 +118,27 @@ async function mockEndpoints(page: Page) {
     })
   })
 
+  await page.route('**/api/v1/my/store/workbench-summary', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          store: { id: 20, name: '王姐社区鲜果店', logoUrl: null, status: 'active' },
+          leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
+          todos: { paidOrders: 2, pendingAfterSales: 1, unreadLeaderChats: 0, publishedGroupBuys: 3 },
+          statusCounts: {
+            orders: { paid: 2, shipped: 0, completed: 0, afterSale: 0, canceled: 0 },
+            afterSales: { pending: 1, approved: 0, rejected: 0, completed: 0 },
+            groupBuys: { draft: 0, published: 3, ended: 0 },
+          },
+        },
+        traceId: 'e2e_workbench_summary',
+      }),
+    })
+  })
+
   await page.route('**/api/v1/my/store/orders**', async (route) => {
     await route.fulfill({
       status: 200,

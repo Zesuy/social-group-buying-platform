@@ -21,7 +21,7 @@ describe('leader after-sales api', () => {
     vi.mocked(request.post).mockReset()
   })
 
-  it('lists store after-sales without sending unsupported status param', async () => {
+  it('lists store after-sales with status param', async () => {
     vi.mocked(request.get).mockResolvedValue({
       success: true,
       data: { items: [], page: 1, pageSize: 20, total: 0, hasMore: false },
@@ -31,7 +31,7 @@ describe('leader after-sales api', () => {
     await listLeaderAfterSales({ status: 'pending', page: 1, pageSize: 20 })
 
     expect(request.get).toHaveBeenCalledWith('/my/store/after-sales', {
-      params: { page: 1, pageSize: 20 },
+      params: { page: 1, pageSize: 20, status: 'pending' },
     })
   })
 
