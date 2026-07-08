@@ -17,4 +17,5 @@ public class GroupBuyAiPolishResponse {
     private String introduction;
     private List<ContentBlockData> contentBlocks;
     private String source;
+    private String fallbackReason;
 }

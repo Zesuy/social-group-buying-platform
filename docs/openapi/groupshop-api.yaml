@@ -4267,6 +4267,10 @@ components:
           type: string
           enum:
             - local
+            - openai
+        fallbackReason:
+          type: string
+          nullable: true
       additionalProperties: false
     CreateGroupBuyItemEntry:
       type: object

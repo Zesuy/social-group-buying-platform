@@ -1,13 +1,25 @@
 <template>
-  <div class="app-fixed-actions" :class="{ 'app-fixed-actions--single': single }">
+  <div
+    class="app-fixed-actions"
+    :class="{
+      'app-fixed-actions--single': single,
+      'app-fixed-actions--h5-constrained': h5Constrained,
+    }"
+  >
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
 defineProps<{
   single?: boolean
 }>()
+
+const route = useRoute()
+const h5Constrained = computed(() => !(route.path ?? '').startsWith('/merchant'))
 </script>
 
 <style scoped>
@@ -28,6 +40,14 @@ defineProps<{
 
 .app-fixed-actions--single {
   grid-template-columns: 1fr;
+}
+
+.app-fixed-actions--h5-constrained {
+  right: 50%;
+  left: auto;
+  width: 100%;
+  max-width: 480px;
+  transform: translateX(50%);
 }
 
 .app-fixed-actions :deep(.van-button) {

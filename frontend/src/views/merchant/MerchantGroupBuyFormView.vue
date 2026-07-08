@@ -14,7 +14,7 @@
           <h2>团购信息</h2>
           <button type="button" class="text-button" :disabled="aiPolishing" @click="requestAiPolish">
             <van-icon name="edit" />
-            {{ aiPolishing ? '润色中' : 'AI 润色' }}
+            {{ aiPolishing ? '生成中' : 'AI 生成正文' }}
           </button>
         </div>
         <label class="field">
@@ -174,22 +174,34 @@
     <van-popup v-model:show="aiVisible" position="right" :style="{ width: '420px', height: '100%' }">
       <section class="ai-panel">
         <header>
-          <h2>AI 润色建议</h2>
-          <span>本地生成</span>
+          <div>
+            <h2>AI 润色建议</h2>
+            <p>预览无误后再采用，价格、库存和履约设置不会被 AI 修改。</p>
+          </div>
+          <span>{{ polishSourceLabel }}</span>
         </header>
+        <p v-if="polishSuggestion?.fallbackReason" class="ai-fallback-note">
+          {{ polishSuggestion.fallbackReason }}
+        </p>
         <template v-if="polishSuggestion">
-          <h3>{{ polishSuggestion.title }}</h3>
-          <p>{{ polishSuggestion.introduction }}</p>
-          <article v-for="(block, index) in polishSuggestion.contentBlocks" :key="index">
-            <strong>{{ block.title || contentBlockLabel(block.type) }}</strong>
-            <p v-if="block.text">{{ block.text }}</p>
-            <ul v-if="block.items?.length">
-              <li v-for="entry in block.items" :key="entry">{{ entry }}</li>
-            </ul>
-          </article>
+          <section class="ai-preview-card">
+            <span>建议标题</span>
+            <h3>{{ polishSuggestion.title }}</h3>
+          </section>
+          <section class="ai-preview-card">
+            <span>建议介绍</span>
+            <p>{{ polishSuggestion.introduction }}</p>
+          </section>
+          <section class="ai-preview-card">
+            <span>活动正文预览</span>
+            <ContentBlocksPreview :blocks="polishSuggestion.contentBlocks" />
+          </section>
         </template>
         <footer>
           <button type="button" class="ghost-button" @click="aiVisible = false">取消</button>
+          <button type="button" class="ghost-button" :disabled="aiPolishing" @click="requestAiPolish">
+            {{ aiPolishing ? '生成中' : '重新生成' }}
+          </button>
           <button type="button" class="primary-button" :disabled="!polishSuggestion" @click="applyAiPolish">采用建议</button>
         </footer>
       </section>
@@ -202,6 +214,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { showToast } from 'vant'
 import ContentBlocksEditor from '@/components/ContentBlocksEditor.vue'
+import ContentBlocksPreview from '@/components/ContentBlocksPreview.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import { createGroupBuy, polishGroupBuyCopy } from '@/api/leaderGroupBuys'
@@ -260,6 +273,7 @@ const availableProducts = computed(() => {
   const keyword = productKeyword.value.trim().toLowerCase()
   return products.value.filter((product) => !keyword || product.name.toLowerCase().includes(keyword))
 })
+const polishSourceLabel = computed(() => polishSuggestion.value?.source === 'openai' ? 'OpenAI 生成' : '本地兜底')
 
 function createEmptyItem(): ItemForm {
   localItemId += 1
@@ -308,12 +322,6 @@ function toISOWithTZ(value: string): string | null {
   if (!value) return null
   if (Number.isNaN(new Date(value).getTime())) return null
   return `${value.length === 16 ? `${value}:00` : value}+08:00`
-}
-
-function contentBlockLabel(type: string): string {
-  if (type === 'list') return '要点'
-  if (type === 'deliveryNote') return '履约'
-  return '说明'
 }
 
 function buildContentBlocks(): ContentBlockData[] | undefined {
@@ -697,6 +705,7 @@ onMounted(loadProducts)
 
 .ai-panel header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -707,16 +716,36 @@ onMounted(loadProducts)
   margin: 0;
 }
 
+.ai-panel header p {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .ai-panel span {
   color: #d63f2b;
   font-size: 12px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
-.ai-panel article {
+.ai-preview-card {
+  display: grid;
+  gap: 8px;
   padding: 12px;
   border-radius: 8px;
   background: #f9fafb;
+}
+
+.ai-fallback-note {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .ai-panel footer {

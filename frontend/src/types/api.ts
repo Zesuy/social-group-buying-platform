@@ -869,6 +869,7 @@ export interface GroupBuyAiPolishResponse {
   introduction: string
   contentBlocks: ContentBlockData[]
   source: 'local' | string
+  fallbackReason?: string | null
 }
 
 export interface UpdateGroupBuyRequest {

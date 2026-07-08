@@ -37,6 +37,11 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
       GROUPSHOP_UPLOAD_LOCAL_DIR: /app/uploads
       GROUPSHOP_UPLOAD_PUBLIC_BASE_URL: /uploads
+      GROUPSHOP_AI_POLISH_PROVIDER: ${GROUPSHOP_AI_POLISH_PROVIDER:-local}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-20}
     volumes:
       - backend_uploads:/app/uploads
     healthcheck:

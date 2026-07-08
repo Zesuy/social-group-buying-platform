@@ -165,6 +165,16 @@ MYSQL_PASSWORD=请替换为强密码
 MYSQL_ROOT_PASSWORD=请替换为强密码
 ```
 
+发布前 AI 生成正文默认使用本地兜底，不依赖外部服务。如需接入 OpenAI Chat Completions，在 `.env.deploy` 中设置：
+
+```env
+GROUPSHOP_AI_POLISH_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_TIMEOUT_SECONDS=20
+```
+
 ### 2. 构建并启动
 
 ```bash

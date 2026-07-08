@@ -1,6 +1,8 @@
 package com.example.groupshop.groupbuy.service;
 
 import com.example.groupshop.common.dto.ContentBlockData;
+import com.example.groupshop.common.dto.ContentBlockRequest;
+import com.example.groupshop.common.util.ContentValidationUtil;
 import com.example.groupshop.common.util.CurrentStoreHelper;
 import com.example.groupshop.groupbuy.dto.GroupBuyAiPolishRequest;
 import com.example.groupshop.groupbuy.dto.GroupBuyAiPolishResponse;
@@ -11,11 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Local deterministic copy assistant for the group-buy publish form.
+ * Copy assistant for the group-buy publish form.
  *
- * <p>This service intentionally avoids external model dependencies in v1.
- * A provider-backed implementation can replace the generator later while
- * keeping the controller contract stable.
+ * <p>The controller contract stays stable: a configured model provider can
+ * generate structured suggestions, while the deterministic local generator
+ * remains the fallback for tests and offline development.
  */
 @Service
 @RequiredArgsConstructor
@@ -25,11 +27,27 @@ public class GroupBuyAiPolishService {
     private static final int MAX_INTRO_LENGTH = 180;
 
     private final CurrentStoreHelper currentStoreHelper;
+    private final ContentValidationUtil contentValidationUtil;
+    private final OpenAiGroupBuyPolishClient openAiClient;
 
     public GroupBuyAiPolishResponse polish(Long userId, GroupBuyAiPolishRequest request) {
         currentStoreHelper.getLeaderAndStore(userId);
 
         GroupBuyAiPolishRequest safeRequest = request == null ? new GroupBuyAiPolishRequest() : request;
+        GroupBuyAiPolishResponse fallback = buildLocalSuggestion(safeRequest, "local", null);
+
+        OpenAiGroupBuyPolishClient.GenerationResult modelResult = openAiClient.generate(safeRequest);
+        if (!modelResult.hasResponse()) {
+            fallback.setFallbackReason(modelResult.fallbackReason());
+            return fallback;
+        }
+        return sanitizeModelResponse(modelResult.response(), fallback);
+    }
+
+    private GroupBuyAiPolishResponse buildLocalSuggestion(
+            GroupBuyAiPolishRequest safeRequest,
+            String source,
+            String fallbackReason) {
         List<GroupBuyAiPolishRequest.ItemContext> items = safeItems(safeRequest.getItems());
         String primaryItemName = primaryItemName(items);
         String title = polishTitle(safeRequest.getTitle(), primaryItemName);
@@ -40,8 +58,108 @@ public class GroupBuyAiPolishService {
                 .title(title)
                 .introduction(introduction)
                 .contentBlocks(blocks)
-                .source("local")
+                .source(source)
+                .fallbackReason(fallbackReason)
                 .build();
+    }
+
+    private GroupBuyAiPolishResponse sanitizeModelResponse(
+            GroupBuyAiPolishResponse modelResponse,
+            GroupBuyAiPolishResponse fallback) {
+        String title = limit(removeRiskyClaims(clean(modelResponse.getTitle())), MAX_TITLE_LENGTH);
+        boolean titleFallback = title.isBlank();
+        if (titleFallback) title = fallback.getTitle();
+
+        String introduction = limit(
+                removeRiskyClaims(clean(modelResponse.getIntroduction())),
+                MAX_INTRO_LENGTH
+        );
+        boolean introductionFallback = introduction.isBlank();
+        if (introductionFallback) introduction = fallback.getIntroduction();
+
+        List<String> fallbackReasons = new ArrayList<>();
+        if (titleFallback) {
+            fallbackReasons.add("OpenAI 标题为空，已使用本地标题");
+        }
+        if (introductionFallback) {
+            fallbackReasons.add("OpenAI 介绍为空，已使用本地介绍");
+        }
+
+        List<ContentBlockData> blocks = sanitizeBlocks(modelResponse.getContentBlocks());
+        if (blocks.isEmpty()) {
+            blocks = fallback.getContentBlocks();
+            fallbackReasons.add(modelResponse.getContentBlocks() == null || modelResponse.getContentBlocks().isEmpty()
+                    ? "OpenAI 未返回可用正文块，已使用本地正文块"
+                    : "OpenAI 正文块未通过校验，已使用本地正文块");
+        }
+
+        return GroupBuyAiPolishResponse.builder()
+                .title(title)
+                .introduction(introduction)
+                .contentBlocks(blocks)
+                .source(modelResponse.getSource() == null || modelResponse.getSource().isBlank()
+                        ? "openai"
+                        : modelResponse.getSource())
+                .fallbackReason(fallbackReasons.isEmpty() ? null : String.join("；", fallbackReasons))
+                .build();
+    }
+
+    private List<ContentBlockData> sanitizeBlocks(List<ContentBlockData> rawBlocks) {
+        if (rawBlocks == null || rawBlocks.isEmpty()) return List.of();
+
+        List<ContentBlockRequest> requests = rawBlocks.stream()
+                .map(this::sanitizeBlock)
+                .filter(block -> block != null)
+                .limit(20)
+                .toList();
+        if (requests.isEmpty()) return List.of();
+
+        try {
+            contentValidationUtil.validateContentBlocks(requests);
+            return contentValidationUtil.toContentBlockData(requests);
+        } catch (RuntimeException ex) {
+            return List.of();
+        }
+    }
+
+    private ContentBlockRequest sanitizeBlock(ContentBlockData block) {
+        if (block == null) return null;
+        String type = clean(block.getType());
+        ContentBlockRequest request = new ContentBlockRequest();
+        request.setType(type);
+        switch (type) {
+            case "paragraph" -> {
+                String text = limit(removeRiskyClaims(clean(block.getText())), 1000);
+                if (text.isBlank()) return null;
+                request.setText(text);
+            }
+            case "section" -> {
+                String title = limit(removeRiskyClaims(clean(block.getTitle())), 40);
+                String text = limit(removeRiskyClaims(clean(block.getText())), 1000);
+                if (title.isBlank() && text.isBlank()) return null;
+                request.setTitle(title);
+                request.setText(text);
+            }
+            case "list" -> {
+                List<String> items = block.getItems() == null ? List.of() : block.getItems().stream()
+                        .map(item -> limit(removeRiskyClaims(clean(item)), 80))
+                        .filter(item -> !item.isBlank())
+                        .limit(10)
+                        .toList();
+                if (items.isEmpty()) return null;
+                request.setTitle(limit(removeRiskyClaims(clean(block.getTitle())), 40));
+                request.setItems(items);
+            }
+            case "deliveryNote" -> {
+                String text = limit(removeRiskyClaims(clean(block.getText())), 1000);
+                if (text.isBlank()) return null;
+                request.setText(text);
+            }
+            default -> {
+                return null;
+            }
+        }
+        return request;
     }
 
     private String polishTitle(String rawTitle, String primaryItemName) {

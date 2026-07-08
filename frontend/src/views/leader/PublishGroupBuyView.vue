@@ -34,7 +34,7 @@
                 @click="requestAiPolish"
               >
                 <van-icon name="edit" />
-                {{ aiPolishing ? '润色中' : 'AI 润色' }}
+                {{ aiPolishing ? '生成中' : 'AI 生成正文' }}
               </button>
             </div>
           </template>
@@ -52,6 +52,12 @@
                 placeholder="说明规格、口感、截单时间、发货方式和售后口径"
               />
             </label>
+          </div>
+        </AppFormCard>
+
+        <AppFormCard title="活动正文">
+          <div class="form-section">
+            <ContentBlocksEditor v-model="form.contentBlocks" :disabled="submitting" />
           </div>
         </AppFormCard>
 
@@ -213,6 +219,10 @@
               <span>结束时间</span>
               <input v-model="form.endTime" type="datetime-local" class="input" />
             </label>
+            <label class="form-field">
+              <span>履约时间</span>
+              <input v-model="form.shippingTime" type="datetime-local" class="input" />
+            </label>
             <button type="button" class="agreement" @click="form.agreed = !form.agreed">
               <span class="checkbox-circle" :class="{ checked: form.agreed }">
                 <van-icon v-if="form.agreed" name="success" />
@@ -237,11 +247,14 @@
             <h3>AI 润色建议</h3>
             <p>采用后会更新标题、介绍和活动正文，不会修改价格、库存和配送设置。</p>
           </div>
-          <span class="ai-polish-sheet__tag">本地生成</span>
+          <span class="ai-polish-sheet__tag">{{ polishSourceLabel }}</span>
         </header>
 
         <p v-if="form.items.length === 0" class="ai-polish-note">
           补充商品后再润色，文案会更具体。
+        </p>
+        <p v-if="polishSuggestion?.fallbackReason" class="ai-polish-note ai-polish-note--fallback">
+          {{ polishSuggestion.fallbackReason }}
         </p>
 
         <div v-if="polishSuggestion" class="ai-polish-preview">
@@ -257,20 +270,7 @@
 
           <section class="ai-polish-preview__section">
             <span>活动正文</span>
-            <div class="ai-block-list">
-              <article
-                v-for="(block, index) in polishSuggestion.contentBlocks"
-                :key="`${block.type}-${index}`"
-                class="ai-block"
-              >
-                <b>{{ contentBlockLabel(block.type) }}</b>
-                <strong v-if="block.title">{{ block.title }}</strong>
-                <p v-if="block.text">{{ block.text }}</p>
-                <ul v-if="block.items?.length">
-                  <li v-for="item in block.items" :key="item">{{ item }}</li>
-                </ul>
-              </article>
-            </div>
+            <ContentBlocksPreview :blocks="polishSuggestion.contentBlocks" />
           </section>
         </div>
 
@@ -306,12 +306,14 @@ import PageLayout from '@/components/PageLayout.vue'
 import AppFormCard from '@/components/AppFormCard.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
+import ContentBlocksEditor from '@/components/ContentBlocksEditor.vue'
+import ContentBlocksPreview from '@/components/ContentBlocksPreview.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import { createGroupBuy, polishGroupBuyCopy } from '@/api/leaderGroupBuys'
 import { listProducts } from '@/api/products'
 import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
-import { amountToYuan, formatAmount, getDemoProductImage } from '@/utils'
+import { amountToYuan, formatAmount, getDemoProductImage, normalizeContentBlocks } from '@/utils'
 import type { ContentBlockData, GroupBuyAiPolishResponse, ProductData } from '@/types'
 
 const router = useRouter()
@@ -366,6 +368,7 @@ const form = reactive({
   deliveryType: 'express',
   startTime: '',
   endTime: '',
+  shippingTime: '',
   agreed: false,
   contentBlocks: [] as ContentBlockData[],
   items: [] as ItemForm[],
@@ -385,6 +388,7 @@ const availableProducts = computed(() => {
 const deliveryText = computed(() => {
   return deliveryOptions.find((option) => option.value === form.deliveryType)?.label || '快递配送'
 })
+const polishSourceLabel = computed(() => polishSuggestion.value?.source === 'openai' ? 'OpenAI 生成' : '本地兜底')
 
 function onItemPriceInput(index: number, val: string) {
   const num = parseFloat(val) || 0
@@ -420,26 +424,6 @@ function removeItem(index: number) {
   form.items.splice(index, 1)
 }
 
-function contentBlockLabel(type: string): string {
-  if (type === 'paragraph') return '说明'
-  if (type === 'section') return '段落'
-  if (type === 'list') return '要点'
-  if (type === 'deliveryNote') return '履约'
-  if (type === 'image') return '图片'
-  return '正文'
-}
-
-function normalizeContentBlocks(blocks: ContentBlockData[] | undefined): ContentBlockData[] {
-  return (blocks || []).map((block) => ({
-    type: block.type,
-    text: block.text || null,
-    title: block.title || null,
-    url: block.url || null,
-    caption: block.caption || null,
-    items: block.items || null,
-  }))
-}
-
 async function requestAiPolish() {
   if (aiPolishing.value) return
   aiPolishing.value = true
@@ -450,7 +434,7 @@ async function requestAiPolish() {
       deliveryType: form.deliveryType,
       startTime: toISOWithTZ(form.startTime),
       endTime: toISOWithTZ(form.endTime),
-      shippingTime: null,
+      shippingTime: toISOWithTZ(form.shippingTime),
       items: form.items.map((item) => ({
         productId: item.productId,
         displayName: item.displayName,
@@ -479,6 +463,7 @@ function applyAiPolish() {
 
 function toISOWithTZ(dt: string): string | null {
   if (!dt) return null
+  if (Number.isNaN(new Date(dt).getTime())) return null
   let normalized = dt
   if (normalized.length === 16) normalized += ':00'
   return `${normalized}+08:00`
@@ -526,6 +511,7 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
+    const contentBlocks = normalizeContentBlocks(form.contentBlocks)
     await createGroupBuy({
       title: form.title.trim(),
       introduction: form.introduction.trim() || null,
@@ -533,7 +519,8 @@ async function handleSubmit() {
       deliveryType: form.deliveryType,
       startTime: toISOWithTZ(form.startTime),
       endTime: toISOWithTZ(form.endTime),
-      contentBlocks: form.contentBlocks.length > 0 ? form.contentBlocks : undefined,
+      shippingTime: toISOWithTZ(form.shippingTime),
+      contentBlocks: contentBlocks.length > 0 ? contentBlocks : undefined,
       items: form.items.map((item, index) => ({
         ...(item.productId
           ? { productId: item.productId }
@@ -731,6 +718,10 @@ onMounted(() => {
 }
 
 .ai-polish-popup {
+  left: 50%;
+  width: 100%;
+  max-width: 480px;
+  transform: translateX(-50%);
   overflow: hidden;
 }
 
@@ -783,6 +774,11 @@ onMounted(() => {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
   line-height: 1.5;
+}
+
+.ai-polish-note--fallback {
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
 }
 
 .ai-polish-preview {

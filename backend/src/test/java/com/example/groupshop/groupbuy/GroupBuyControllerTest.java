@@ -272,6 +272,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.source").value("local"))
+                .andExpect(jsonPath("$.data.fallbackReason").value("未启用 OpenAI：GROUPSHOP_AI_POLISH_PROVIDER=local"))
                 .andExpect(jsonPath("$.data.title").value("周末蜜桃团购"))
                 .andExpect(jsonPath("$.data.introduction").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("全网最低"))))
                 .andExpect(jsonPath("$.data.contentBlocks").isArray())
@@ -288,6 +289,7 @@ class GroupBuyControllerTest extends MockMvcTestBase {
                 .andExpect(contractResult())
                 .andExpectAll(successResult())
                 .andExpect(jsonPath("$.data.title").value("本周社区精选团购"))
+                .andExpect(jsonPath("$.data.fallbackReason").value("未启用 OpenAI：GROUPSHOP_AI_POLISH_PROVIDER=local"))
                 .andExpect(jsonPath("$.data.introduction").isString())
                 .andExpect(jsonPath("$.data.contentBlocks").isArray());
     }

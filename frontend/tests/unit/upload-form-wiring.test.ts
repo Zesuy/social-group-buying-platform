@@ -232,6 +232,7 @@ describe('upload form wiring', () => {
     await wrapper.find('input[placeholder="0.00"]').setValue('29.90')
     await wrapper.find('input[placeholder="库存数量"]').setValue('20')
     await wrapper.findAll('.seg button')[2].trigger('click')
+    await wrapper.findAll('input[type="datetime-local"]')[2].setValue('2026-07-11T18:00')
     await wrapper.find('.checkbox-circle').trigger('click')
     await wrapper.findAll('button').find((button) => button.text().includes('发布团购'))?.trigger('click')
     await flushPromises()
@@ -239,6 +240,7 @@ describe('upload form wiring', () => {
     expect(createGroupBuy).toHaveBeenCalledWith(expect.objectContaining({
       title: '周末鲜果团',
       coverImageUrl: uploadedImage.url,
+      shippingTime: '2026-07-11T18:00:00+08:00',
       items: [
         expect.objectContaining({
           product: expect.objectContaining({
@@ -260,6 +262,7 @@ describe('upload form wiring', () => {
       title: '周末鲜果团购',
       introduction: '这次给大家整理了适合家庭囤货的鲜果团。',
       source: 'local',
+      fallbackReason: '未启用 OpenAI：GROUPSHOP_AI_POLISH_PROVIDER=local',
       contentBlocks: [
         {
           type: 'paragraph',
@@ -303,7 +306,7 @@ describe('upload form wiring', () => {
     await wrapper.find('input[placeholder="库存数量"]').setValue('20')
 
     await wrapper.findAll('.seg button')[0].trigger('click')
-    await wrapper.findAll('button').find((button) => button.text().includes('AI 润色'))?.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('AI 生成正文'))?.trigger('click')
     await flushPromises()
 
     expect(polishGroupBuyCopy).toHaveBeenCalledWith(expect.objectContaining({
@@ -319,6 +322,8 @@ describe('upload form wiring', () => {
     }))
     expect(wrapper.text()).toContain('AI 润色建议')
     expect(wrapper.text()).toContain('周末鲜果团购')
+    expect(wrapper.text()).toContain('活动正文')
+    expect(wrapper.text()).toContain('未启用 OpenAI：GROUPSHOP_AI_POLISH_PROVIDER=local')
 
     await wrapper.findAll('button').find((button) => button.text().includes('采用建议'))?.trigger('click')
     await wrapper.findAll('.seg button')[2].trigger('click')
@@ -349,7 +354,7 @@ describe('upload form wiring', () => {
       global: { stubs: globalStubs },
     })
 
-    await wrapper.findAll('button').find((button) => button.text().includes('AI 润色'))?.trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('AI 生成正文'))?.trigger('click')
     await flushPromises()
 
     expect(showToast).toHaveBeenCalledWith('服务暂不可用')
