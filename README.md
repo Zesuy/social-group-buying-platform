@@ -147,20 +147,83 @@ backend: mvn test -> 598 tests passed
 frontend: typecheck / lint / unit / build / e2e -> passed
 ```
 
+## Docker Compose 单机部署
+
+根目录提供一套面向单机线上部署的 Compose 编排：MySQL、后端 Spring Boot 和前端 Nginx 同机运行。前端容器托管 H5 静态资源，并把 `/api/v1` 与 `/uploads` 同源反代到后端。
+
+### 1. 准备环境变量
+
+```bash
+cp .env.deploy.example .env.deploy
+vim .env.deploy
+```
+
+至少修改：
+
+```env
+MYSQL_PASSWORD=请替换为强密码
+MYSQL_ROOT_PASSWORD=请替换为强密码
+```
+
+### 2. 构建并启动
+
+```bash
+docker compose --env-file .env.deploy up -d --build
+```
+
+默认只暴露：
+
+- `http://服务器IP/`：前端 H5 和商家管理端
+- `http://服务器IP/api/v1/health`：后端健康检查，经 Nginx 反代
+
+后端 `8080` 和 MySQL `3306` 不直接暴露到宿主机。HTTPS 建议由云厂商负载均衡、宿主机反代或后续 Certbot 层处理。
+
+### 3. 常用运维命令
+
+```bash
+docker compose --env-file .env.deploy ps
+docker compose --env-file .env.deploy logs -f backend
+docker compose --env-file .env.deploy restart backend
+docker compose --env-file .env.deploy down
+```
+
+首次启动会由 Flyway 自动建表。线上默认不自动导入演示数据；如需演示数据，可手动执行：
+
+```bash
+docker compose --env-file .env.deploy exec -T mysql \
+  sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' \
+  < backend/scripts/dev-seed.sql
+```
+
+数据持久化在 Docker volumes：
+
+- `mysql_data`：MySQL 数据
+- `backend_uploads`：用户上传图片
+
+删除数据需显式执行：
+
+```bash
+docker compose --env-file .env.deploy down -v
+```
+
 ## 项目结构
 
 ```text
 .
 ├── backend/                 # Spring Boot 后端
+│   ├── Dockerfile           # 后端容器构建
 │   ├── src/main/java/       # 业务模块、Controller、Service、Mapper
 │   ├── src/main/resources/  # application.yml、Flyway 迁移
 │   └── src/test/java/       # MockMvc 与 Service 测试
+├── deploy/nginx/            # 前端 Nginx 和 API 反代配置
 ├── frontend/                # Vue H5 前端
+│   ├── Dockerfile           # 前端静态资源 + Nginx 容器构建
 │   ├── src/api/             # Axios API 封装
 │   ├── src/components/      # 通用 H5 组件
 │   ├── src/views/           # 买家端、团长端页面
 │   ├── src/stores/          # Pinia 状态
 │   └── tests/               # Vitest 与 Playwright
+├── docker-compose.yml       # 单机部署编排
 ├── docs/                    # 产品、API、联调与开发批次文档
 ├── docs/assets/screenshots/ # README 截图
 ├── DESIGN.md                # 前端视觉系统

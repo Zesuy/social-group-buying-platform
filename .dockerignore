@@ -1,25 +1,17 @@
 **/target/
-
-# Frontend dependencies and build outputs
 **/node_modules/
 **/dist/
 **/.vite/
 **/.vite-temp/
 **/.cache/
-
-# Frontend test outputs
 **/coverage/
 **/playwright-report/
 **/test-results/
 **/blob-report/
-
-# Logs and local env
 **/*.log
 **/.env.local
 **/.env.*.local
-.env.deploy
-
-.claude
-.codegraph
-
 **/uploads/
+.git/
+.claude/
+.codegraph/

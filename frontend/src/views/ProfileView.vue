@@ -124,6 +124,7 @@ const buyerEntries: ProfileGridEntry[] = [
 
 const leaderEntries = computed<ProfileGridEntry[]>(() => [
   { label: '商家工作台', description: '待办、履约和常用入口', icon: 'apps-o', to: '/leader/dashboard' },
+  { label: '电脑端管理', description: '大屏处理订单、商品和售后', icon: 'desktop-o', to: '/merchant/dashboard' },
   { label: '团长主页', description: '查看买家看到的店铺', icon: 'wap-home-o', to: leader.value?.id ? `/leaders/${leader.value.id}` : '/leader/dashboard' },
 ])
 

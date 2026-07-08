@@ -19,6 +19,7 @@ function createTestRouter() {
     routes: [
       { path: '/profile', component: ProfileView },
       { path: '/leader/dashboard', component: { template: '<div>商家工作台</div>' } },
+      { path: '/merchant/dashboard', component: { template: '<div>电脑端管理</div>' } },
       { path: '/leaders/:id', component: { template: '<div>团长主页</div>' } },
       { path: '/store/create', component: { template: '<div>创建店铺</div>' } },
     ],
@@ -59,6 +60,8 @@ describe('ProfileView merchant workbench entry', () => {
 
     expect(wrapper.text()).toContain('进入商家工作台')
     expect(wrapper.text()).toContain('商家工作台')
+    expect(wrapper.text()).toContain('电脑端管理')
+    expect(wrapper.text()).toContain('大屏处理订单、商品和售后')
     expect(wrapper.text()).toContain('团长主页')
     expect(wrapper.text()).not.toContain('发布团购')
     expect(wrapper.text()).not.toContain('订单管理')
@@ -67,6 +70,14 @@ describe('ProfileView merchant workbench entry', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/leader/dashboard')
+
+    await router.push('/profile')
+    await flushPromises()
+
+    await wrapper.findAll('button').find((button) => button.text().includes('电脑端管理'))?.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/merchant/dashboard')
   })
 
   it('keeps create store entry for logged-in non-leaders', async () => {

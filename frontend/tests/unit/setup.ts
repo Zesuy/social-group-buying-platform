@@ -5,7 +5,8 @@
  * 使测试中可以直接使用 <van-*> 组件。
  */
 
-import { config } from '@vue/test-utils'
+import { afterEach } from 'vitest'
+import { config, enableAutoUnmount } from '@vue/test-utils'
 import {
   Tabbar,
   TabbarItem,
@@ -71,3 +72,5 @@ config.global.components = {
   VanSteps: Steps,
   VanDialog: Dialog,
 }
+
+enableAutoUnmount(afterEach)
