@@ -19,6 +19,8 @@ interface ImportMeta {
 declare module 'vue-router' {
   interface RouteMeta {
     backFallback?: RouteLocationRaw | string
+    h5Constrained?: boolean
+    showTabBar?: boolean
     navigationGroup?: string
     isNavigationRoot?: boolean
   }

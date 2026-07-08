@@ -40,8 +40,8 @@
           </label>
         </div>
         <label class="field">
-          <span>发货说明</span>
-          <input v-model="form.shippingTime" placeholder="例如：截单后 48 小时内发货" />
+          <span>履约时间</span>
+          <input v-model="form.shippingTime" type="datetime-local" />
         </label>
         <div class="delivery-grid">
           <button
@@ -306,6 +306,7 @@ function onItemPriceInput(index: number) {
 
 function toISOWithTZ(value: string): string | null {
   if (!value) return null
+  if (Number.isNaN(new Date(value).getTime())) return null
   return `${value.length === 16 ? `${value}:00` : value}+08:00`
 }
 
@@ -342,7 +343,7 @@ async function requestAiPolish() {
       deliveryType: form.deliveryType,
       startTime: toISOWithTZ(form.startTime),
       endTime: toISOWithTZ(form.endTime),
-      shippingTime: form.shippingTime || null,
+      shippingTime: toISOWithTZ(form.shippingTime),
       items: form.items.map((item) => ({
         productId: item.productId,
         displayName: item.displayName,
@@ -395,7 +396,7 @@ async function handleSubmit() {
       introduction: form.introduction.trim() || null,
       coverImageUrl: form.coverImageUrl || getDemoProductImage(form.title),
       deliveryType: form.deliveryType,
-      shippingTime: form.shippingTime.trim() || null,
+      shippingTime: toISOWithTZ(form.shippingTime),
       startTime: toISOWithTZ(form.startTime),
       endTime: toISOWithTZ(form.endTime),
       contentBlocks: buildContentBlocks(),

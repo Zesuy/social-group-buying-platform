@@ -207,8 +207,8 @@
             </button>
           </div>
           <label class="field">
-            <span>发货说明</span>
-            <input v-model="editForm.shippingTime" />
+            <span>履约时间</span>
+            <input v-model="editForm.shippingTime" type="datetime-local" />
           </label>
           <div class="field-grid">
             <label class="field">
@@ -325,13 +325,14 @@ const sharePayload = computed<GroupBuySharePayload>(() => ({
 function toInputDateTime(value: string | null | undefined): string {
   if (!value) return ''
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value.slice(0, 16)
+  if (Number.isNaN(date.getTime())) return ''
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function toISOWithTZ(value: string): string | null {
   if (!value) return null
+  if (Number.isNaN(new Date(value).getTime())) return null
   return `${value.length === 16 ? `${value}:00` : value}+08:00`
 }
 
@@ -375,7 +376,7 @@ async function saveEdit() {
       introduction: editForm.introduction.trim() || null,
       coverImageUrl: editForm.coverImageUrl || null,
       deliveryType: editForm.deliveryType,
-      shippingTime: editForm.shippingTime.trim() || null,
+      shippingTime: toISOWithTZ(editForm.shippingTime),
       startTime: toISOWithTZ(editForm.startTime),
       endTime: toISOWithTZ(editForm.endTime),
       contentBlocks: normalizeContentBlocks(editForm.contentBlocks),

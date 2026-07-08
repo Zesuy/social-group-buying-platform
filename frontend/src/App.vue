@@ -14,7 +14,9 @@ const route = useRoute()
 
 // 仅在有 showTabBar 元信息的路由显示底部 TabBar
 const showTabBar = computed(() => route.meta.showTabBar === true)
-const h5Constrained = computed(() => route.meta.h5Constrained === true)
+const h5Constrained = computed(() => (
+  route.meta?.h5Constrained === true || !(route.path ?? '').startsWith('/merchant')
+))
 </script>
 
 <style>

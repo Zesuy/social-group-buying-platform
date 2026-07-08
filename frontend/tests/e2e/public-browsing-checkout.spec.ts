@@ -643,6 +643,39 @@ test.describe('Public browsing and checkout E2E', () => {
     expect(detailWidth).toBeLessThanOrEqual(482)
   })
 
+  test('orders messages profile and child pages keep mobile H5 width on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 820 })
+    await page.goto('/')
+    await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token'))
+
+    const assertH5PageWidth = async (path: string) => {
+      await navigateToHash(page, path)
+      await page.waitForSelector('.page-layout', { timeout: 10000 })
+      const pageWidth = await page.locator('.page-layout').evaluate((el) => el.getBoundingClientRect().width)
+      expect(pageWidth).toBeLessThanOrEqual(482)
+    }
+
+    await assertH5PageWidth('/orders')
+    const ordersTabbarWidth = await page.locator('.van-tabbar').evaluate((el) => el.getBoundingClientRect().width)
+    expect(ordersTabbarWidth).toBeLessThanOrEqual(482)
+
+    await assertH5PageWidth('/orders/9001')
+    await assertH5PageWidth('/messages')
+    const messagesTabbarWidth = await page.locator('.van-tabbar').evaluate((el) => el.getBoundingClientRect().width)
+    expect(messagesTabbarWidth).toBeLessThanOrEqual(482)
+
+    await assertH5PageWidth('/messages/orders')
+    await assertH5PageWidth('/chats/7001')
+    await assertH5PageWidth('/profile')
+    const profileTabbarWidth = await page.locator('.van-tabbar').evaluate((el) => el.getBoundingClientRect().width)
+    expect(profileTabbarWidth).toBeLessThanOrEqual(482)
+
+    await assertH5PageWidth('/profile/me')
+    await assertH5PageWidth('/addresses')
+    await assertH5PageWidth('/subscriptions')
+    await assertH5PageWidth('/member-cards')
+  })
+
   test('detail opens at top after clicking from a scrolled homepage', async ({ page }) => {
     await page.goto('/')
     await page.waitForSelector('.van-tabbar', { timeout: 10000 })

@@ -4,7 +4,7 @@
     :class="{
       'page-layout--with-tabbar': showTabBar,
       'page-layout--with-action': !!$slots.action,
-      'page-layout--h5-constrained': h5Constrained,
+      'page-layout--h5-constrained': resolvedH5Constrained,
     }"
   >
     <!-- 顶部导航栏（可选） -->
@@ -29,8 +29,8 @@
 </template>
 
 <script setup lang="ts">
-import { getCurrentInstance, ref } from 'vue'
-import type { RouteLocationRaw } from 'vue-router'
+import { computed, getCurrentInstance, ref } from 'vue'
+import { useRoute, type RouteLocationRaw } from 'vue-router'
 import NavBar from './NavBar.vue'
 import { useRouteScrollRestoration, useSmartNavigation } from '@/composables'
 
@@ -48,7 +48,11 @@ const emit = defineEmits<{
 
 const contentRef = ref<HTMLElement | null>(null)
 const instance = getCurrentInstance()
+const route = useRoute()
 const navigation = useSmartNavigation(props.backFallback)
+const resolvedH5Constrained = computed(() => (
+  props.h5Constrained || route.meta?.h5Constrained === true || !(route.path ?? '').startsWith('/merchant')
+))
 
 useRouteScrollRestoration(contentRef)
 

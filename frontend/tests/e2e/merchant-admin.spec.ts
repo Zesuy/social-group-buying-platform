@@ -286,7 +286,7 @@ async function mockMerchantEndpoints(page: Page) {
     const isDetail = /\/group-buys\/[^/?]+$/.test(url.pathname)
     const isShare = /\/share-card$/.test(url.pathname)
     const isEnd = /\/end$/.test(url.pathname)
-    const listItem = { id: 100, storeId: 20, leaderId: 10, title: '周末水蜜桃团', introduction: '香甜多汁', coverImageUrl: null, groupType: 'normal', deliveryType: 'express', shippingTime: '48 小时内发货', startTime: null, endTime: '2026-07-10T20:00:00', visibility: 'public', status: groupBuyStatus, contentBlocks: groupBuyContentBlocks }
+    const listItem = { id: 100, storeId: 20, leaderId: 10, title: '周末水蜜桃团', introduction: '香甜多汁', coverImageUrl: null, groupType: 'normal', deliveryType: 'express', shippingTime: '2026-07-11T18:00:00', startTime: null, endTime: '2026-07-10T20:00:00', visibility: 'public', status: groupBuyStatus, contentBlocks: groupBuyContentBlocks }
 
     if (isAiPolish) {
       await route.fulfill({
@@ -307,7 +307,7 @@ async function mockMerchantEndpoints(page: Page) {
     }
 
     if (isShare) {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { shareToken: 'share_100', title: listItem.title, coverImageUrl: null, minPriceAmount: 1990, maxPriceAmount: 1990, storeName: '王姐社区鲜果店', leaderName: '王姐', deliveryType: 'express', shippingTime: '48 小时内发货' }, traceId: 'e2e_share' }) })
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { shareToken: 'share_100', title: listItem.title, coverImageUrl: null, minPriceAmount: 1990, maxPriceAmount: 1990, storeName: '王姐社区鲜果店', leaderName: '王姐', deliveryType: 'express', shippingTime: '2026-07-11T18:00:00' }, traceId: 'e2e_share' }) })
       return
     }
     if (isEnd) {
@@ -316,13 +316,17 @@ async function mockMerchantEndpoints(page: Page) {
       return
     }
     if (request.method() === 'POST') {
-      const body = request.postDataJSON() as { contentBlocks?: typeof groupBuyContentBlocks } | null
+      const body = request.postDataJSON() as { contentBlocks?: typeof groupBuyContentBlocks, shippingTime?: string | null } | null
+      expect(body?.shippingTime ?? null).not.toBe('到店自提')
+      expect(body?.shippingTime ?? null).not.toBe('48 小时内发货')
       groupBuyContentBlocks = body?.contentBlocks?.length ? body.contentBlocks : groupBuyContentBlocks
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { groupBuy: listItem, items: [] }, traceId: 'e2e_group_create' }) })
       return
     }
     if (request.method() === 'PATCH') {
-      const body = request.postDataJSON() as { contentBlocks?: typeof groupBuyContentBlocks } | null
+      const body = request.postDataJSON() as { contentBlocks?: typeof groupBuyContentBlocks, shippingTime?: string | null } | null
+      expect(body?.shippingTime ?? null).not.toBe('到店自提')
+      expect(body?.shippingTime ?? null).not.toBe('48 小时内发货')
       if (body?.contentBlocks) groupBuyContentBlocks = body.contentBlocks
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { groupBuy: { ...listItem, contentBlocks: groupBuyContentBlocks, title: '周末水蜜桃团升级版' }, items: [] }, traceId: 'e2e_group_update' }) })
       return
