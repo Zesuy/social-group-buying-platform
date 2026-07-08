@@ -138,10 +138,12 @@ import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import { useAuthStore } from '@/stores'
 import { getErrorMessage } from '@/api'
+import { useSmartNavigation } from '@/composables'
 import type { AuthCodeScene } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
+const { goBack } = useSmartNavigation('/profile')
 const authStore = useAuthStore()
 
 const isLoading = ref(false)
@@ -207,10 +209,6 @@ function getRedirectPath() {
 function switchMode(mode: AuthCodeScene) {
   const path = mode === 'register' ? '/register' : '/login'
   router.push({ path, query: route.query })
-}
-
-function goBack() {
-  router.back()
 }
 
 function ensurePhoneReady() {

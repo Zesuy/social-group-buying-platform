@@ -7,10 +7,11 @@
     }"
   >
     <!-- 顶部导航栏（可选） -->
-    <NavBar v-if="title" :title="title" :show-back="showBack" @back="$emit('back')" />
+    <NavBar v-if="title" :title="title" :show-back="showBack" @back="handleBack" />
 
     <!-- 主内容区 -->
     <main
+      ref="contentRef"
       class="page-layout__content"
       :class="{
         'page-layout__content--with-nav': !!title,
@@ -27,17 +28,35 @@
 </template>
 
 <script setup lang="ts">
+import { getCurrentInstance, ref } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 import NavBar from './NavBar.vue'
+import { useRouteScrollRestoration, useSmartNavigation } from '@/composables'
 
-defineProps<{
+const props = defineProps<{
   title?: string
   showBack?: boolean
   showTabBar?: boolean
+  backFallback?: RouteLocationRaw | string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   back: []
 }>()
+
+const contentRef = ref<HTMLElement | null>(null)
+const instance = getCurrentInstance()
+const navigation = useSmartNavigation(props.backFallback)
+
+useRouteScrollRestoration(contentRef)
+
+function handleBack() {
+  if (instance?.vnode.props && 'onBack' in instance.vnode.props) {
+    emit('back')
+    return
+  }
+  navigation.goBack(props.backFallback)
+}
 </script>
 
 <style scoped>

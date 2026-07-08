@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, ref, watch } from 'vue'
 import { amountToYuan, getDemoProductImage } from '@/utils'
 import ImageUploader from './ImageUploader.vue'
 import type { ProductData } from '@/types'
@@ -125,6 +125,13 @@ const form = reactive({
   stock: '',
   status: 'active' as string,
 })
+const formSnapshot = computed(() => JSON.stringify(form))
+const initialSnapshot = ref(formSnapshot.value)
+const isDirty = computed(() => formSnapshot.value !== initialSnapshot.value)
+
+function markClean() {
+  initialSnapshot.value = formSnapshot.value
+}
 
 watch(() => props.product, (p) => {
   if (p) {
@@ -135,6 +142,7 @@ watch(() => props.product, (p) => {
     form.basePriceYuan = String(amountToYuan(p.basePriceAmount))
     form.stock = String(p.stock)
     form.status = p.status
+    markClean()
   }
 }, { immediate: true })
 
@@ -191,7 +199,7 @@ function removeDetailImage(index: number) {
   form.detailImageUrls.splice(index, 1)
 }
 
-defineExpose({ getFormData, validate })
+defineExpose({ getFormData, validate, isDirty, markClean })
 </script>
 
 <style scoped>

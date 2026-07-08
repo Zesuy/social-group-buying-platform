@@ -51,10 +51,12 @@ import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppStatusPill from '@/components/AppStatusPill.vue'
 import { useCheckoutStore } from '@/stores'
 import { listAddresses } from '@/api/addresses'
+import { useSmartNavigation } from '@/composables'
 import type { AddressData } from '@/types'
 
 const router = useRouter()
 const route = useRoute()
+const { goBack } = useSmartNavigation('/profile')
 const checkoutStore = useCheckoutStore()
 
 const addresses = ref<AddressData[]>([])
@@ -80,7 +82,7 @@ async function loadAddresses() {
 function handleAddressClick(addr: AddressData) {
   if (isSelectMode.value) {
     checkoutStore.setAddress(addr.id)
-    router.back()
+    goBack('/checkout')
   }
 }
 
@@ -91,10 +93,6 @@ function handleEdit(id: string) {
 function goToNew() {
   const query = route.query.from ? { from: route.query.from as string } : undefined
   router.push({ path: '/addresses/new', query })
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

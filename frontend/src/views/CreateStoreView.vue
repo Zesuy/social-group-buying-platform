@@ -71,17 +71,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { createStore } from '@/api/stores'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import PageLayout from '@/components/PageLayout.vue'
 import ReminderBanner from '@/components/ReminderBanner.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useSmartNavigation('/profile')
 const authStore = useAuthStore()
-
-function goBack() {
-  router.back()
-}
 
 const form = ref({
   name: '',
@@ -97,6 +95,10 @@ const nameRules = [
 
 const submitting = ref(false)
 const leaderError = ref<string | null>(null)
+const initialSnapshot = JSON.stringify(form.value)
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => JSON.stringify(form.value) !== initialSnapshot,
+})
 
 onMounted(async () => {
   if (authStore.isLeader) {
@@ -130,12 +132,14 @@ async function handleSubmit() {
     await authStore.fetchMe()
     // Navigate to redirect or /leader/store
     const redirect = route.query.redirect as string
+    unsavedGuard.allowNextNavigation()
     router.replace(redirect || '/leader/store')
   } catch (err) {
     const apiErr = err as { code?: string; message?: string }
     // If STORE_ALREADY_EXISTS, just refresh and redirect
     if (apiErr.code === 'STORE_ALREADY_EXISTS') {
       await authStore.fetchMe()
+      unsavedGuard.allowNextNavigation()
       router.replace((route.query.redirect as string) || '/leader/store')
       return
     }

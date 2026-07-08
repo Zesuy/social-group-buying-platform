@@ -32,6 +32,7 @@ const router = createRouter({
     { path: '/open-group', name: 'openGroup', component: { template: '<div>一键开团</div>' }, meta: { showTabBar: true } },
     { path: '/messages', name: 'messages', component: { template: '<div>消息</div>' }, meta: { showTabBar: true } },
     { path: '/profile', name: 'profile', component: { template: '<div>我的</div>' }, meta: { showTabBar: true } },
+    { path: '/login', name: 'login', component: { template: '<div>登录</div>' } },
   ],
 })
 
@@ -130,7 +131,35 @@ describe('BottomTabBar', () => {
     })
 
     await wrapper.findComponent({ name: 'VanTabbar' }).vm.$emit('change', 1)
+    await flushPromises()
     expect(showToast).toHaveBeenCalledWith('请先登录')
+    expect(router.currentRoute.value.fullPath).toBe('/login?redirect=/orders')
+  })
+
+  it('should push authenticated tab changes into browser history', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const authStore = useAuthStore()
+    authStore.accessToken = 'valid_token'
+    authStore.user = {
+      id: '1',
+      nickname: '买家用户',
+      avatarUrl: null,
+      phone: '13800000000',
+      hasLeader: false,
+      leaderId: null,
+      storeId: null,
+    }
+    const push = vi.spyOn(router, 'push')
+    const wrapper = mountBottomTabBar({
+      global: {
+        plugins: [router, pinia],
+      },
+    })
+
+    await wrapper.findComponent({ name: 'VanTabbar' }).vm.$emit('change', 3)
+
+    expect(push).toHaveBeenCalledWith('/messages')
   })
 
   it('should show unread badge on messages tab when authenticated', async () => {
@@ -231,6 +260,8 @@ describe('BottomTabBar', () => {
     })
 
     await wrapper.findComponent({ name: 'VanTabbar' }).vm.$emit('change', 3)
+    await flushPromises()
     expect(showToast).toHaveBeenCalledWith('请先登录')
+    expect(router.currentRoute.value.fullPath).toBe('/login?redirect=/messages')
   })
 })

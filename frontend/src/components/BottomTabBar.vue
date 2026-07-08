@@ -4,13 +4,11 @@
     @change="onChange"
     active-color="var(--color-primary)"
     inactive-color="var(--color-text-hint)"
-    route
     :border="false"
   >
     <van-tabbar-item
       v-for="tab in tabs"
       :key="tab.to"
-      :to="tab.to"
       :icon="tab.icon"
       :badge="getTabBadge(tab)"
     >
@@ -21,7 +19,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores'
 import { useChatUnreadPolling, useNotificationPolling } from '@/composables'
@@ -42,6 +40,7 @@ const tabs: TabItem[] = [
 ]
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const { unreadCount } = useNotificationPolling()
 const { unreadCount: chatUnreadCount } = useChatUnreadPolling()
@@ -53,10 +52,14 @@ const active = computed(() => {
 
 function onChange(index: number) {
   const tab = tabs[index]
-  // 需要登录的 tab，未登录时拦截
+  if (!tab) return
+  if (route.path === tab.to) return
   if (tab.requiresAuth && !authStore.isLoggedIn) {
     showToast('请先登录')
+    void router.push({ path: '/login', query: { redirect: tab.to } })
+    return
   }
+  void router.push(tab.to)
 }
 
 function getTabBadge(tab: TabItem) {

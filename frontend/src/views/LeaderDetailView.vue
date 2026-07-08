@@ -6,7 +6,7 @@
     <template v-if="leaderData && !loading">
       <div class="leader-home">
         <div class="leader-topbar">
-          <button type="button" class="leader-topbar__back" aria-label="返回" @click="goBack">
+          <button type="button" class="leader-topbar__back" aria-label="返回" @click="goBack()">
             <van-icon name="arrow-left" size="22" />
           </button>
           <div class="leader-topbar__title">团长主页</div>
@@ -219,6 +219,7 @@ import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import GroupBuyFeedCard from '@/components/GroupBuyFeedCard.vue'
 import AppCard from '@/components/AppCard.vue'
+import { useSmartNavigation } from '@/composables'
 import { useAuthStore } from '@/stores'
 import { getLeaderHomepage, subscribeLeader, unsubscribeLeader } from '@/api/leaders'
 import { getMyStore } from '@/api/stores'
@@ -234,6 +235,7 @@ import type {
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useSmartNavigation('/')
 const authStore = useAuthStore()
 
 const leaderData = ref<LeaderHomepageLeader | null>(null)
@@ -591,10 +593,6 @@ function onLocationClick() {
 
 function goToDetail(id: string) {
   router.push(`/group-buys/${id}`)
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

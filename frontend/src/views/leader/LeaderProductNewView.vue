@@ -17,7 +17,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -25,14 +24,14 @@ import ProductForm from '@/components/ProductForm.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppButton from '@/components/AppButton.vue'
 import { createProduct } from '@/api/products'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 
-const router = useRouter()
+const { goBack, goAfterSuccess } = useSmartNavigation('/leader/products')
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof ProductForm> | null>(null)
-
-function goBack() {
-  router.back()
-}
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => Boolean(formRef.value?.isDirty),
+})
 
 async function handleSave() {
   if (!formRef.value) return
@@ -51,7 +50,9 @@ async function handleSave() {
   try {
     await createProduct(data)
     showToast('创建成功')
-    router.push('/leader/products')
+    formRef.value?.markClean()
+    unsavedGuard.allowNextNavigation()
+    await goAfterSuccess('/leader/products')
   } catch (err) {
     const apiErr = err as { message?: string }
     showToast(apiErr.message || '创建失败')

@@ -176,6 +176,7 @@ import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppFormCard from '@/components/AppFormCard.vue'
 import CheckoutSection from '@/components/CheckoutSection.vue'
+import { useSmartNavigation } from '@/composables'
 import { useCheckoutStore } from '@/stores'
 import { listAddresses } from '@/api/addresses'
 import { previewOrder, createOrder } from '@/api/orders'
@@ -183,6 +184,7 @@ import { formatAmount } from '@/utils/format'
 import type { OrderPreviewData, AddressData, AvailableCouponData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/cart')
 const checkoutStore = useCheckoutStore()
 
 // ── 状态 ──
@@ -391,7 +393,7 @@ function goToAddresses() {
 
 // ── 返回 ──
 function handleBack() {
-  router.back()
+  goBack('/cart')
 }
 
 onMounted(() => {

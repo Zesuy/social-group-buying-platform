@@ -5,7 +5,7 @@
         <p>团购运营</p>
         <h1>团购详情</h1>
       </div>
-      <RouterLink class="ghost-link" to="/merchant/group-buys">返回团购列表</RouterLink>
+      <button type="button" class="ghost-link" @click="goBack()">返回</button>
     </div>
 
     <LoadingView v-if="loading" text="正在加载团购详情..." />
@@ -248,6 +248,7 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import { endGroupBuy, getMyGroupBuy, getMyGroupBuyShareCard, updateMyGroupBuy } from '@/api/leaderGroupBuys'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import {
   buildShareTokenUrl,
   contentBlockTypeText,
@@ -260,6 +261,7 @@ import {
 import type { ContentBlockData, GroupBuyManageDetailData, GroupBuyManageItem, ShareCardData } from '@/types'
 
 const route = useRoute()
+const { goBack } = useSmartNavigation('/merchant/group-buys')
 
 const deliveryOptions = [
   { value: 'express', label: '快递配送' },
@@ -275,6 +277,7 @@ const endLoading = ref(false)
 const shareLoading = ref(false)
 const shareSheetVisible = ref(false)
 const shareCard = ref<ShareCardData | null>(null)
+const editSnapshot = ref('')
 
 const editForm = reactive({
   title: '',
@@ -286,6 +289,13 @@ const editForm = reactive({
   endTime: '',
   contentBlocks: [] as ContentBlockData[],
 })
+useUnsavedChangesGuard({
+  isDirty: () => !loading.value && JSON.stringify(editForm) !== editSnapshot.value,
+})
+
+function markEditClean() {
+  editSnapshot.value = JSON.stringify(editForm)
+}
 
 const contentBlocks = computed<ContentBlockData[]>(() => detail.value?.groupBuy.contentBlocks ?? [])
 const soldTotal = computed(() => detail.value?.items.reduce((sum, item) => sum + item.soldCount, 0) ?? 0)
@@ -336,6 +346,7 @@ function startEdit() {
   editForm.startTime = toInputDateTime(groupBuy.startTime)
   editForm.endTime = toInputDateTime(groupBuy.endTime)
   editForm.contentBlocks = normalizeContentBlocks(groupBuy.contentBlocks)
+  markEditClean()
 }
 
 async function fetchDetail() {
@@ -370,6 +381,7 @@ async function saveEdit() {
       contentBlocks: normalizeContentBlocks(editForm.contentBlocks),
     })
     showToast('保存成功')
+    markEditClean()
     await fetchDetail()
   } catch (err) {
     showToast((err as { message?: string }).message || '保存失败')

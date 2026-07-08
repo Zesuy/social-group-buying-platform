@@ -79,9 +79,46 @@ async function mockAllEndpoints(page: Page) {
     })
   })
 
+  await page.route('**/api/v1/my/notifications**', async (route) => {
+    const isUnreadCount = new URL(route.request().url()).pathname.endsWith('/unread-count')
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: isUnreadCount ? { unreadCount: 0 } : { items: [], page: 1, pageSize: 20, total: 0, hasMore: false },
+        traceId: 'e2e_notifications',
+      }),
+    })
+  })
+
+  await page.route('**/api/v1/my/subscriptions', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { items: [] }, traceId: 'e2e_subscriptions' }),
+    })
+  })
+
+  await page.route('**/api/v1/my/orders**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { items: [], page: 1, pageSize: 20, total: 0, hasMore: false }, traceId: 'e2e_orders' }),
+    })
+  })
+
+  await page.route('**/api/v1/leaders/*/coupons**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, data: { items: [] }, traceId: 'e2e_leader_coupons' }),
+    })
+  })
+
   await page.route('**/api/v1/my/chat-conversations**', async (route) => {
-    const url = route.request().url()
-    if (url.includes('/unread-count')) {
+    const url = new URL(route.request().url())
+    if (url.pathname.endsWith('/unread-count')) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -93,13 +130,71 @@ async function mockAllEndpoints(page: Page) {
       })
       return
     }
+    if (/\/api\/v1\/my\/chat-conversations\/7001\/messages$/.test(url.pathname)) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            items: [
+              {
+                id: 'm7001',
+                conversationId: 7001,
+                senderUserId: 2,
+                senderRole: 'leader',
+                messageType: 'text',
+                content: '今晚统一发货',
+                mine: false,
+                createdAt: '2026-07-06T10:30:00',
+              },
+            ],
+            page: 1,
+            pageSize: 30,
+            total: 1,
+            hasMore: false,
+          },
+          traceId: 'e2e_chat_messages',
+        }),
+      })
+      return
+    }
+    if (/\/api\/v1\/my\/chat-conversations\/7001\/read$/.test(url.pathname)) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, traceId: 'e2e_chat_read' }),
+      })
+      return
+    }
 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
-        data: { items: [], page: 1, pageSize: 20, total: 0, hasMore: false },
+        data: {
+          items: [{
+            id: 7001,
+            buyerUserId: 1,
+            leaderUserId: 2,
+            storeId: 20,
+            buyerName: '买家用户',
+            buyerAvatarUrl: null,
+            leaderName: '王姐鲜果团',
+            leaderAvatarUrl: null,
+            storeName: '王姐社区鲜果店',
+            currentUserRole: 'buyer',
+            unreadCount: 1,
+            lastMessageText: '今晚统一发货',
+            lastMessageAt: '2026-07-06T10:30:00',
+            createdAt: '2026-07-06T10:00:00',
+          }],
+          page: 1,
+          pageSize: 20,
+          total: 1,
+          hasMore: false,
+        },
         traceId: 'e2e_chat_list',
       }),
     })
@@ -526,6 +621,53 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
     await expect(page.locator('text=小区群每周开团')).toBeVisible({ timeout: 5000 })
     await expect(page.getByRole('heading', { name: '周末阳山水蜜桃社区团' })).toBeVisible()
+  })
+
+  test('H5 back behavior uses history first and falls back for direct detail pages', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForSelector('.van-tabbar', { timeout: 10000 })
+    await page.getByRole('heading', { name: '周末阳山水蜜桃社区团' }).click()
+    await expect(page).toHaveURL(/#\/group-buys\/100/)
+    await page.getByLabel('返回').first().click()
+    await expect(page).toHaveURL(/#\/$/)
+
+    await navigateToHash(page, '/group-buys/100')
+    await expect(page.locator('#section-activity').getByText('王姐本周从阳山果园集中收单')).toBeVisible()
+    await page.evaluate(() => {
+      window.history.replaceState({ back: null, current: '/group-buys/100', forward: null, position: 0 }, '', window.location.href)
+    })
+    await page.getByLabel('返回').first().click()
+    await expect(page).toHaveURL(/#\/$/)
+  })
+
+  test('H5 messages chat fallback and tabbar history are intuitive', async ({ page }) => {
+    await page.goto('/')
+    await page.evaluate(() => localStorage.setItem('accessToken', 'mock_token'))
+    await navigateToHash(page, '/messages')
+    await expect(page.getByText('王姐鲜果团')).toBeVisible()
+    await page.locator('.message-row', { hasText: '王姐鲜果团' }).click()
+    await expect(page).toHaveURL(/#\/chats\/7001/)
+    await expect(page.getByText('今晚统一发货')).toBeVisible()
+    await page.locator('.van-nav-bar__left').click()
+    await expect(page).toHaveURL(/#\/messages/)
+
+    await navigateToHash(page, '/chats/7001')
+    await expect(page.getByText('今晚统一发货')).toBeVisible()
+    await page.evaluate(() => {
+      window.history.replaceState({ back: null, current: '/chats/7001', forward: null, position: 0 }, '', window.location.href)
+    })
+    await page.locator('.van-nav-bar__left').click()
+    await expect(page).toHaveURL(/#\/messages/)
+
+    await navigateToHash(page, '/profile')
+    await page.getByRole('tab', { name: /订单/ }).click()
+    await expect(page).toHaveURL(/#\/orders/)
+    await page.getByRole('tab', { name: /消息/ }).click()
+    await expect(page).toHaveURL(/#\/messages/)
+    await page.goBack()
+    await expect(page).toHaveURL(/#\/orders/)
+    await page.goBack()
+    await expect(page).toHaveURL(/#\/profile/)
   })
 
   test('nearby filter requests location parameters and shows distance marker', async ({ page, context }) => {

@@ -60,8 +60,10 @@ describe('LeaderDashboardView', () => {
     expect(wrapper.text()).toContain('售后待处理')
     expect(wrapper.text()).toContain('1')
     expect(wrapper.text()).toContain('未读客服消息')
+    const productEntry = wrapper.findAll('.quick-entry').find((button) => button.text().includes('商品'))
+    expect(productEntry?.find('.van-icon-goods-collect-o').exists()).toBe(true)
 
-    await wrapper.findAll('button').find((button) => button.text().includes('商品'))?.trigger('click')
+    await productEntry?.trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/leader/products')

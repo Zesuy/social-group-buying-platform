@@ -116,6 +116,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import { createStoreCoupon, disableStoreCoupon, listStoreCoupons, updateStoreCoupon } from '@/api/coupons'
+import { useUnsavedChangesGuard } from '@/composables'
 import { formatAmount, formatDateTime } from '@/utils'
 import type { StoreCouponData } from '@/types'
 
@@ -124,6 +125,7 @@ const error = ref('')
 const coupons = ref<StoreCouponData[]>([])
 const submitting = ref(false)
 const editingCoupon = ref<StoreCouponData | null>(null)
+const initialSnapshot = ref('')
 
 const form = reactive({
   name: '',
@@ -135,6 +137,13 @@ const form = reactive({
   startTime: '',
   endTime: '',
 })
+useUnsavedChangesGuard({
+  isDirty: () => !loading.value && JSON.stringify(form) !== initialSnapshot.value,
+})
+
+function markClean() {
+  initialSnapshot.value = JSON.stringify(form)
+}
 
 function thresholdText(amount: number): string {
   return amount > 0 ? `满${formatAmount(amount)}可用` : '无门槛'
@@ -168,6 +177,7 @@ function resetForm() {
   form.claimCondition = 'new_subscriber'
   form.startTime = toInputDateTime(now)
   form.endTime = toInputDateTime(end)
+  markClean()
 }
 
 function openCreate() {
@@ -184,6 +194,7 @@ function openEdit(coupon: StoreCouponData) {
   form.claimCondition = coupon.claimCondition
   form.startTime = toInputDateTime(coupon.startTime)
   form.endTime = toInputDateTime(coupon.endTime)
+  markClean()
 }
 
 function validateForm(): string | null {
@@ -224,6 +235,7 @@ async function submitForm() {
       showToast('优惠券已创建')
     }
     resetForm()
+    markClean()
     await fetchCoupons()
   } catch (err) {
     showToast((err as { message?: string }).message || '保存失败')

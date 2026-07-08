@@ -85,10 +85,12 @@ import PriceText from '@/components/PriceText.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import { listCartItems, updateCartItem, deleteCartItem, clearCartItems } from '@/api/cart'
+import { useSmartNavigation } from '@/composables'
 import { useCheckoutStore } from '@/stores'
 import type { CartItemData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/')
 const checkoutStore = useCheckoutStore()
 
 const items = ref<CartItemData[]>([])
@@ -186,10 +188,6 @@ function handleCheckout() {
     cartItemIds: selectedItems.value.map(item => item.cartItemId),
   })
   router.push('/checkout')
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

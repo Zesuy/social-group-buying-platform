@@ -12,19 +12,17 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import PageLayout from '@/components/PageLayout.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { useSmartNavigation } from '@/composables'
 
 const route = useRoute()
-const router = useRouter()
+const { goBack } = useSmartNavigation('/')
 
 const title = computed(() => String(route.meta.title || '功能占位'))
 const description = computed(() => String(route.meta.placeholderText || '该功能将在后续版本开放'))
 
-function goBack() {
-  router.back()
-}
 </script>
 
 <style scoped>

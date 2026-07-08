@@ -85,6 +85,7 @@ import ErrorView from '@/components/ErrorView.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import { getMyStore, updateMyStore } from '@/api/stores'
+import { useUnsavedChangesGuard } from '@/composables'
 import { useAuthStore } from '@/stores/auth'
 import { getDeliveryTypeText, requestCurrentLocation, resolveDisplayImageUrl } from '@/utils'
 import type { StoreInfo } from '@/types'
@@ -95,6 +96,7 @@ const error = ref('')
 const submitting = ref(false)
 const locating = ref(false)
 const store = ref<StoreInfo | null>(null)
+const initialSnapshot = ref('')
 
 const deliveryOptions = [
   { value: 'express', label: '快递配送' },
@@ -110,6 +112,13 @@ const form = reactive({
   latitude: null as number | null,
   longitude: null as number | null,
 })
+useUnsavedChangesGuard({
+  isDirty: () => !loading.value && JSON.stringify(form) !== initialSnapshot.value,
+})
+
+function markClean() {
+  initialSnapshot.value = JSON.stringify(form)
+}
 
 const hasLocation = computed(() => form.latitude != null && form.longitude != null)
 const locationText = computed(() => hasLocation.value
@@ -126,6 +135,7 @@ function fillForm(data: StoreInfo) {
   form.defaultDeliveryType = data.defaultDeliveryType
   form.latitude = data.latitude
   form.longitude = data.longitude
+  markClean()
 }
 
 async function locateStore() {
@@ -175,6 +185,7 @@ async function handleSave() {
     showToast('保存成功')
     await fetchStore()
     await authStore.fetchMe()
+    markClean()
   } catch (err) {
     showToast((err as { message?: string }).message || '保存失败')
   } finally {

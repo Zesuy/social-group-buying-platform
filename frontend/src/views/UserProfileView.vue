@@ -166,9 +166,11 @@ import AppCard from '@/components/AppCard.vue'
 import AppStatusPill from '@/components/AppStatusPill.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
+import { useSmartNavigation } from '@/composables'
 import { formatPhone } from '@/utils'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/profile')
 const authStore = useAuthStore()
 const { user, store, isLeader } = storeToRefs(authStore)
 
@@ -220,10 +222,6 @@ async function saveProfile() {
   } finally {
     submitting.value = false
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 syncForm()

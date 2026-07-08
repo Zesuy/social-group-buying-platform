@@ -73,11 +73,12 @@ import EmptyState from '@/components/EmptyState.vue'
 import ProductListItem from '@/components/ProductListItem.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
-import { usePagination } from '@/composables/usePagination'
+import { usePagination, useSmartNavigation } from '@/composables'
 import { listProducts, deleteProduct } from '@/api/products'
 import type { ProductData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/dashboard')
 
 const chips = [
   { key: 'all', label: '全部' },
@@ -110,8 +111,6 @@ const emptyDescription = computed(() => {
   if (selectedChip.value === 'inactive') return '暂无下架商品'
   return '暂无商品'
 })
-
-function goBack() { router.back() }
 
 function goToDetail(id: string) { router.push(`/leader/products/${id}/edit`) }
 

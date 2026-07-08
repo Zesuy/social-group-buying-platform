@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import AddressForm from '@/components/AddressForm.vue'
@@ -19,12 +19,16 @@ import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppButton from '@/components/AppButton.vue'
 import { useCheckoutStore } from '@/stores'
 import { createAddress } from '@/api/addresses'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 
-const router = useRouter()
 const route = useRoute()
+const { goBack, goAfterSuccess } = useSmartNavigation('/addresses')
 const checkoutStore = useCheckoutStore()
 const submitting = ref(false)
 const addressFormRef = ref<InstanceType<typeof AddressForm> | null>(null)
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => Boolean(addressFormRef.value?.isDirty),
+})
 
 const isFromCheckout = computed(() => route.query.from === 'checkout')
 
@@ -44,9 +48,13 @@ async function handleSubmit(data: {
 
     if (isFromCheckout.value) {
       checkoutStore.setAddress(created.id)
-      router.replace('/checkout')
+      unsavedGuard.allowNextNavigation()
+      addressFormRef.value?.markClean()
+      await goAfterSuccess('/checkout')
     } else {
-      router.push('/addresses')
+      unsavedGuard.allowNextNavigation()
+      addressFormRef.value?.markClean()
+      await goAfterSuccess('/addresses')
     }
   } catch (err) {
     const apiErr = err as { message?: string }
@@ -60,7 +68,4 @@ function handleSave() {
   addressFormRef.value?.submit()
 }
 
-function goBack() {
-  router.back()
-}
 </script>

@@ -33,9 +33,11 @@ import EmptyState from '@/components/EmptyState.vue'
 import SubscriptionCard from '@/components/SubscriptionCard.vue'
 import { listMySubscriptions } from '@/api/subscriptions'
 import { unsubscribeLeader } from '@/api/leaders'
+import { useSmartNavigation } from '@/composables'
 import type { SubscriptionListItem } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/profile')
 
 const loading = ref(true)
 const refreshing = ref(false)
@@ -100,10 +102,6 @@ async function onUnsubscribe(subscription: SubscriptionListItem) {
   } finally {
     actionLoadingId.value = null
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

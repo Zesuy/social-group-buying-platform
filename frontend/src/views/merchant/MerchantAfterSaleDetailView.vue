@@ -5,7 +5,7 @@
         <p>售后详情</p>
         <h1>售后单 {{ afterSale?.id || '' }}</h1>
       </div>
-      <RouterLink to="/merchant/after-sales">返回售后列表</RouterLink>
+      <button type="button" class="ghost-link" @click="goBack()">返回</button>
     </div>
 
     <LoadingView v-if="loading" />
@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
@@ -65,10 +65,12 @@ import {
   getLeaderAfterSale,
   rejectLeaderAfterSale,
 } from '@/api/leaderAfterSales'
+import { useSmartNavigation } from '@/composables'
 import { formatAmount, formatDateTime } from '@/utils'
 import type { AfterSaleData } from '@/types'
 
 const route = useRoute()
+const { goBack } = useSmartNavigation('/merchant/after-sales')
 const loading = ref(true)
 const error = ref('')
 const actionLoading = ref('')
@@ -165,10 +167,15 @@ onMounted(loadDetail)
   font-size: 26px;
 }
 
-.page-head a {
+.page-head a,
+.ghost-link {
+  border: 0;
+  background: transparent;
   color: #d63f2b;
+  font-family: inherit;
   font-weight: 900;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .detail-grid {

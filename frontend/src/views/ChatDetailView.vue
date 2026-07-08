@@ -143,12 +143,13 @@ import {
   sendChatMessage,
 } from '@/api/chats'
 import { uploadImage } from '@/api/uploads'
-import { useChatPolling } from '@/composables'
+import { useChatPolling, useSmartNavigation } from '@/composables'
 import { formatAmount, formatDateTime, getChatCounterpart, resolveDisplayImageUrl } from '@/utils'
 import type { ChatCardPayload, ChatConversationData, ChatMessageData } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useSmartNavigation('/messages')
 const conversationId = computed(() => route.params.conversationId as string)
 
 const loading = ref(true)
@@ -314,10 +315,6 @@ function scrollToBottom() {
 
 function createClientMessageId(prefix: string) {
   return `${prefix}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

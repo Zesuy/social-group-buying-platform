@@ -143,6 +143,9 @@ const regionText = computed(() => {
   const parts = [form.province, form.city, form.district].filter(Boolean)
   return parts.join(' ')
 })
+const formSnapshot = computed(() => JSON.stringify(form))
+const initialSnapshot = ref(formSnapshot.value)
+const isDirty = computed(() => formSnapshot.value !== initialSnapshot.value)
 
 /** 聚焦编辑字段 */
 function focusField(field: string) {
@@ -205,6 +208,7 @@ watch(
       form.detail = addr.detail
       form.isDefault = addr.isDefault
       areaValue.value = findAreaCode(addr.province, addr.city, addr.district)
+      initialSnapshot.value = formSnapshot.value
     }
   },
   { immediate: true },
@@ -229,7 +233,11 @@ function doSubmit() {
   })
 }
 
-defineExpose({ submit: doSubmit })
+function markClean() {
+  initialSnapshot.value = formSnapshot.value
+}
+
+defineExpose({ submit: doSubmit, isDirty, markClean })
 </script>
 
 <style scoped>

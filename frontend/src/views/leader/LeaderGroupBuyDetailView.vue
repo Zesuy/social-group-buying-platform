@@ -90,7 +90,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -104,21 +104,27 @@ import AppStatusPill from '@/components/AppStatusPill.vue'
 import PriceText from '@/components/PriceText.vue'
 import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
 import { getMyGroupBuy, updateMyGroupBuy, endGroupBuy, getMyGroupBuyShareCard } from '@/api/leaderGroupBuys'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import { buildShareTokenUrl, getGroupBuyStatusText, getDeliveryTypeText, resolveDisplayImageUrl } from '@/utils'
 import type { GroupBuyManageDetailData, ShareCardData } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/group-buys')
 const loading = ref(true)
 const error = ref<string | null>(null)
 const detail = ref<GroupBuyManageDetailData | null>(null)
 const editing = ref(false)
 const editLoading = ref(false)
+const editSnapshot = ref('')
 const endLoading = ref(false)
 const shareLoading = ref(false)
 const shareSheetVisible = ref(false)
 const shareCard = ref<ShareCardData | null>(null)
 const editForm = reactive({ title: '', introduction: '', coverImageUrl: '', deliveryType: 'express', shippingTime: '', startTime: '', endTime: '' })
+useUnsavedChangesGuard({
+  isDirty: () => editing.value && JSON.stringify(editForm) !== editSnapshot.value,
+})
+function markEditClean() { editSnapshot.value = JSON.stringify(editForm) }
 const shareUrl = computed(() => shareCard.value ? buildShareTokenUrl(shareCard.value.shareToken) : '')
 const displayCoverImageUrl = computed(() => resolveDisplayImageUrl(
   detail.value?.groupBuy.coverImageUrl,
@@ -138,17 +144,17 @@ const sharePayload = computed<GroupBuySharePayload>(() => ({
 
 async function fetchDetail() {
   loading.value = true; error.value = null
-  try { detail.value = await getMyGroupBuy(route.params.id as string) }
+  try { detail.value = await getMyGroupBuy(route.params.id as string); resetEditForm() }
   catch (err) { error.value = (err as { message?: string }).message || '加载失败' }
   finally { loading.value = false }
 }
-function goBack() { router.back() }
 function cancelEdit() { editing.value = false; resetEditForm() }
 function resetEditForm() {
   if (!detail.value) return; const g = detail.value.groupBuy
   editForm.title = g.title; editForm.introduction = g.introduction || ''; editForm.coverImageUrl = g.coverImageUrl || ''
   editForm.deliveryType = g.deliveryType; editForm.shippingTime = g.shippingTime || ''
   editForm.startTime = g.startTime || ''; editForm.endTime = g.endTime || ''
+  markEditClean()
 }
 async function saveEdit() {
   if (!detail.value) return; editLoading.value = true
@@ -158,7 +164,7 @@ async function saveEdit() {
       coverImageUrl: editForm.coverImageUrl || null, deliveryType: editForm.deliveryType || undefined,
       shippingTime: editForm.shippingTime || null, startTime: editForm.startTime || null, endTime: editForm.endTime || null,
     })
-    showToast('保存成功'); editing.value = false; await fetchDetail()
+    showToast('保存成功'); editing.value = false; markEditClean(); await fetchDetail()
   } catch (err) { showToast((err as { message?: string }).message || '保存失败') }
   finally { editLoading.value = false }
 }

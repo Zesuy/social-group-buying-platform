@@ -5,7 +5,7 @@
         <p>商品库</p>
         <h1>{{ isEdit ? '编辑商品' : '新建商品' }}</h1>
       </div>
-      <RouterLink class="ghost-link" to="/merchant/products">返回商品列表</RouterLink>
+      <button type="button" class="ghost-link" @click="goBack()">返回</button>
     </div>
 
     <LoadingView v-if="loading" />
@@ -93,22 +93,24 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import ErrorView from '@/components/ErrorView.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import { createProduct, deleteProduct, getProduct, updateProduct } from '@/api/products'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import { amountToYuan, getDemoProductImage } from '@/utils'
 import type { ProductData } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
+const { goBack, goAfterSuccess } = useSmartNavigation('/merchant/products')
 
 const product = ref<ProductData | null>(null)
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
+const initialSnapshot = ref('')
 
 const isEdit = computed(() => typeof route.params.id === 'string')
 const form = reactive({
@@ -120,6 +122,13 @@ const form = reactive({
   stock: '',
   status: 'active',
 })
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => !loading.value && JSON.stringify(form) !== initialSnapshot.value,
+})
+
+function markClean() {
+  initialSnapshot.value = JSON.stringify(form)
+}
 
 function fillForm(data: ProductData) {
   form.name = data.name
@@ -129,6 +138,7 @@ function fillForm(data: ProductData) {
   form.basePriceYuan = String(amountToYuan(data.basePriceAmount))
   form.stock = String(data.stock)
   form.status = data.status
+  markClean()
 }
 
 function validate(): string | null {
@@ -188,7 +198,9 @@ async function handleSave() {
       await createProduct(buildPayload())
       showToast('创建成功')
     }
-    router.push('/merchant/products')
+    markClean()
+    unsavedGuard.allowNextNavigation()
+    await goAfterSuccess('/merchant/products')
   } catch (err) {
     showToast((err as { message?: string }).message || '保存失败')
   } finally {
@@ -207,7 +219,9 @@ async function handleDelete() {
   try {
     await deleteProduct(product.value.id)
     showToast('删除成功')
-    router.push('/merchant/products')
+    markClean()
+    unsavedGuard.allowNextNavigation()
+    await goAfterSuccess('/merchant/products')
   } catch (err) {
     showToast((err as { message?: string }).message || '删除失败')
   } finally {
@@ -215,7 +229,10 @@ async function handleDelete() {
   }
 }
 
-onMounted(loadProduct)
+onMounted(() => {
+  markClean()
+  void loadProduct()
+})
 </script>
 
 <style scoped>
@@ -253,7 +270,9 @@ onMounted(loadProduct)
   color: #374151;
   font-size: 13px;
   font-weight: 900;
+  font-family: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .product-form {

@@ -400,6 +400,46 @@ test.describe('merchant web admin', () => {
     await page.getByPlaceholder('可选').fill('SF123456')
     await page.getByRole('button', { name: '确认发货' }).click()
     await expect(page.getByText('已发货')).toBeVisible()
+    await page.goBack()
+    await expect(page).toHaveURL(/#\/merchant\/orders/)
+    await expect(page.getByText('202607060001')).toBeVisible()
+  })
+
+  test('detail fallback back and unsaved form guard work', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 })
+    await navigateToHash(page, '/merchant/orders/9001')
+    await expect(page.getByText('订单详情')).toBeVisible()
+    await page.evaluate(() => {
+      window.history.replaceState({ back: null, current: '/merchant/orders/9001', forward: null, position: 0 }, '', window.location.href)
+    })
+    await page.getByRole('button', { name: '返回' }).click()
+    await expect(page).toHaveURL(/#\/merchant\/orders/)
+
+    await navigateToHash(page, '/merchant/products')
+    await expect(page.getByRole('row', { name: /阳山水蜜桃/ })).toBeVisible()
+    await page.locator('.merchant-content').evaluate((el) => {
+      el.scrollLeft = el.scrollWidth
+    })
+    await page.getByRole('link', { name: '编辑' }).click()
+    await expect(page).toHaveURL(/#\/merchant\/products\/21\/edit/)
+    await page.getByRole('button', { name: '返回' }).click()
+    await expect(page).toHaveURL(/#\/merchant\/products/)
+    await page.waitForFunction(() => {
+      const el = document.querySelector('.merchant-content')
+      return el ? el.scrollLeft > 0 : false
+    })
+    const restoredLeft = await page.locator('.merchant-content').evaluate((el) => el.scrollLeft)
+    expect(restoredLeft).toBeGreaterThan(0)
+
+    await page.getByRole('link', { name: /新建商品/ }).click()
+    await page.getByPlaceholder('例如：临安山核桃仁').fill('未保存商品')
+    await page.locator('.merchant-sidebar a[href="#/merchant/orders"]').click()
+    await expect(page.getByText('未保存内容')).toBeVisible()
+    await page.getByRole('button', { name: '继续编辑' }).click()
+    await expect(page).toHaveURL(/#\/merchant\/products\/new/)
+    await page.locator('.merchant-sidebar a[href="#/merchant/orders"]').click()
+    await page.getByRole('button', { name: '离开' }).click()
+    await expect(page).toHaveURL(/#\/merchant\/orders/)
   })
 
   test('after-sales and chats links work', async ({ page }) => {

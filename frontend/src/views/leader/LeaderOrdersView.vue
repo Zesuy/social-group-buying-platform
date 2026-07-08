@@ -76,11 +76,12 @@ import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppButton from '@/components/AppButton.vue'
-import { usePagination } from '@/composables/usePagination'
+import { usePagination, useSmartNavigation } from '@/composables'
 import { listLeaderOrders } from '@/api/leaderOrders'
 import { getOrderStatusText } from '@/utils/status'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/dashboard')
 
 const chips = [
   { key: '', label: '全部' },
@@ -114,7 +115,6 @@ async function onRefresh() {
   }
 }
 
-function goBack() { router.back() }
 function goToDetail(id: string) { router.push(`/leader/orders/${id}`) }
 
 onMounted(() => { load() })

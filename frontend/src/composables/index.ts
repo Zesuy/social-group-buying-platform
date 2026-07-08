@@ -1,3 +1,6 @@
 export * from './useNotificationPolling'
 export * from './usePagination'
 export * from './useChatPolling'
+export * from './useRouteScrollRestoration'
+export * from './useSmartNavigation'
+export * from './useUnsavedChangesGuard'

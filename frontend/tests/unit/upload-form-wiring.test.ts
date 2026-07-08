@@ -15,6 +15,7 @@ const replace = vi.fn()
 const fetchMe = vi.fn()
 
 vi.mock('vue-router', () => ({
+  onBeforeRouteLeave: vi.fn(),
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push, back, replace }),
 }))
@@ -251,7 +252,7 @@ describe('upload form wiring', () => {
         }),
       ],
     }))
-    expect(push).toHaveBeenCalledWith('/leader/group-buys')
+    expect(replace).toHaveBeenCalledWith('/leader/group-buys')
   })
 
   it('previews and applies AI polished group buy copy before submit', async () => {

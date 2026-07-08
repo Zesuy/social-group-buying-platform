@@ -113,6 +113,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores/auth'
 import { getMyStore, updateMyStore } from '@/api/stores'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import { requestCurrentLocation, resolveDisplayImageUrl } from '@/utils'
 import { getDeliveryTypeText } from '@/utils/status'
 import PageLayout from '@/components/PageLayout.vue'
@@ -128,6 +129,7 @@ import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import type { StoreResponseData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/dashboard')
 const authStore = useAuthStore()
 
 const loading = ref(true)
@@ -137,6 +139,7 @@ const store = computed(() => storeData.value?.store ?? null)
 const editing = ref(false)
 const submitting = ref(false)
 const locating = ref(false)
+const editSnapshot = ref('')
 
 const deliveryOptions = [
   { value: 'express', label: '快递配送' },
@@ -156,6 +159,13 @@ const editForm = reactive({
   latitude: null as number | null,
   longitude: null as number | null,
 })
+useUnsavedChangesGuard({
+  isDirty: () => editing.value && JSON.stringify(editForm) !== editSnapshot.value,
+})
+
+function markEditClean() {
+  editSnapshot.value = JSON.stringify(editForm)
+}
 
 const hasStoreLocation = computed(() => store.value?.latitude != null && store.value?.longitude != null)
 const hasEditLocation = computed(() => editForm.latitude != null && editForm.longitude != null)
@@ -179,10 +189,12 @@ function startEdit() {
   editForm.latitude = store.value.latitude
   editForm.longitude = store.value.longitude
   editing.value = true
+  markEditClean()
 }
 
 function cancelEdit() {
   editing.value = false
+  markEditClean()
 }
 
 async function handleSave() {
@@ -202,6 +214,7 @@ async function handleSave() {
     })
     showToast('保存成功')
     editing.value = false
+    markEditClean()
     await fetchStore()
     await authStore.fetchMe()
   } catch (err) {
@@ -238,10 +251,6 @@ async function fetchStore() {
   } finally {
     loading.value = false
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

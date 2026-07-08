@@ -1,7 +1,7 @@
 <template>
   <div class="merchant-shell">
     <aside class="merchant-sidebar">
-      <RouterLink class="merchant-brand" to="/merchant/dashboard">
+      <RouterLink class="merchant-brand" to="/merchant/dashboard" @click="handleSameRouteClick($event, '/merchant/dashboard')">
         <span class="merchant-brand__mark">商</span>
         <span>商家管理端</span>
       </RouterLink>
@@ -12,6 +12,7 @@
           :to="item.to"
           class="merchant-nav__item"
           active-class="merchant-nav__item--active"
+          @click="handleSameRouteClick($event, item.to)"
         >
           <van-icon :name="item.icon" />
           <span>{{ item.label }}</span>
@@ -42,7 +43,7 @@
         </div>
       </header>
 
-      <main class="merchant-content">
+      <main ref="contentRef" class="merchant-content">
         <RouterView />
       </main>
     </div>
@@ -50,11 +51,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { computed, ref } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { useRouteScrollRestoration } from '@/composables'
 import { useAuthStore } from '@/stores'
 
 const authStore = useAuthStore()
+const route = useRoute()
+const contentRef = ref<HTMLElement | null>(null)
+
+useRouteScrollRestoration(contentRef)
 
 const navItems = [
   { label: '工作台', icon: 'dashboard-o', to: '/merchant/dashboard' },
@@ -73,6 +79,10 @@ const storeLogo = computed(() => authStore.store?.logoUrl || authStore.leader?.a
 const leaderName = computed(() => authStore.leader?.displayName || '团长')
 const leaderId = computed(() => authStore.leader?.id)
 const storeStatusText = computed(() => authStore.store?.status === 'active' ? '营业中' : '待完善')
+
+function handleSameRouteClick(event: MouseEvent, targetPath: string) {
+  if (route.path === targetPath) event.preventDefault()
+}
 </script>
 
 <style scoped>

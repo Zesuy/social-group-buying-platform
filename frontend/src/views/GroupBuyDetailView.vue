@@ -11,7 +11,7 @@
     <template v-if="groupBuy && !loading">
       <div class="detail-page app-content--buybar">
         <div class="detail-topbar">
-          <button type="button" class="detail-topbar__back" aria-label="返回" @click="goBack">
+          <button type="button" class="detail-topbar__back" aria-label="返回" @click="goBack()">
             <van-icon name="arrow-left" size="22" />
           </button>
           <div class="detail-topbar__title">团购详情</div>
@@ -29,7 +29,7 @@
               :alt="groupBuy.title"
             />
             <div class="activity-cover__actions">
-              <button type="button" aria-label="返回" @click="goBack">
+              <button type="button" aria-label="返回" @click="goBack()">
                 <van-icon name="arrow-left" />
               </button>
               <button type="button" aria-label="团长主页" @click="goToLeader">
@@ -322,6 +322,7 @@ import PriceText from '@/components/PriceText.vue'
 import SkuSheet from '@/components/SkuSheet.vue'
 import CartSheet from '@/components/CartSheet.vue'
 import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
+import { useSmartNavigation } from '@/composables'
 import { useAuthStore, useCheckoutStore } from '@/stores'
 import { getGroupBuyDetailByShareToken, getPublicGroupBuyDetail } from '@/api/groupBuys'
 import { subscribeLeader, unsubscribeLeader } from '@/api/leaders'
@@ -339,6 +340,7 @@ import type {
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useSmartNavigation('/')
 const authStore = useAuthStore()
 const checkoutStore = useCheckoutStore()
 
@@ -603,10 +605,6 @@ function goToCart() {
     return
   }
   cartSheetVisible.value = true
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

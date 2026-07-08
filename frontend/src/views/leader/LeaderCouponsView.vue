@@ -137,7 +137,6 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -152,10 +151,12 @@ import {
   listStoreCoupons,
   updateStoreCoupon,
 } from '@/api/coupons'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import { formatAmount, formatDateTime } from '@/utils/format'
 import type { StoreCouponData } from '@/types'
 
-const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/dashboard')
+const formSnapshot = ref('')
 
 const coupons = ref<StoreCouponData[]>([])
 const loading = ref(true)
@@ -173,6 +174,13 @@ const form = reactive({
   startTime: '',
   endTime: '',
 })
+useUnsavedChangesGuard({
+  isDirty: () => formVisible.value && JSON.stringify(form) !== formSnapshot.value,
+})
+
+function markFormClean() {
+  formSnapshot.value = JSON.stringify(form)
+}
 
 const activeCoupons = computed(() => coupons.value.filter((coupon) => coupon.status === 'active'))
 const homepageCoupons = computed(() => activeCoupons.value.filter((coupon) => coupon.claimCondition === 'new_subscriber'))
@@ -217,6 +225,7 @@ function resetForm() {
   form.perUserLimit = '1'
   form.startTime = toInputDateTime(now)
   form.endTime = toInputDateTime(end)
+  markFormClean()
 }
 
 function validateForm(): boolean {
@@ -262,6 +271,7 @@ function openEdit(coupon: StoreCouponData) {
   form.perUserLimit = String(coupon.perUserLimit)
   form.startTime = toInputDateTime(coupon.startTime)
   form.endTime = toInputDateTime(coupon.endTime)
+  markFormClean()
   formVisible.value = true
 }
 
@@ -289,6 +299,7 @@ async function submitForm() {
       showToast('优惠券已创建')
     }
     formVisible.value = false
+    markFormClean()
     await fetchCoupons()
   } catch (err) {
     showToast((err as { message?: string }).message || '保存失败')
@@ -345,10 +356,6 @@ async function fetchCoupons() {
   } finally {
     loading.value = false
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

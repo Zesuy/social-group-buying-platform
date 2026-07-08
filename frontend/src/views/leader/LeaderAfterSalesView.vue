@@ -59,12 +59,13 @@ import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import AppStatusPill from '@/components/AppStatusPill.vue'
 import PriceText from '@/components/PriceText.vue'
-import { usePagination } from '@/composables/usePagination'
+import { usePagination, useSmartNavigation } from '@/composables'
 import { listLeaderAfterSales } from '@/api/leaderAfterSales'
 import { formatDateTime } from '@/utils'
 import type { AfterSaleData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/dashboard')
 const activeTab = ref('')
 
 const tabs = [
@@ -128,10 +129,6 @@ function onTabChange() {
 async function onRefresh() {
   await refresh()
   if (error.value) showToast('刷新失败')
-}
-
-function goBack() {
-  router.back()
 }
 
 function goToDetail(id: string) {

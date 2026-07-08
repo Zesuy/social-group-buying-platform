@@ -122,7 +122,7 @@ const todoItems = computed(() => [
 ])
 
 const quickEntries = [
-  { label: '商品', desc: '维护商品库', icon: 'cube-o', to: '/leader/products' },
+  { label: '商品', desc: '维护商品库', icon: 'goods-collect-o', to: '/leader/products' },
   { label: '团购', desc: '发布和分享活动', icon: 'shop-o', to: '/leader/group-buys' },
   { label: '订单', desc: '发货履约', icon: 'orders-o', to: '/leader/orders' },
   { label: '售后', desc: '审核退款', icon: 'after-sale', to: '/leader/after-sales' },

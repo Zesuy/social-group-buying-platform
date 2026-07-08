@@ -48,13 +48,14 @@ import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import NotificationListItem from '@/components/NotificationListItem.vue'
 import { listNotifications, markNotificationRead } from '@/api/notifications'
-import { useNotificationPolling } from '@/composables'
+import { useNotificationPolling, useSmartNavigation } from '@/composables'
 import type { NotificationData } from '@/types'
 
 type NoticeMode = 'orders' | 'subscriptions'
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useSmartNavigation('/messages')
 const { refreshUnreadCount } = useNotificationPolling()
 
 const notifications = ref<NotificationData[]>([])
@@ -134,14 +135,6 @@ async function onMarkAllRead() {
   } finally {
     markAllLoading.value = false
   }
-}
-
-function goBack() {
-  if (window.history.length > 1) {
-    router.back()
-    return
-  }
-  void router.push('/messages')
 }
 
 function isOrderNotification(notification: NotificationData): boolean {

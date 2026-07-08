@@ -30,9 +30,11 @@ import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MemberCardItem from '@/components/MemberCardItem.vue'
 import { listMyMemberCards } from '@/api/memberCards'
+import { useSmartNavigation } from '@/composables'
 import type { MemberCardData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/profile')
 
 const loading = ref(true)
 const refreshing = ref(false)
@@ -70,10 +72,6 @@ async function onRefresh() {
 
 function goToLeader(leaderId: string) {
   router.push(`/leaders/${leaderId}`)
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

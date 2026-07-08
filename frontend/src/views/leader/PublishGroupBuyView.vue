@@ -310,10 +310,12 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import { createGroupBuy, polishGroupBuyCopy } from '@/api/leaderGroupBuys'
 import { listProducts } from '@/api/products'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import { amountToYuan, formatAmount, getDemoProductImage } from '@/utils'
 import type { ContentBlockData, GroupBuyAiPolishResponse, ProductData } from '@/types'
 
 const router = useRouter()
+const { goBack, goAfterSuccess } = useSmartNavigation('/leader/group-buys')
 
 const segTabs = ['介绍', '商品', '设置']
 const activeTab = ref(0)
@@ -367,6 +369,10 @@ const form = reactive({
   agreed: false,
   contentBlocks: [] as ContentBlockData[],
   items: [] as ItemForm[],
+})
+const initialSnapshot = JSON.stringify(form)
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => JSON.stringify(form) !== initialSnapshot,
 })
 
 const selectedProductIds = computed(() => new Set(form.items.map((item) => item.productId).filter(Boolean) as string[]))
@@ -493,10 +499,6 @@ function validate(): string | null {
   return null
 }
 
-function goBack() {
-  router.back()
-}
-
 function goToProducts() {
   router.push('/leader/products')
 }
@@ -551,7 +553,8 @@ async function handleSubmit() {
       })),
     })
     showToast('发布成功')
-    router.push('/leader/group-buys')
+    unsavedGuard.allowNextNavigation()
+    await goAfterSuccess('/leader/group-buys')
   } catch (err) {
     const apiErr = err as { message?: string }
     showToast(apiErr.message || '发布失败')

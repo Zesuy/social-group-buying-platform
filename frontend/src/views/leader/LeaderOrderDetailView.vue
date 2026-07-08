@@ -98,11 +98,13 @@ import AppButton from '@/components/AppButton.vue'
 import PriceText from '@/components/PriceText.vue'
 import { getLeaderOrder, shipOrder } from '@/api/leaderOrders'
 import { openChatByOrder, sendChatCard } from '@/api/chats'
+import { useSmartNavigation } from '@/composables'
 import { getOrderStatusText, getPayStatusText, formatDateTime } from '@/utils'
 import type { LeaderOrderData } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/orders')
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -135,10 +137,6 @@ async function fetchOrder() {
   } finally {
     loading.value = false
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 async function handleShip(data: {

@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -35,16 +35,20 @@ import AddressForm from '@/components/AddressForm.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppButton from '@/components/AppButton.vue'
 import { deleteAddress, listAddresses, updateAddress } from '@/api/addresses'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import type { AddressData } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
+const { goBack, goAfterSuccess } = useSmartNavigation('/addresses')
 
 const address = ref<AddressData | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const submitting = ref(false)
 const addressFormRef = ref<InstanceType<typeof AddressForm> | null>(null)
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => Boolean(addressFormRef.value?.isDirty),
+})
 
 async function fetchAddress() {
   loading.value = true
@@ -80,7 +84,9 @@ async function handleSubmit(data: {
   try {
     await updateAddress(address.value.id, data)
     showToast('地址更新成功')
-    router.push('/addresses')
+    unsavedGuard.allowNextNavigation()
+    addressFormRef.value?.markClean()
+    await goAfterSuccess('/addresses')
   } catch (err) {
     const apiErr = err as { message?: string }
     showToast(apiErr.message || '更新失败')
@@ -109,17 +115,15 @@ async function handleDelete() {
   try {
     await deleteAddress(address.value.id)
     showToast('删除成功')
-    router.replace('/addresses')
+    unsavedGuard.allowNextNavigation()
+    addressFormRef.value?.markClean()
+    await goAfterSuccess('/addresses')
   } catch (err) {
     const apiErr = err as { message?: string }
     showToast(apiErr.message || '删除失败')
   } finally {
     submitting.value = false
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

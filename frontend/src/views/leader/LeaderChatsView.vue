@@ -49,11 +49,12 @@ import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ChatConversationListItem from '@/components/ChatConversationListItem.vue'
-import { usePagination } from '@/composables/usePagination'
+import { usePagination, useSmartNavigation } from '@/composables'
 import { listChatConversations } from '@/api/chats'
 import type { ChatConversationData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/dashboard')
 
 const {
   items,
@@ -81,10 +82,6 @@ async function onRefresh() {
 
 function openConversation(conversationId: string) {
   router.push(`/chats/${conversationId}`)
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

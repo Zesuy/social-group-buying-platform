@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core'
 import { Geolocation } from '@capacitor/geolocation'
 import { Share } from '@capacitor/share'
 import type { Router } from 'vue-router'
+import { canSmartGoBack, getRouteBackFallback } from '@/composables/useSmartNavigation'
 
 export const NATIVE_APP_RESUME_EVENT = 'groupshop:native-app-resume'
 type NativeShareResult = 'shared' | 'unsupported' | 'aborted' | 'failed'
@@ -26,7 +27,11 @@ export async function setupNativeAppBridge(router: Router): Promise<void> {
       await CapacitorApp.exitApp()
       return
     }
-    router.back()
+    if (canSmartGoBack()) {
+      router.back()
+      return
+    }
+    await router.replace(getRouteBackFallback(router.currentRoute.value))
   })
 
   await CapacitorApp.addListener('appStateChange', ({ isActive }) => {

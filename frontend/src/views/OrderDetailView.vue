@@ -118,11 +118,13 @@ import OrderAmountBreakdown from '@/components/OrderAmountBreakdown.vue'
 import PriceText from '@/components/PriceText.vue'
 import { getMyOrder, simulatePay, cancelOrder, completeOrder } from '@/api/orders'
 import { openChatByOrder, sendChatCard } from '@/api/chats'
+import { useSmartNavigation } from '@/composables'
 import { formatDateTime } from '@/utils/format'
 import type { OrderData } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useSmartNavigation('/orders')
 const loading = ref(true)
 const error = ref<string | null>(null)
 const order = ref<OrderData | null>(null)
@@ -166,10 +168,6 @@ async function fetchOrder() {
   } finally {
     loading.value = false
   }
-}
-
-function goBack() {
-  router.replace('/orders')
 }
 
 async function handlePay() {

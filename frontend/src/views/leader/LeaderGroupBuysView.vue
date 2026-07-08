@@ -73,12 +73,13 @@ import GroupBuyManageCard from '@/components/GroupBuyManageCard.vue'
 import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppFixedActions from '@/components/AppFixedActions.vue'
-import { usePagination } from '@/composables/usePagination'
+import { usePagination, useSmartNavigation } from '@/composables'
 import { getMyGroupBuyShareCard, listMyGroupBuys } from '@/api/leaderGroupBuys'
 import { buildShareTokenUrl } from '@/utils'
 import type { GroupBuyManageData, ShareCardData } from '@/types'
 
 const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/dashboard')
 const activeTab = ref('published')
 const shareSheetVisible = ref(false)
 const shareCard = ref<ShareCardData | null>(null)
@@ -124,10 +125,6 @@ async function onRefresh() {
   if (error.value) {
     showToast('刷新失败')
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 function goToNew() {

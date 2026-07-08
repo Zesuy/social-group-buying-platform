@@ -5,7 +5,7 @@
         <p>订单详情</p>
         <h1>{{ order?.orderNo || '订单' }}</h1>
       </div>
-      <RouterLink to="/merchant/orders">返回订单列表</RouterLink>
+      <button type="button" class="ghost-link" @click="goBack()">返回</button>
     </div>
 
     <LoadingView v-if="loading" />
@@ -67,15 +67,17 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import { getLeaderOrder, shipOrder } from '@/api/leaderOrders'
+import { useSmartNavigation } from '@/composables'
 import { formatAmount, formatDateTime, getOrderStatusText } from '@/utils'
 import type { LeaderOrderData } from '@/types'
 
 const route = useRoute()
+const { goBack } = useSmartNavigation('/merchant/orders')
 const loading = ref(true)
 const error = ref('')
 const shipLoading = ref(false)
@@ -138,10 +140,15 @@ onMounted(loadOrder)
 }
 
 .page-head a,
+.ghost-link,
 .merchant-table a {
+  border: 0;
+  background: transparent;
   color: #d63f2b;
+  font-family: inherit;
   font-weight: 900;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .detail-grid {

@@ -95,7 +95,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -112,11 +112,12 @@ import {
   getLeaderAfterSale,
   rejectLeaderAfterSale,
 } from '@/api/leaderAfterSales'
+import { useSmartNavigation } from '@/composables'
 import { formatDateTime, getOrderStatusText, getPayStatusText } from '@/utils'
 import type { AfterSaleData } from '@/types'
 
 const route = useRoute()
-const router = useRouter()
+const { goBack } = useSmartNavigation('/leader/after-sales')
 
 const loading = ref(true)
 const error = ref('')
@@ -201,10 +202,6 @@ async function completeRefund() {
   } finally {
     actionLoading.value = ''
   }
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

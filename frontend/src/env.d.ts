@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import type { RouteLocationRaw } from 'vue-router'
+
 declare module '*.vue' {
   import type { DefineComponent } from 'vue'
   const component: DefineComponent<object, object, unknown>
@@ -12,4 +14,12 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv
+}
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    backFallback?: RouteLocationRaw | string
+    navigationGroup?: string
+    isNavigationRoot?: boolean
+  }
 }

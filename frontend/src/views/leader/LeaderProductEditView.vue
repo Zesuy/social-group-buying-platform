@@ -21,7 +21,7 @@
 </template>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
@@ -31,21 +31,24 @@ import AppFixedActions from '@/components/AppFixedActions.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppCard from '@/components/AppCard.vue'
 import { getProduct, updateProduct, deleteProduct } from '@/api/products'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import type { ProductData } from '@/types'
 const route = useRoute()
-const router = useRouter()
+const { goBack, goAfterSuccess } = useSmartNavigation('/leader/products')
 const loading = ref(true)
 const error = ref<string | null>(null)
 const product = ref<ProductData | null>(null)
 const saving = ref(false)
 const formRef = ref<InstanceType<typeof ProductForm> | null>(null)
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => Boolean(formRef.value?.isDirty),
+})
 async function fetchProduct() {
   loading.value = true; error.value = null
   try { product.value = await getProduct(route.params.id as string) }
   catch (err) { error.value = (err as { message?: string }).message || '加载失败' }
   finally { loading.value = false }
 }
-function goBack() { router.back() }
 async function handleSave() {
   if (!formRef.value || !product.value) return
   const err = formRef.value.validate?.()
@@ -53,7 +56,7 @@ async function handleSave() {
   const data = formRef.value.getFormData?.()
   if (!data) { showToast('请填写完整信息'); return }
   saving.value = true
-  try { await updateProduct(product.value.id, data); showToast('保存成功'); router.push('/leader/products') }
+  try { await updateProduct(product.value.id, data); showToast('保存成功'); formRef.value?.markClean(); unsavedGuard.allowNextNavigation(); await goAfterSuccess('/leader/products') }
   catch (err) { showToast((err as { message?: string }).message || '保存失败') }
   finally { saving.value = false }
 }
@@ -69,7 +72,7 @@ async function handleDelete() {
   if (!product.value) return
   try { await showConfirmDialog({ title: '确认删除', message: `确定删除「${product.value.name}」？` }) } catch { return }
   saving.value = true
-  try { await deleteProduct(product.value.id); showToast('删除成功'); router.push('/leader/products') }
+  try { await deleteProduct(product.value.id); showToast('删除成功'); formRef.value?.markClean(); unsavedGuard.allowNextNavigation(); await goAfterSuccess('/leader/products') }
   catch (err) { showToast((err as { message?: string }).message || '删除失败') }
   finally { saving.value = false }
 }

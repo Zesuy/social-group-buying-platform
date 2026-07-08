@@ -61,18 +61,19 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import PageLayout from '@/components/PageLayout.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { listMySubscribers } from '@/api/subscriptions'
+import { useSmartNavigation } from '@/composables'
 import { formatDateTime, formatPhone, resolveDisplayImageUrl } from '@/utils'
 import type { LeaderSubscriberData } from '@/types'
 
-const router = useRouter()
 const route = useRoute()
+const { goBack } = useSmartNavigation('/leader/dashboard')
 
 const loading = ref(true)
 const refreshing = ref(false)
@@ -137,10 +138,6 @@ function sourceText(source: string | null): string {
 
 function isFocusedSubscriber(item: LeaderSubscriberData): boolean {
   return focusedSubscriptionId.value === item.subscriptionId
-}
-
-function goBack() {
-  router.back()
 }
 
 onMounted(() => {

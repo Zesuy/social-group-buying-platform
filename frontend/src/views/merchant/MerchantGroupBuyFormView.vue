@@ -5,7 +5,7 @@
         <p>团购运营</p>
         <h1>新建团购</h1>
       </div>
-      <RouterLink class="ghost-link" to="/merchant/group-buys">返回团购列表</RouterLink>
+      <button type="button" class="ghost-link" @click="goBack()">返回</button>
     </div>
 
     <form class="publish-form" @submit.prevent="handleSubmit">
@@ -199,13 +199,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { showToast } from 'vant'
 import ContentBlocksEditor from '@/components/ContentBlocksEditor.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import { createGroupBuy, polishGroupBuyCopy } from '@/api/leaderGroupBuys'
 import { listProductsByParams } from '@/api/products'
+import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import { amountToYuan, formatAmount, getDemoProductImage, normalizeContentBlocks } from '@/utils'
 import type { ContentBlockData, GroupBuyAiPolishResponse, ProductData } from '@/types'
 
@@ -220,7 +221,7 @@ interface ItemForm {
   description: string
 }
 
-const router = useRouter()
+const { goBack, goAfterSuccess } = useSmartNavigation('/merchant/group-buys')
 let localItemId = 0
 
 const deliveryOptions = [
@@ -248,6 +249,10 @@ const form = reactive({
   endTime: '',
   contentBlocks: [] as ContentBlockData[],
   items: [] as ItemForm[],
+})
+const initialSnapshot = JSON.stringify(form)
+const unsavedGuard = useUnsavedChangesGuard({
+  isDirty: () => JSON.stringify(form) !== initialSnapshot,
 })
 
 const selectedProductIds = computed(() => new Set(form.items.map((item) => item.productId).filter(Boolean) as string[]))
@@ -413,7 +418,8 @@ async function handleSubmit() {
       })),
     })
     showToast('发布成功')
-    router.push('/merchant/group-buys')
+    unsavedGuard.allowNextNavigation()
+    await goAfterSuccess('/merchant/group-buys')
   } catch (err) {
     showToast((err as { message?: string }).message || '发布失败')
   } finally {
@@ -460,6 +466,8 @@ onMounted(loadProducts)
   border-radius: 8px;
   font-size: 13px;
   font-weight: 900;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .ghost-link,
