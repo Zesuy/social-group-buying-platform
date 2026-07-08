@@ -10,7 +10,6 @@ import { config, enableAutoUnmount } from '@vue/test-utils'
 import {
   Tabbar,
   TabbarItem,
-  NavBar,
   Button,
   Form,
   Field,
@@ -43,7 +42,11 @@ config.global.components = {
   ...config.global.components,
   VanTabbar: Tabbar,
   VanTabbarItem: TabbarItem,
-  VanNavBar: NavBar,
+  VanNavBar: {
+    props: ['title', 'leftArrow'],
+    emits: ['click-left'],
+    template: `<header><button v-if="leftArrow" type="button" aria-label="返回" @click="$emit('click-left')">返回</button><span>{{ title }}</span></header>`,
+  },
   VanButton: Button,
   VanForm: Form,
   VanField: Field,

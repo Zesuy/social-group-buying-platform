@@ -25,10 +25,10 @@
           <span>介绍</span>
           <textarea v-model="form.introduction" rows="6" placeholder="规格、口感、截单时间、配送方式和售后口径" />
         </label>
-        <label class="field">
-          <span>活动正文要点</span>
-          <textarea v-model="contentText" rows="5" placeholder="每行一个要点，保存为结构化内容块" />
-        </label>
+        <div class="content-editor-field">
+          <span>活动内容块</span>
+          <ContentBlocksEditor v-model="form.contentBlocks" :disabled="submitting" />
+        </div>
         <div class="field-grid">
           <label class="field">
             <span>开始时间</span>
@@ -201,11 +201,12 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import ContentBlocksEditor from '@/components/ContentBlocksEditor.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import { createGroupBuy, polishGroupBuyCopy } from '@/api/leaderGroupBuys'
 import { listProductsByParams } from '@/api/products'
-import { amountToYuan, formatAmount, getDemoProductImage } from '@/utils'
+import { amountToYuan, formatAmount, getDemoProductImage, normalizeContentBlocks } from '@/utils'
 import type { ContentBlockData, GroupBuyAiPolishResponse, ProductData } from '@/types'
 
 interface ItemForm {
@@ -236,7 +237,6 @@ const submitting = ref(false)
 const aiPolishing = ref(false)
 const aiVisible = ref(false)
 const polishSuggestion = ref<GroupBuyAiPolishResponse | null>(null)
-const contentText = ref('')
 
 const form = reactive({
   title: '',
@@ -310,21 +310,9 @@ function contentBlockLabel(type: string): string {
   return '说明'
 }
 
-function normalizeContentBlocks(blocks: ContentBlockData[] | undefined): ContentBlockData[] {
-  return (blocks || []).map((block) => ({
-    type: block.type,
-    title: block.title || null,
-    text: block.text || null,
-    url: block.url || null,
-    caption: block.caption || null,
-    items: block.items || null,
-  }))
-}
-
 function buildContentBlocks(): ContentBlockData[] | undefined {
-  if (form.contentBlocks.length > 0) return form.contentBlocks
-  const items = contentText.value.split('\n').map((line) => line.trim()).filter(Boolean)
-  return items.length > 0 ? [{ type: 'list', title: '活动要点', items, text: null, url: null, caption: null }] : undefined
+  const blocks = normalizeContentBlocks(form.contentBlocks)
+  return blocks.length > 0 ? blocks : undefined
 }
 
 function validate(): string | null {
@@ -371,9 +359,6 @@ function applyAiPolish() {
   form.title = polishSuggestion.value.title
   form.introduction = polishSuggestion.value.introduction
   form.contentBlocks = normalizeContentBlocks(polishSuggestion.value.contentBlocks)
-  contentText.value = (polishSuggestion.value.contentBlocks || [])
-    .flatMap((block) => block.items || (block.text ? [block.text] : []))
-    .join('\n')
   aiVisible.value = false
   showToast('已采用润色文案')
 }
@@ -528,12 +513,14 @@ onMounted(loadProducts)
   text-decoration: none;
 }
 
-.field {
+.field,
+.content-editor-field {
   display: grid;
   gap: 8px;
 }
 
-.field span {
+.field span,
+.content-editor-field > span {
   color: #374151;
   font-size: 13px;
   font-weight: 900;

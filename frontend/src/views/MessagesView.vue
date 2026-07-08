@@ -47,18 +47,15 @@
             :class="{ 'message-row--unread': item.unreadCount > 0 }"
             @click="openFeedItem(item)"
           >
-            <span v-if="item.avatarUrl" class="message-row__avatar">
+            <span class="message-row__avatar">
               <ImageWithFallback
                 :src="item.avatarUrl"
                 :alt="item.title"
                 width="54px"
                 height="54px"
                 radius="50%"
-                demo-kind="store"
+                demo-kind="avatar"
               />
-            </span>
-            <span v-else class="message-row__icon message-row__icon--blue">
-              <van-icon :name="item.icon" />
             </span>
 
             <span class="message-row__body">
@@ -97,6 +94,7 @@ import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import { listChatConversations } from '@/api/chats'
 import { listNotifications } from '@/api/notifications'
 import { useChatUnreadPolling, useNotificationPolling } from '@/composables'
+import { getChatCounterpart, getChatMessageSummary } from '@/utils'
 import type { ChatConversationData, NotificationData } from '@/types'
 
 type ShortcutKey = 'orders' | 'subscriptions'
@@ -191,27 +189,18 @@ async function openFeedItem(item: MessageFeedItem) {
 
 function toChatFeedItem(conversation: ChatConversationData) {
   const lastAt = conversation.lastMessageAt || conversation.createdAt
-  const counterpart = conversation.currentUserRole === 'leader'
-    ? `买家 ${conversation.buyerName}`
-    : `团长 ${conversation.leaderName}`
+  const counterpart = getChatCounterpart(conversation)
   return {
     id: `chat:${conversation.id}`,
     kind: 'chat' as const,
     raw: conversation,
-    title: conversation.storeName || counterpart,
-    summary: chatSummary(conversation, counterpart),
+    title: counterpart.title,
+    summary: getChatMessageSummary(conversation),
     timeText: formatFeedTime(lastAt),
     timestamp: timeValue(lastAt),
     unreadCount: conversation.unreadCount,
-    avatarUrl: conversation.storeLogoUrl || conversation.leaderAvatarUrl || null,
-    icon: 'chat-o',
+    avatarUrl: counterpart.avatarUrl,
   }
-}
-
-function chatSummary(conversation: ChatConversationData, counterpart: string): string {
-  if (conversation.lastMessageType === 'image') return `${counterpart} 发来了一张图片`
-  if (conversation.lastMessageType === 'card') return conversation.lastMessageText || `${counterpart} 发来订单卡片`
-  return conversation.lastMessageText || `${counterpart} 的履约沟通入口`
 }
 
 function isOrderNotification(notification: NotificationData): boolean {

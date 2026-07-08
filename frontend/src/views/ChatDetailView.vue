@@ -7,16 +7,16 @@
       <div ref="messageListRef" class="chat-detail">
         <div v-if="conversation" class="chat-detail__context">
           <ImageWithFallback
-            :src="conversation.storeLogoUrl || conversation.leaderAvatarUrl"
-            :alt="conversation.storeName"
+            :src="counterpart?.avatarUrl"
+            :alt="counterpart?.title || conversation.storeName"
             width="42px"
             height="42px"
             radius="12px"
-            demo-kind="store"
+            demo-kind="avatar"
           />
           <div>
-            <strong>{{ conversation.storeName }}</strong>
-            <p>{{ counterpartText }}</p>
+            <strong>{{ counterpart?.title }}</strong>
+            <p>{{ counterpart?.subtitle }}</p>
           </div>
         </div>
 
@@ -144,7 +144,7 @@ import {
 } from '@/api/chats'
 import { uploadImage } from '@/api/uploads'
 import { useChatPolling } from '@/composables'
-import { formatAmount, formatDateTime, resolveDisplayImageUrl } from '@/utils'
+import { formatAmount, formatDateTime, getChatCounterpart, resolveDisplayImageUrl } from '@/utils'
 import type { ChatCardPayload, ChatConversationData, ChatMessageData } from '@/types'
 
 const route = useRoute()
@@ -161,12 +161,8 @@ const messageListRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const { startPolling, stopPolling } = useChatPolling(5000)
 
-const pageTitle = computed(() => conversation.value?.storeName || '联系团长')
-const counterpartText = computed(() => {
-  if (!conversation.value) return ''
-  if (conversation.value.currentUserRole === 'leader') return `买家 ${conversation.value.buyerName}`
-  return `团长 ${conversation.value.leaderName}`
-})
+const counterpart = computed(() => conversation.value ? getChatCounterpart(conversation.value) : null)
+const pageTitle = computed(() => counterpart.value?.title || '联系团长')
 
 async function loadConversation() {
   const data = await listChatConversations({ page: 1, pageSize: 50 })

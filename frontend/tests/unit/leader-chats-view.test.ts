@@ -15,7 +15,7 @@ const conversation: ChatConversationData = {
   leaderUserId: '2',
   storeId: '20',
   buyerName: '小李',
-  buyerAvatarUrl: null,
+  buyerAvatarUrl: '/uploads/images/buyer.jpg',
   leaderName: '王姐',
   leaderAvatarUrl: null,
   storeName: '王姐鲜果团',
@@ -64,7 +64,9 @@ describe('LeaderChatsView', () => {
     expect(listChatConversations).toHaveBeenCalledWith({ role: 'leader', page: 1, pageSize: 20 })
     expect(wrapper.text()).toContain('待回复会话')
     expect(wrapper.text()).toContain('2')
-    expect(wrapper.text()).toContain('买家 小李')
+    expect(wrapper.text()).toContain('小李')
+    expect(wrapper.text()).toContain('王姐鲜果团 · 订单咨询')
+    expect(wrapper.find('.chat-conversation-item img').attributes('src')).toBe('/uploads/images/buyer.jpg')
     expect(wrapper.text()).toContain('这个订单今天能发吗')
 
     await wrapper.find('.chat-conversation-item').trigger('click')

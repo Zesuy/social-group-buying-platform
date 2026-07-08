@@ -6,15 +6,15 @@
       width="48px"
       height="48px"
       radius="14px"
-      demo-kind="store"
+      demo-kind="avatar"
     />
     <span class="chat-conversation-item__body">
       <span class="chat-conversation-item__head">
-        <strong>{{ conversation.storeName }}</strong>
+        <strong>{{ counterpart.title }}</strong>
         <span>{{ timeText }}</span>
       </span>
       <span class="chat-conversation-item__meta">
-        {{ counterpartLabel }}
+        {{ counterpart.subtitle }}
       </span>
       <span class="chat-conversation-item__summary">
         {{ summaryText }}
@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import ImageWithFallback from './ImageWithFallback.vue'
-import { formatDateTime } from '@/utils'
+import { formatDateTime, getChatCounterpart, getChatMessageSummary } from '@/utils'
 import type { ChatConversationData } from '@/types'
 
 const props = defineProps<{
@@ -40,26 +40,14 @@ defineEmits<{
   open: [conversation: ChatConversationData]
 }>()
 
-const avatarUrl = computed(() => props.conversation.storeLogoUrl || props.conversation.leaderAvatarUrl)
-const avatarAlt = computed(() => props.conversation.storeName || '团长小店')
+const counterpart = computed(() => getChatCounterpart(props.conversation))
+const avatarUrl = computed(() => counterpart.value.avatarUrl)
+const avatarAlt = computed(() => counterpart.value.title)
 const unreadText = computed(() => props.conversation.unreadCount > 99 ? '99+' : String(props.conversation.unreadCount))
 const timeText = computed(() => props.conversation.lastMessageAt ? formatDateTime(props.conversation.lastMessageAt) : '')
 
-const counterpartLabel = computed(() => {
-  if (props.conversation.currentUserRole === 'leader') {
-    return `买家 ${props.conversation.buyerName}`
-  }
-  return `团长 ${props.conversation.leaderName}`
-})
-
 const summaryText = computed(() => {
-  if (props.conversation.lastMessageType === 'image') {
-    return '[图片] 买家发送了一张图片'
-  }
-  if (props.conversation.lastMessageType === 'card') {
-    return `[订单卡片] ${props.conversation.lastMessageText || '查看订单详情'}`
-  }
-  return props.conversation.lastMessageText || '下单后可在这里沟通履约细节'
+  return getChatMessageSummary(props.conversation)
 })
 </script>
 

@@ -8,48 +8,34 @@
       <RouterLink class="ghost-link" to="/merchant/group-buys">返回团购列表</RouterLink>
     </div>
 
-    <LoadingView v-if="loading" />
+    <LoadingView v-if="loading" text="正在加载团购详情..." />
     <ErrorView v-else-if="error" :message="error" show-retry @retry="fetchDetail" />
 
     <template v-else-if="detail">
-      <div class="detail-grid">
-        <section class="form-panel">
-          <div class="detail-head">
-            <ImageWithFallback
-              :src="detail.groupBuy.coverImageUrl"
-              :alt="detail.groupBuy.title"
-              demo-kind="cover"
-              width="88px"
-              height="88px"
-              radius="8px"
-            />
-            <div>
-              <span class="status-pill">{{ getGroupBuyStatusText(detail.groupBuy.status) }}</span>
-              <h2>{{ detail.groupBuy.title }}</h2>
-              <p>{{ detail.groupBuy.introduction || '暂无介绍' }}</p>
-            </div>
+      <section class="overview-panel">
+        <ImageWithFallback
+          :src="detail.groupBuy.coverImageUrl"
+          :alt="detail.groupBuy.title"
+          demo-kind="cover"
+          width="176px"
+          height="132px"
+          radius="8px"
+        />
+
+        <div class="overview-main">
+          <div class="overview-main__top">
+            <span class="status-pill" :class="`status-pill--${detail.groupBuy.status}`">
+              {{ getGroupBuyStatusText(detail.groupBuy.status) }}
+            </span>
+            <span class="visibility-chip">{{ visibilityText }}</span>
           </div>
-          <dl class="meta-grid">
-            <div>
-              <dt>配送方式</dt>
-              <dd>{{ getDeliveryTypeText(detail.groupBuy.deliveryType) }}</dd>
-            </div>
-            <div>
-              <dt>开始时间</dt>
-              <dd>{{ formatDateTime(detail.groupBuy.startTime) }}</dd>
-            </div>
-            <div>
-              <dt>结束时间</dt>
-              <dd>{{ formatDateTime(detail.groupBuy.endTime) }}</dd>
-            </div>
-            <div>
-              <dt>发货说明</dt>
-              <dd>{{ detail.groupBuy.shippingTime || '未填写' }}</dd>
-            </div>
-          </dl>
-          <div class="action-row">
-            <button type="button" class="ghost-button" :disabled="shareLoading" @click="openShare">分享</button>
-            <button type="button" class="ghost-button" @click="startEdit">编辑基础信息</button>
+          <h2>{{ detail.groupBuy.title }}</h2>
+          <p>{{ detail.groupBuy.introduction || '暂无介绍，可在右侧编辑基础信息补充活动亮点。' }}</p>
+          <div class="overview-actions">
+            <button type="button" class="ghost-button" :disabled="shareLoading" @click="openShare">
+              {{ shareLoading ? '生成中...' : '分享团购' }}
+            </button>
+            <RouterLink class="ghost-button" :to="`/group-buys/${detail.groupBuy.id}`">查看用户页</RouterLink>
             <button
               v-if="detail.groupBuy.status === 'published'"
               type="button"
@@ -57,13 +43,134 @@
               :disabled="endLoading"
               @click="handleEnd"
             >
-              结束团购
+              {{ endLoading ? '处理中...' : '结束团购' }}
             </button>
           </div>
-        </section>
+        </div>
 
-        <section class="form-panel">
-          <h2>基础信息编辑</h2>
+        <dl class="metric-grid">
+          <div>
+            <dt>商品款数</dt>
+            <dd>{{ detail.items.length }}</dd>
+          </div>
+          <div>
+            <dt>已售件数</dt>
+            <dd>{{ soldTotal }}</dd>
+          </div>
+          <div>
+            <dt>剩余库存</dt>
+            <dd>{{ remainingStock }}</dd>
+          </div>
+          <div>
+            <dt>团购价区间</dt>
+            <dd>{{ priceRangeText }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <div class="detail-layout">
+        <main class="detail-main">
+          <section class="content-panel">
+            <div class="section-head">
+              <div>
+                <p>商品表现</p>
+                <h2>本团商品和库存</h2>
+              </div>
+              <span>{{ stockUsageText }}</span>
+            </div>
+
+            <div class="item-list">
+              <article v-for="item in detail.items" :key="item.id" class="item-row">
+                <div class="item-row__main">
+                  <strong>{{ item.displayName }}</strong>
+                  <span>团购价 {{ formatAmount(item.groupPriceAmount) }}</span>
+                </div>
+                <div class="item-row__numbers">
+                  <span>库存 {{ item.groupStock }}</span>
+                  <span>已售 {{ item.soldCount }}</span>
+                </div>
+                <div class="stock-bar" aria-label="库存销售进度">
+                  <i :style="{ width: `${soldPercent(item)}%` }" />
+                </div>
+              </article>
+              <EmptyState v-if="detail.items.length === 0" image="goods-collect-o" description="暂无团购商品" />
+            </div>
+          </section>
+
+          <section class="content-panel">
+            <div class="section-head">
+              <div>
+                <p>活动内容</p>
+                <h2>用户页展示素材</h2>
+              </div>
+              <span>{{ contentBlocks.length > 0 ? `${contentBlocks.length} 个内容块` : '使用基础介绍' }}</span>
+            </div>
+
+            <div v-if="contentBlocks.length > 0" class="content-blocks">
+              <article
+                v-for="(block, index) in contentBlocks"
+                :key="`${block.type}-${index}`"
+                class="content-block"
+              >
+                <span>{{ blockTypeText(block.type) }}</span>
+                <h3 v-if="block.title">{{ block.title }}</h3>
+                <p v-if="block.text">{{ block.text }}</p>
+                <ul v-if="block.items?.length">
+                  <li v-for="item in block.items" :key="item">{{ item }}</li>
+                </ul>
+                <ImageWithFallback
+                  v-if="block.type === 'image' && block.url"
+                  :src="block.url"
+                  :alt="block.caption || detail.groupBuy.title"
+                  demo-kind="cover"
+                  width="100%"
+                  height="180px"
+                  radius="8px"
+                />
+                <small v-if="block.caption">{{ block.caption }}</small>
+              </article>
+            </div>
+            <div v-else class="plain-intro">
+              {{ detail.groupBuy.introduction || '暂无活动内容。新建团购时可通过结构化内容块补充推荐理由、配送说明和商品图片。' }}
+            </div>
+          </section>
+
+          <section class="content-panel">
+            <div class="section-head">
+              <div>
+                <p>履约信息</p>
+                <h2>时间与配送</h2>
+              </div>
+            </div>
+            <dl class="info-grid">
+              <div>
+                <dt>配送方式</dt>
+                <dd>{{ getDeliveryTypeText(detail.groupBuy.deliveryType) }}</dd>
+              </div>
+              <div>
+                <dt>发货说明</dt>
+                <dd>{{ detail.groupBuy.shippingTime || '未填写' }}</dd>
+              </div>
+              <div>
+                <dt>开始时间</dt>
+                <dd>{{ formatDateTime(detail.groupBuy.startTime) || '未设置' }}</dd>
+              </div>
+              <div>
+                <dt>结束时间</dt>
+                <dd>{{ formatDateTime(detail.groupBuy.endTime) || '未设置' }}</dd>
+              </div>
+            </dl>
+          </section>
+        </main>
+
+        <aside class="edit-panel">
+          <div class="section-head">
+            <div>
+              <p>基础信息编辑</p>
+              <h2>调整活动资料</h2>
+            </div>
+          </div>
+
           <label class="field">
             <span>标题</span>
             <input v-model="editForm.title" />
@@ -72,6 +179,10 @@
             <span>介绍</span>
             <textarea v-model="editForm.introduction" rows="5" />
           </label>
+          <div class="content-editor-field">
+            <span>活动内容块</span>
+            <ContentBlocksEditor v-model="editForm.contentBlocks" :disabled="editLoading" />
+          </div>
           <div class="upload-block">
             <span>封面</span>
             <ImageUploader
@@ -109,34 +220,11 @@
               <input v-model="editForm.endTime" type="datetime-local" />
             </label>
           </div>
-          <div class="action-row action-row--right">
-            <button type="button" class="primary-button" :disabled="editLoading" @click="saveEdit">
-              {{ editLoading ? '保存中...' : '保存基础信息' }}
-            </button>
-          </div>
-        </section>
+          <button type="button" class="primary-button" :disabled="editLoading" @click="saveEdit">
+            {{ editLoading ? '保存中...' : '保存基础信息' }}
+          </button>
+        </aside>
       </div>
-
-      <section class="table-panel">
-        <table class="merchant-table">
-          <thead>
-            <tr>
-              <th>商品</th>
-              <th>团购价</th>
-              <th>团购库存</th>
-              <th>已售</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in detail.items" :key="item.id">
-              <td><strong>{{ item.displayName }}</strong></td>
-              <td>{{ formatAmount(item.groupPriceAmount) }}</td>
-              <td>{{ item.groupStock }}</td>
-              <td>{{ item.soldCount }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
 
       <GroupBuyShareSheet
         v-if="shareCard"
@@ -152,14 +240,24 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
+import ContentBlocksEditor from '@/components/ContentBlocksEditor.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import ErrorView from '@/components/ErrorView.vue'
 import GroupBuyShareSheet, { type GroupBuySharePayload } from '@/components/GroupBuyShareSheet.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ImageWithFallback from '@/components/ImageWithFallback.vue'
 import LoadingView from '@/components/LoadingView.vue'
 import { endGroupBuy, getMyGroupBuy, getMyGroupBuyShareCard, updateMyGroupBuy } from '@/api/leaderGroupBuys'
-import { buildShareTokenUrl, formatAmount, formatDateTime, getDeliveryTypeText, getGroupBuyStatusText } from '@/utils'
-import type { GroupBuyManageDetailData, ShareCardData } from '@/types'
+import {
+  buildShareTokenUrl,
+  contentBlockTypeText,
+  formatAmount,
+  formatDateTime,
+  getDeliveryTypeText,
+  getGroupBuyStatusText,
+  normalizeContentBlocks,
+} from '@/utils'
+import type { ContentBlockData, GroupBuyManageDetailData, GroupBuyManageItem, ShareCardData } from '@/types'
 
 const route = useRoute()
 
@@ -186,8 +284,22 @@ const editForm = reactive({
   shippingTime: '',
   startTime: '',
   endTime: '',
+  contentBlocks: [] as ContentBlockData[],
 })
 
+const contentBlocks = computed<ContentBlockData[]>(() => detail.value?.groupBuy.contentBlocks ?? [])
+const soldTotal = computed(() => detail.value?.items.reduce((sum, item) => sum + item.soldCount, 0) ?? 0)
+const stockTotal = computed(() => detail.value?.items.reduce((sum, item) => sum + item.groupStock, 0) ?? 0)
+const remainingStock = computed(() => Math.max(stockTotal.value - soldTotal.value, 0))
+const stockUsageText = computed(() => stockTotal.value > 0 ? `已售 ${Math.round((soldTotal.value / stockTotal.value) * 100)}%` : '暂无库存')
+const priceRangeText = computed(() => {
+  const prices = detail.value?.items.map((item) => item.groupPriceAmount) ?? []
+  if (prices.length === 0) return '暂无'
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
+  return min === max ? formatAmount(min) : `${formatAmount(min)} - ${formatAmount(max)}`
+})
+const visibilityText = computed(() => detail.value?.groupBuy.visibility === 'hidden' ? '隐藏分享' : '公开展示')
 const shareUrl = computed(() => shareCard.value ? buildShareTokenUrl(shareCard.value.shareToken) : '')
 const sharePayload = computed<GroupBuySharePayload>(() => ({
   title: shareCard.value?.title || detail.value?.groupBuy.title || '团购分享',
@@ -223,6 +335,7 @@ function startEdit() {
   editForm.shippingTime = groupBuy.shippingTime || ''
   editForm.startTime = toInputDateTime(groupBuy.startTime)
   editForm.endTime = toInputDateTime(groupBuy.endTime)
+  editForm.contentBlocks = normalizeContentBlocks(groupBuy.contentBlocks)
 }
 
 async function fetchDetail() {
@@ -254,6 +367,7 @@ async function saveEdit() {
       shippingTime: editForm.shippingTime.trim() || null,
       startTime: toISOWithTZ(editForm.startTime),
       endTime: toISOWithTZ(editForm.endTime),
+      contentBlocks: normalizeContentBlocks(editForm.contentBlocks),
     })
     showToast('保存成功')
     await fetchDetail()
@@ -296,6 +410,15 @@ async function openShare() {
   }
 }
 
+function soldPercent(item: GroupBuyManageItem): number {
+  if (item.groupStock <= 0) return 0
+  return Math.min(100, Math.round((item.soldCount / item.groupStock) * 100))
+}
+
+function blockTypeText(type: string): string {
+  return contentBlockTypeText(type)
+}
+
 onMounted(fetchDetail)
 </script>
 
@@ -303,6 +426,7 @@ onMounted(fetchDetail)
 .merchant-page {
   display: grid;
   gap: 16px;
+  padding-bottom: 32px;
 }
 
 .page-head {
@@ -312,7 +436,8 @@ onMounted(fetchDetail)
   gap: 14px;
 }
 
-.page-head p {
+.page-head p,
+.section-head p {
   margin: 0;
   color: #6b7280;
   font-size: 13px;
@@ -336,6 +461,8 @@ onMounted(fetchDetail)
   font-size: 13px;
   font-weight: 900;
   text-decoration: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .ghost-link,
@@ -346,6 +473,8 @@ onMounted(fetchDetail)
 }
 
 .primary-button {
+  width: 100%;
+  min-height: 42px;
   border: 0;
   background: #e9563f;
   color: #fff;
@@ -357,49 +486,226 @@ onMounted(fetchDetail)
   color: #fff;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
-  gap: 16px;
-  align-items: start;
-}
-
-.form-panel {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
+.overview-panel,
+.content-panel,
+.edit-panel {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fff;
 }
 
-.form-panel h2 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.detail-head {
+.overview-panel {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
+  grid-template-columns: 176px minmax(0, 1fr) minmax(320px, 440px);
+  gap: 18px;
+  align-items: stretch;
+  padding: 18px;
 }
 
-.detail-head h2,
-.detail-head p {
-  margin: 6px 0 0;
+.overview-main {
+  min-width: 0;
 }
 
-.detail-head p {
-  color: #6b7280;
-  line-height: 1.55;
+.overview-main__top,
+.overview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-.status-pill {
+.overview-main h2 {
+  margin: 12px 0 8px;
+  color: #111827;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.overview-main p {
+  margin: 0;
+  max-width: 760px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.overview-actions {
+  margin-top: 16px;
+}
+
+.status-pill,
+.visibility-chip {
   display: inline-flex;
   height: 24px;
   align-items: center;
   padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.status-pill {
+  background: #e8f8ef;
+  color: #087a3f;
+}
+
+.status-pill--draft {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.status-pill--ended {
+  background: #fff1ed;
+  color: #d63f2b;
+}
+
+.visibility-chip {
+  background: #f9fafb;
+  color: #6b7280;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.metric-grid div,
+.info-grid div {
+  padding: 12px;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.metric-grid dt,
+.metric-grid dd,
+.info-grid dt,
+.info-grid dd {
+  margin: 0;
+}
+
+.metric-grid dt,
+.info-grid dt {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.metric-grid dd {
+  margin-top: 6px;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-main {
+  display: grid;
+  gap: 16px;
+}
+
+.content-panel,
+.edit-panel {
+  padding: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.section-head h2 {
+  margin: 4px 0 0;
+  color: #111827;
+  font-size: 18px;
+}
+
+.section-head > span {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.item-list {
+  display: grid;
+  gap: 10px;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 10px 18px;
+  padding: 14px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.item-row__main,
+.item-row__numbers {
+  display: grid;
+  gap: 4px;
+}
+
+.item-row__main strong {
+  color: #111827;
+  font-size: 15px;
+}
+
+.item-row__main span,
+.item-row__numbers span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.item-row__numbers {
+  grid-template-columns: repeat(2, 1fr);
+  align-content: center;
+}
+
+.stock-bar {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  overflow: hidden;
+}
+
+.stock-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #e9563f;
+}
+
+.content-blocks {
+  display: grid;
+  gap: 12px;
+}
+
+.content-block {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.content-block span {
+  width: fit-content;
+  padding: 2px 8px;
   border-radius: 999px;
   background: #e8f8ef;
   color: #087a3f;
@@ -407,44 +713,68 @@ onMounted(fetchDetail)
   font-weight: 900;
 }
 
-.meta-grid {
+.content-block h3,
+.content-block p,
+.content-block ul {
+  margin: 0;
+}
+
+.content-block h3 {
+  color: #111827;
+  font-size: 15px;
+}
+
+.content-block p,
+.plain-intro,
+.content-block li,
+.content-block small {
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.content-block ul {
+  padding-left: 18px;
+}
+
+.plain-intro {
+  padding: 14px;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.info-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin: 0;
 }
 
-.meta-grid div {
-  padding: 12px;
-  border-radius: 8px;
-  background: #f9fafb;
-}
-
-.meta-grid dt,
-.meta-grid dd {
-  margin: 0;
-}
-
-.meta-grid dt {
-  color: #6b7280;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.meta-grid dd {
+.info-grid dd {
   margin-top: 5px;
   color: #111827;
+  font-size: 13px;
   font-weight: 900;
+  line-height: 1.5;
+}
+
+.edit-panel {
+  position: sticky;
+  top: 82px;
+  display: grid;
+  gap: 14px;
 }
 
 .field,
-.upload-block {
+.upload-block,
+.content-editor-field {
   display: grid;
   gap: 8px;
 }
 
 .field span,
-.upload-block > span {
+.upload-block > span,
+.content-editor-field > span {
   color: #374151;
   font-size: 13px;
   font-weight: 900;
@@ -491,45 +821,23 @@ onMounted(fetchDetail)
   color: #d63f2b;
 }
 
-.action-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.action-row--right {
-  justify-content: flex-end;
-}
-
-.table-panel {
-  overflow-x: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.merchant-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.merchant-table th,
-.merchant-table td {
-  padding: 13px 14px;
-  border-bottom: 1px solid #eef2f7;
-  text-align: left;
-  font-size: 13px;
-}
-
-.merchant-table th {
-  background: #f9fafb;
-  color: #6b7280;
-  font-weight: 900;
-}
-
 @media (max-width: 1180px) {
-  .detail-grid,
-  .meta-grid {
+  .overview-panel,
+  .detail-layout,
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 760px) {
+  .metric-grid,
+  .item-row,
+  .field-grid,
+  .delivery-grid {
     grid-template-columns: 1fr;
   }
 }

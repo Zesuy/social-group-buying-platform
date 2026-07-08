@@ -6,6 +6,7 @@ async function mockMerchantEndpoints(page: Page) {
   let afterSaleStatus = 'pending'
   let productDeleted = false
   let groupBuyStatus = 'published'
+  let groupBuyContentBlocks: Array<Record<string, unknown>> = [{ type: 'list', title: '推荐理由', text: null, url: null, caption: null, items: ['当季鲜桃', '次日发货'] }]
   let couponStatus = 'active'
 
   await page.route('**/api/v1/me', async (route) => {
@@ -164,13 +165,51 @@ async function mockMerchantEndpoints(page: Page) {
   })
 
   await page.route('**/api/v1/my/chat-conversations**', async (route) => {
+    const url = new URL(route.request().url())
+    if (/\/chat-conversations\/[^/?]+\/messages$/.test(url.pathname)) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            items: [
+              {
+                id: 'm7001',
+                conversationId: 7001,
+                senderUserId: 1,
+                senderRole: 'buyer',
+                messageType: 'text',
+                content: '什么时候发货',
+                mine: false,
+                createdAt: '2026-07-06T10:30:00',
+              },
+            ],
+            page: 1,
+            pageSize: 30,
+            total: 1,
+            hasMore: false,
+          },
+          traceId: 'e2e_chat_messages',
+        }),
+      })
+      return
+    }
+    if (/\/chat-conversations\/[^/?]+\/read$/.test(url.pathname)) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, traceId: 'e2e_chat_read' }),
+      })
+      return
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
         data: {
-          items: [{ id: 7001, buyerUserId: 1, leaderUserId: 2, storeId: 20, buyerName: '小李', leaderName: '王姐', storeName: '王姐社区鲜果店', currentUserRole: 'leader', unreadCount: 2, lastMessageText: '什么时候发货', lastMessageAt: '2026-07-06T10:30:00', createdAt: '2026-07-06T10:00:00' }],
+          items: [{ id: 7001, buyerUserId: 1, leaderUserId: 2, storeId: 20, buyerName: '小李', buyerAvatarUrl: null, leaderName: '王姐', storeName: '王姐社区鲜果店', currentUserRole: 'leader', unreadCount: 2, lastMessageText: '什么时候发货', lastMessageAt: '2026-07-06T10:30:00', createdAt: '2026-07-06T10:00:00' }],
           page: 1,
           pageSize: 30,
           total: 1,
@@ -247,7 +286,7 @@ async function mockMerchantEndpoints(page: Page) {
     const isDetail = /\/group-buys\/[^/?]+$/.test(url.pathname)
     const isShare = /\/share-card$/.test(url.pathname)
     const isEnd = /\/end$/.test(url.pathname)
-    const listItem = { id: 100, storeId: 20, leaderId: 10, title: '周末水蜜桃团', introduction: '香甜多汁', coverImageUrl: null, groupType: 'normal', deliveryType: 'express', shippingTime: '48 小时内发货', startTime: null, endTime: '2026-07-10T20:00:00', visibility: 'public', status: groupBuyStatus }
+    const listItem = { id: 100, storeId: 20, leaderId: 10, title: '周末水蜜桃团', introduction: '香甜多汁', coverImageUrl: null, groupType: 'normal', deliveryType: 'express', shippingTime: '48 小时内发货', startTime: null, endTime: '2026-07-10T20:00:00', visibility: 'public', status: groupBuyStatus, contentBlocks: groupBuyContentBlocks }
 
     if (isAiPolish) {
       await route.fulfill({
@@ -277,11 +316,15 @@ async function mockMerchantEndpoints(page: Page) {
       return
     }
     if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { contentBlocks?: typeof groupBuyContentBlocks } | null
+      groupBuyContentBlocks = body?.contentBlocks?.length ? body.contentBlocks : groupBuyContentBlocks
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { groupBuy: listItem, items: [] }, traceId: 'e2e_group_create' }) })
       return
     }
     if (request.method() === 'PATCH') {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { groupBuy: { ...listItem, title: '周末水蜜桃团升级版' }, items: [] }, traceId: 'e2e_group_update' }) })
+      const body = request.postDataJSON() as { contentBlocks?: typeof groupBuyContentBlocks } | null
+      if (body?.contentBlocks) groupBuyContentBlocks = body.contentBlocks
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { groupBuy: { ...listItem, contentBlocks: groupBuyContentBlocks, title: '周末水蜜桃团升级版' }, items: [] }, traceId: 'e2e_group_update' }) })
       return
     }
 
@@ -366,14 +409,26 @@ test.describe('merchant web admin', () => {
     await expect(page).toHaveURL(/#\/merchant\/after-sales\/3001/)
 
     await navigateToHash(page, '/merchant/chats')
-    await expect(page.getByText('什么时候发货')).toBeVisible()
-    await page.getByRole('link', { name: '进入会话' }).click()
-    await expect(page).toHaveURL(/#\/chats\/7001/)
+    await expect(page).toHaveURL(/#\/merchant\/chats\/7001/)
+    await expect(page.getByText('当前沟通对象')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '小李' })).toBeVisible()
+    await expect(page.locator('.message-stream').getByText('什么时候发货')).toBeVisible()
   })
 
   test('products new edit and delete flow', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 700 })
     await navigateToHash(page, '/merchant/products')
     await expect(page.getByRole('row', { name: /阳山水蜜桃/ })).toBeVisible()
+    await expect(page.locator('.merchant-content')).toHaveCSS('overflow-y', 'auto')
+    await expect(page.locator('.merchant-content')).toHaveCSS('overflow-x', 'auto')
+    const canScrollMerchantContentX = await page.locator('.merchant-content').evaluate((el) => {
+      el.scrollLeft = el.scrollWidth
+      return el.scrollWidth > el.clientWidth && el.scrollLeft > 0
+    })
+    expect(canScrollMerchantContentX).toBeTruthy()
+    await page.locator('.merchant-content').evaluate((el) => {
+      el.scrollLeft = 0
+    })
 
     await page.getByRole('link', { name: /新建商品/ }).click()
     await page.getByPlaceholder('例如：临安山核桃仁').fill('临安山核桃仁')
@@ -403,11 +458,28 @@ test.describe('merchant web admin', () => {
     await page.getByRole('button', { name: 'AI 润色' }).click()
     await expect(page.getByText('AI 润色建议')).toBeVisible()
     await page.getByRole('button', { name: '采用建议' }).click()
+    await expect(page.getByText('1. 要点列表')).toBeVisible()
+    await expect(page.getByPlaceholder('每行一个要点')).toHaveValue(/当季鲜桃/)
     await page.getByRole('button', { name: '发布团购' }).click()
     await expect(page).toHaveURL(/#\/merchant\/group-buys/)
 
     await page.getByRole('link', { name: '详情' }).click()
     await expect(page).toHaveURL(/#\/merchant\/group-buys\/100/)
+    await expect(page.getByText('商品表现')).toBeVisible()
+    await expect(page.getByText('本团商品和库存')).toBeVisible()
+    await expect(page.getByText('活动内容', { exact: true })).toBeVisible()
+    await expect(page.getByText('当季鲜桃')).toBeVisible()
+    await expect(page.getByText('履约信息')).toBeVisible()
+    await expect(page.locator('.edit-panel').getByText('活动内容块')).toBeVisible()
+    await page.locator('.edit-panel').getByRole('button', { name: /文字/ }).click()
+    await page.getByPlaceholder('写清楚推荐理由、口感、产地或购买提醒').fill('编辑后的团购说明')
+    await page.getByRole('button', { name: '保存基础信息' }).click()
+    await expect(page.getByText('编辑后的团购说明')).toBeVisible()
+    const canScrollMerchantContent = await page.locator('.merchant-content').evaluate((el) => {
+      el.scrollTop = el.scrollHeight
+      return el.scrollTop > 0
+    })
+    expect(canScrollMerchantContent).toBeTruthy()
     await page.getByRole('button', { name: '分享' }).first().click()
     await expect(page.getByRole('button', { name: '复制链接' })).toBeVisible()
     await page.getByLabel('关闭分享').click()

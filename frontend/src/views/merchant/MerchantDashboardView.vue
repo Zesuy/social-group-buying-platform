@@ -73,7 +73,7 @@
                   <span>{{ chat.lastMessageText || '暂无消息' }}</span>
                 </td>
                 <td><mark v-if="chat.unreadCount">{{ chat.unreadCount }}</mark></td>
-                <td><RouterLink :to="`/chats/${chat.id}`">进入</RouterLink></td>
+                <td><RouterLink :to="`/merchant/chats/${chat.id}`">进入</RouterLink></td>
               </tr>
             </tbody>
           </table>

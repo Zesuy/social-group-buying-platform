@@ -814,6 +814,8 @@ export interface GroupBuyManageData {
   endTime: string | null
   visibility: string
   status: string
+  galleryImageUrls?: string[]
+  contentBlocks?: ContentBlockData[]
   createdAt?: string | null
   updatedAt?: string | null
 }
@@ -877,6 +879,7 @@ export interface UpdateGroupBuyRequest {
   shippingTime?: string | null
   startTime?: string | null
   endTime?: string | null
+  contentBlocks?: ContentBlockData[]
 }
 
 export interface EndGroupBuyData {

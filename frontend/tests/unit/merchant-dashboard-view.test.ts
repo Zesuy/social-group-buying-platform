@@ -27,7 +27,7 @@ function createTestRouter() {
       { path: '/merchant/group-buys', component: { template: '<div>团购</div>' } },
       { path: '/merchant/orders/:id', component: { template: '<div>订单详情</div>' } },
       { path: '/merchant/after-sales/:id', component: { template: '<div>售后详情</div>' } },
-      { path: '/chats/:id', component: { template: '<div>聊天</div>' } },
+      { path: '/merchant/chats/:id', component: { template: '<div>聊天</div>' } },
     ],
   })
 }
@@ -130,5 +130,6 @@ describe('MerchantDashboardView', () => {
     expect(wrapper.text()).toContain('3')
     expect(wrapper.text()).toContain('NO-1')
     expect(wrapper.text()).toContain('什么时候发货')
+    expect(wrapper.find('a[href="#/merchant/chats/c1"]').exists()).toBe(true)
   })
 })

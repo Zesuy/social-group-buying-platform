@@ -57,3 +57,13 @@ export {
   isNearbyGroupBuy,
   matchesGroupBuyCategory,
 } from './group-buy-filters'
+export {
+  getChatCounterpart,
+  getChatMessageSummary,
+} from './chat-display'
+export type { ChatCounterpartDisplay } from './chat-display'
+export {
+  contentBlockTypeText,
+  createContentBlock,
+  normalizeContentBlocks,
+} from './content-blocks'

@@ -77,20 +77,22 @@ const storeStatusText = computed(() => authStore.store?.status === 'active' ? 'è
 
 <style scoped>
 .merchant-shell {
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
   background: #f5f7fa;
   color: #1f2937;
+  overflow: hidden;
 }
 
 .merchant-sidebar {
-  position: sticky;
-  top: 0;
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   padding: 18px 14px;
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
 }
 
 .merchant-brand {
@@ -142,6 +144,9 @@ const storeStatusText = computed(() => authStore.store?.status === 'active' ? 'è
 
 .merchant-main {
   min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 64px minmax(0, 1fr);
 }
 
 .merchant-topbar {
@@ -209,7 +214,16 @@ const storeStatusText = computed(() => authStore.store?.status === 'active' ? 'è
 }
 
 .merchant-content {
+  min-height: 0;
   padding: 24px 28px 40px;
+  overflow-y: auto;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.merchant-content :deep(.merchant-page) {
+  min-width: 960px;
 }
 
 @media (max-width: 900px) {

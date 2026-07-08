@@ -297,6 +297,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '商家客服' },
       },
       {
+        path: 'chats/:conversationId',
+        name: 'merchantChatDetail',
+        component: () => import('@/views/merchant/MerchantChatsView.vue'),
+        meta: { title: '商家客服' },
+      },
+      {
         path: 'products',
         name: 'merchantProducts',
         component: () => import('@/views/merchant/MerchantProductsView.vue'),

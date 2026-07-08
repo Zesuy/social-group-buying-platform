@@ -47,7 +47,7 @@ const chatConversation: ChatConversationData = {
   buyerName: '买家小李',
   buyerAvatarUrl: null,
   leaderName: '王姐',
-  leaderAvatarUrl: null,
+  leaderAvatarUrl: '/uploads/images/leader.jpg',
   storeName: '王姐鲜果团',
   storeLogoUrl: null,
   currentUserRole: 'buyer',
@@ -106,10 +106,38 @@ describe('MessagesView', () => {
 
     expect(listChatConversations).toHaveBeenCalledWith({ page: 1, pageSize: 20 })
     expect(listNotifications).toHaveBeenCalledWith({ page: 1, pageSize: 50, unreadOnly: true })
-    expect(wrapper.text()).toContain('王姐鲜果团')
+    expect(wrapper.text()).toContain('王姐')
     expect(wrapper.text()).toContain('桃子已经打包好了')
     expect(wrapper.findAll('.message-row')).toHaveLength(1)
+    expect(wrapper.find('.message-row img').attributes('src')).toBe('/uploads/images/leader.jpg')
     expect(wrapper.text()).not.toContain('发货通知')
+  })
+
+  it('shows the buyer as counterpart for leader conversations', async () => {
+    vi.mocked(listChatConversations).mockResolvedValue({
+      items: [{
+        ...chatConversation,
+        currentUserRole: 'leader',
+        buyerName: '买家小李',
+        buyerAvatarUrl: '/uploads/images/buyer.jpg',
+      }],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+      hasMore: false,
+    })
+    const router = createTestRouter()
+    const wrapper = mount(MessagesView, {
+      global: {
+        plugins: [router, createPinia()],
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('买家小李')
+    expect(wrapper.text()).not.toContain('王姐鲜果团')
+    expect(wrapper.find('.message-row img').attributes('src')).toBe('/uploads/images/buyer.jpg')
   })
 
   it('navigates to order messages page from shortcut', async () => {
