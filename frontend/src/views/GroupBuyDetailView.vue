@@ -103,7 +103,6 @@
           <div class="section-heading">
             <div>
               <div class="section-eyebrow">本团热销商品</div>
-              <h2>先看大家正在跟的这一款</h2>
             </div>
             <span>{{ featuredItem.soldCount }}人已团</span>
           </div>
@@ -138,7 +137,6 @@
           <div class="section-heading">
             <div>
               <div class="section-eyebrow">团购活动介绍</div>
-              <h2>这次团为什么开</h2>
             </div>
           </div>
           <div class="activity-content">
@@ -182,7 +180,6 @@
           <div class="section-heading">
             <div>
               <div class="section-eyebrow">本团商品</div>
-              <h2>商品在团购里售卖</h2>
             </div>
             <span>{{ items.length }} 款</span>
           </div>
@@ -231,7 +228,6 @@
           <div class="section-heading">
             <div>
               <div class="section-eyebrow">履约说明</div>
-              <h2>下单前要知道的事</h2>
             </div>
           </div>
           <div class="promise-list">
