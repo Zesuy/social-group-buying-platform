@@ -22,7 +22,7 @@ export function useRouteScrollRestoration(containerRef: Ref<HTMLElement | null>)
 
   async function restore(path = route.fullPath) {
     await nextTick()
-    const position = scrollPositions.get(path)
+    const position = route.meta?.resetScrollOnEnter ? undefined : scrollPositions.get(path)
     applyPosition(position)
     requestAnimationFrame(() => applyPosition(position))
     window.setTimeout(() => applyPosition(position), 80)

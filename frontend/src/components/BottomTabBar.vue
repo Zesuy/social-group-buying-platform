@@ -1,6 +1,7 @@
 <template>
   <van-tabbar
     :model-value="active"
+    :class="{ 'bottom-tabbar--h5-constrained': h5Constrained }"
     @change="onChange"
     active-color="var(--color-primary)"
     inactive-color="var(--color-text-hint)"
@@ -23,6 +24,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { useAuthStore } from '@/stores'
 import { useChatUnreadPolling, useNotificationPolling } from '@/composables'
+
+defineProps<{
+  h5Constrained?: boolean
+}>()
 
 interface TabItem {
   to: string
@@ -70,3 +75,13 @@ function getTabBadge(tab: TabItem) {
   return count > 99 ? '99+' : String(count)
 }
 </script>
+
+<style scoped>
+.bottom-tabbar--h5-constrained {
+  right: 50%;
+  left: auto;
+  width: 100%;
+  max-width: 480px;
+  transform: translateX(50%);
+}
+</style>

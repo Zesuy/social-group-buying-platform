@@ -1,5 +1,5 @@
 <template>
-  <PageLayout :title="pageTitle" show-back @back="goBack">
+  <PageLayout :title="pageTitle" show-back h5-constrained @back="goBack">
     <div class="auth-page">
       <section class="auth-hero">
         <div class="auth-hero__mark">邻</div>
@@ -165,11 +165,29 @@ const form = reactive({
 const isRegisterMode = computed(() => route.name === 'register' || route.path === '/register')
 const codeScene = computed<AuthCodeScene>(() => (isRegisterMode.value ? 'register' : 'login'))
 const pageTitle = computed(() => (isRegisterMode.value ? '注册' : '登录'))
-const heroTitle = computed(() => (isRegisterMode.value ? '注册邻鲜团' : '登录邻鲜团'))
+const redirectPath = computed(() => (route.query.redirect as string | undefined) || '')
+const redirectScene = computed(() => {
+  if (/^\/group-buys\/[^/]+/.test(redirectPath.value)) return 'groupBuy'
+  if (/^\/leaders\/[^/]+/.test(redirectPath.value)) return 'leader'
+  if (redirectPath.value === '/open-group' || redirectPath.value.startsWith('/leader')) return 'openGroup'
+  return 'default'
+})
+const heroTitle = computed(() => {
+  if (isRegisterMode.value) return '注册邻鲜团'
+  if (redirectScene.value === 'groupBuy') return '登录后继续跟团'
+  if (redirectScene.value === 'leader') return '登录后订阅团长'
+  if (redirectScene.value === 'openGroup') return '登录后开始开团'
+  return '登录邻鲜团'
+})
 const heroSubtitle = computed(() => (
   isRegisterMode.value
     ? '创建账号后即可跟团下单、订阅团长，也能继续开店做团长'
-    : '登录后查看订单、订阅团长，继续完成跟团购买'
+    : {
+        groupBuy: '登录后会回到当前团购，继续选择商品并下单。',
+        leader: '登录后会回到团长主页，继续订阅并查看正在开的团。',
+        openGroup: '登录后进入经营流程，创建店铺并发布普通团购。',
+        default: '登录后查看订单、订阅团长，继续完成跟团购买',
+      }[redirectScene.value]
 ))
 const submitText = computed(() => (isRegisterMode.value ? '注册并进入' : '登录'))
 const submitLoadingText = computed(() => (isRegisterMode.value ? '正在注册...' : '正在登录...'))

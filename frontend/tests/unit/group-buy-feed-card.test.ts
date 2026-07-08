@@ -40,6 +40,13 @@ describe('GroupBuyFeedCard', () => {
     expect(wrapper.text()).toContain('12人已团')
   })
 
+  it('renders activity reason, fulfillment signal and primary action', () => {
+    const wrapper = mount(GroupBuyFeedCard, { props: { item: mockItem } })
+    expect(wrapper.text()).toContain('王姐社区鲜果店组织 周末阳山水蜜桃，集中收单按约履约。')
+    expect(wrapper.text()).toContain('集中履约')
+    expect(wrapper.get('button.group-buy-feed-card__cta').text()).toBe('去跟团')
+  })
+
   it('emits click event', () => {
     const wrapper = mount(GroupBuyFeedCard, { props: { item: mockItem } })
     wrapper.trigger('click')
@@ -80,5 +87,36 @@ describe('GroupBuyFeedCard', () => {
 
     expect(wrapper.text()).toContain('距你 860m')
     expect(wrapper.text()).toContain('附近可履约')
+  })
+
+  it('renders credible fallback image text when cover image is missing', () => {
+    const wrapper = mount(GroupBuyFeedCard, {
+      props: {
+        item: {
+          ...mockItem,
+          coverImageUrl: null,
+        },
+      },
+    })
+
+    expect(wrapper.find('.group-buy-feed-card__image-fallback').exists()).toBe(true)
+    expect(wrapper.text()).toContain('生鲜团')
+  })
+
+  it('hides duplicated store header in leader homepage context but keeps activity information', () => {
+    const wrapper = mount(GroupBuyFeedCard, {
+      props: {
+        item: mockItem,
+        showStoreHeader: false,
+        showLocationSignals: false,
+      },
+    })
+
+    expect(wrapper.find('.group-buy-feed-card__leader').exists()).toBe(false)
+    expect(wrapper.text()).toContain('周末阳山水蜜桃社区团')
+    expect(wrapper.text()).toContain('¥29.90')
+    expect(wrapper.text()).toContain('正在开团')
+    expect(wrapper.text()).toContain('12人已团')
+    expect(wrapper.text()).toContain('去跟团')
   })
 })

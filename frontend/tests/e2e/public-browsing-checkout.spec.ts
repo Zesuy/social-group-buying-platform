@@ -17,7 +17,7 @@ async function navigateToHash(page: Page, hashPath: string) {
 async function mockAllEndpoints(page: Page) {
   const cartItems = new Map<number, {
     cartItemId: number
-    groupBuyId: number
+    groupBuyId: string
     groupBuyItemId: number
     productId: number
     title: string
@@ -212,8 +212,8 @@ async function mockAllEndpoints(page: Page) {
         data: {
           items: [
             {
-              id: 100, title: '周末阳山水蜜桃社区团', coverImageUrl: null, status: 'published',
-              endTime: '2026-07-05T12:00:00', minPriceAmount: 2990, soldCount: 61,
+              id: '100', title: '周末阳山水蜜桃社区团', coverImageUrl: null, status: 'published',
+              endTime: '2026-07-12T12:00:00', minPriceAmount: 2990, soldCount: 61,
               leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
               store: {
                 id: 20,
@@ -241,17 +241,17 @@ async function mockAllEndpoints(page: Page) {
         success: true,
         data: {
           groupBuy: {
-            id: 100, storeId: 20, leaderId: 10, title: '周末阳山水蜜桃社区团',
+            id: '100', storeId: '20', leaderId: '10', title: '周末阳山水蜜桃社区团',
             introduction: '王姐本周从阳山果园集中收单，适合家庭囤货、办公室拼团和邻里群分享。',
             coverImageUrl: null, groupType: 'normal', deliveryType: 'local_delivery',
-            shippingTime: '2026-07-05T18:00:00', startTime: '2026-07-03T10:00:00',
-            endTime: '2026-07-05T12:00:00', visibility: 'public', status: 'published',
+            shippingTime: '2026-07-12T18:00:00', startTime: '2026-07-03T10:00:00',
+            endTime: '2026-07-12T12:00:00', visibility: 'public', status: 'published',
             galleryImageUrls: [],
             contentBlocks: [
               { type: 'section', title: '团长推荐', text: '这次团不是长期货架，王姐按微信群订单量向果园集中订货，凑齐后统一配送到社区。' },
               { type: 'paragraph', text: '桃子是偏软甜口，收到后建议先拆箱通风，软的当天吃，偏硬的常温放 1-2 天。' },
               { type: 'list', items: ['适合家庭囤货', '适合办公室拼团', '支持同城配送'] },
-              { type: 'deliveryNote', text: '7 月 5 日傍晚前后统一履约，具体到货时间以团长群通知为准。' },
+              { type: 'deliveryNote', text: '7 月 12 日傍晚前后统一履约，具体到货时间以团长群通知为准。' },
             ],
           },
           leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null, followerCount: 128 },
@@ -313,7 +313,7 @@ async function mockAllEndpoints(page: Page) {
         success: true,
         data: {
           groupBuy: {
-            id: 101, storeId: 20, leaderId: 10, title: '本周油桃加购团', introduction: '本周加购名额已满，等待团长下次开团。',
+            id: '101', storeId: '20', leaderId: '10', title: '本周油桃加购团', introduction: '本周加购名额已满，等待团长下次开团。',
             coverImageUrl: null, groupType: 'normal', deliveryType: 'local_delivery',
             shippingTime: null, startTime: null, endTime: null,
             visibility: 'public', status: 'published',
@@ -349,7 +349,7 @@ async function mockAllEndpoints(page: Page) {
           groupBuys: {
             items: [
               {
-                id: 100, title: '周末阳山水蜜桃社区团', coverImageUrl: null, status: 'published',
+                id: '100', title: '周末阳山水蜜桃社区团', coverImageUrl: null, status: 'published',
                 endTime: null, minPriceAmount: 2990, soldCount: 61,
                 leader: { id: 10, displayName: '王姐鲜果团', avatarUrl: null },
                 store: { id: 20, name: '王姐社区鲜果店' },
@@ -528,7 +528,7 @@ async function mockAllEndpoints(page: Page) {
       const existing = Array.from(cartItems.values()).find(item => item.groupBuyItemId === Number(body.groupBuyItemId))
       const next = existing ?? {
         cartItemId: 7001,
-        groupBuyId: 100,
+        groupBuyId: '100',
         groupBuyItemId: Number(body.groupBuyItemId),
         productId: 501,
         title: '阳山水蜜桃 5 斤装',
@@ -600,8 +600,11 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
 
     // Should see group buy cards
+    await expect(page.getByRole('heading', { name: '先看团长，再跟团' })).toBeVisible({ timeout: 5000 })
     await expect(page.getByRole('heading', { name: '周末阳山水蜜桃社区团' })).toBeVisible({ timeout: 5000 })
     await expect(page.locator('text=¥29.90')).toBeVisible()
+    await expect(page.getByText('王姐社区鲜果店组织 周末阳山水蜜桃，集中收单按约履约。')).toBeVisible()
+    await expect(page.getByRole('button', { name: '去跟团' }).first()).toBeVisible()
 
     // Click on group buy card -> detail page
     await page.getByRole('heading', { name: '周末阳山水蜜桃社区团' }).click()
@@ -621,6 +624,36 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.waitForTimeout(1000)
     await expect(page.locator('text=小区群每周开团')).toBeVisible({ timeout: 5000 })
     await expect(page.getByRole('heading', { name: '周末阳山水蜜桃社区团' })).toBeVisible()
+  })
+
+  test('home and detail keep mobile H5 width on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 820 })
+    await page.goto('/')
+    await page.waitForSelector('.van-tabbar', { timeout: 10000 })
+    await expect(page.getByRole('heading', { name: '周末阳山水蜜桃社区团' })).toBeVisible({ timeout: 5000 })
+
+    const homeWidth = await page.locator('.page-layout').evaluate((el) => el.getBoundingClientRect().width)
+    const tabbarWidth = await page.locator('.van-tabbar').evaluate((el) => el.getBoundingClientRect().width)
+    expect(homeWidth).toBeLessThanOrEqual(482)
+    expect(tabbarWidth).toBeLessThanOrEqual(482)
+
+    await page.getByRole('heading', { name: '周末阳山水蜜桃社区团' }).click()
+    await expect(page.locator('#section-activity').getByText('王姐本周从阳山果园集中收单')).toBeVisible({ timeout: 5000 })
+    const detailWidth = await page.locator('.page-layout').evaluate((el) => el.getBoundingClientRect().width)
+    expect(detailWidth).toBeLessThanOrEqual(482)
+  })
+
+  test('detail opens at top after clicking from a scrolled homepage', async ({ page }) => {
+    await page.goto('/')
+    await page.waitForSelector('.van-tabbar', { timeout: 10000 })
+    await expect(page.getByPlaceholder('搜索团购、店铺、团长')).toBeVisible({ timeout: 5000 })
+    await page.locator('.page-layout__content').evaluate((el) => { el.scrollTop = 320 })
+
+    await page.getByRole('heading', { name: '周末阳山水蜜桃社区团' }).click()
+    await expect(page.locator('#section-activity').getByText('王姐本周从阳山果园集中收单')).toBeVisible({ timeout: 5000 })
+
+    const detailScrollTop = await page.locator('.page-layout__content').evaluate((el) => el.scrollTop)
+    expect(detailScrollTop).toBeLessThan(20)
   })
 
   test('H5 back behavior uses history first and falls back for direct detail pages', async ({ page }) => {
@@ -725,6 +758,8 @@ test.describe('Public browsing and checkout E2E', () => {
     await page.locator('button:has-text("立即购买")').click()
     await page.waitForTimeout(1000)
     await expect(page).toHaveURL(/#\/login/, { timeout: 5000 })
+    await expect(page.getByRole('heading', { name: '登录后继续跟团' })).toBeVisible()
+    await expect(page.getByText('登录后会回到当前团购')).toBeVisible()
   })
 
   test('logged-in user browses and accesses addresses', async ({ page }) => {

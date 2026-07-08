@@ -1,7 +1,7 @@
 <template>
   <router-view />
   <NewOrderNotificationDialog />
-  <BottomTabBar v-if="showTabBar" />
+  <BottomTabBar v-if="showTabBar" :h5-constrained="h5Constrained" />
 </template>
 
 <script setup lang="ts">
@@ -14,6 +14,7 @@ const route = useRoute()
 
 // 仅在有 showTabBar 元信息的路由显示底部 TabBar
 const showTabBar = computed(() => route.meta.showTabBar === true)
+const h5Constrained = computed(() => route.meta.h5Constrained === true)
 </script>
 
 <style>

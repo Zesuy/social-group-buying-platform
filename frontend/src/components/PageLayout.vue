@@ -4,6 +4,7 @@
     :class="{
       'page-layout--with-tabbar': showTabBar,
       'page-layout--with-action': !!$slots.action,
+      'page-layout--h5-constrained': h5Constrained,
     }"
   >
     <!-- 顶部导航栏（可选） -->
@@ -37,6 +38,7 @@ const props = defineProps<{
   title?: string
   showBack?: boolean
   showTabBar?: boolean
+  h5Constrained?: boolean
   backFallback?: RouteLocationRaw | string
 }>()
 
@@ -67,6 +69,15 @@ function handleBack() {
   height: 100dvh;
   overflow: hidden;
   background-color: var(--color-bg);
+}
+
+.page-layout--h5-constrained {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  border-right: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
 }
 
 .page-layout--with-tabbar {

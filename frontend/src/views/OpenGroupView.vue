@@ -1,5 +1,5 @@
 <template>
-  <PageLayout show-tab-bar>
+  <PageLayout show-tab-bar h5-constrained>
     <div class="app-topbar">
       开团
     </div>

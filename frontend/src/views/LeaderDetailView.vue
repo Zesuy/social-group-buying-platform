@@ -1,5 +1,5 @@
 <template>
-  <PageLayout>
+  <PageLayout h5-constrained>
     <LoadingView v-if="loading" />
     <ErrorView v-if="error && !loading" :message="error" @retry="fetchData" />
 

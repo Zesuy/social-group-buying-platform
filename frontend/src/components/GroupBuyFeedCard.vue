@@ -33,14 +33,21 @@
     </div>
 
     <div class="group-buy-feed-card__body">
-      <ImageWithFallback
-        :src="item.coverImageUrl"
-        width="108px"
-        height="108px"
-        fit="cover"
-        radius="12px"
-        :alt="item.title"
-      />
+      <div class="group-buy-feed-card__image-wrap">
+        <ImageWithFallback
+          v-if="item.coverImageUrl"
+          :src="item.coverImageUrl"
+          width="108px"
+          height="108px"
+          fit="cover"
+          radius="12px"
+          :alt="item.title"
+        />
+        <div v-else class="group-buy-feed-card__image-fallback" aria-hidden="true">
+          <van-icon name="photo-o" size="26" />
+          <span>{{ fallbackImageText }}</span>
+        </div>
+      </div>
 
       <div class="group-buy-feed-card__content">
         <div class="group-buy-feed-card__status-row">
@@ -54,14 +61,14 @@
 
         <h3 class="group-buy-feed-card__title">{{ item.title }}</h3>
 
-        <div class="group-buy-feed-card__promise">
-          <span>团长履约</span>
-          <span>集中收单</span>
-          <span>{{ nearbyPromiseText }}</span>
+        <p class="group-buy-feed-card__reason">{{ activityReasonText }}</p>
+
+        <div class="group-buy-feed-card__signals">
+          <span>{{ item.soldCount }}人已团</span>
+          <span>{{ fulfillmentSignalText }}</span>
         </div>
 
         <div class="group-buy-feed-card__meta">
-          <span>{{ item.soldCount }}人已团</span>
           <span>{{ watchCount }}人看过</span>
         </div>
 
@@ -75,7 +82,7 @@
     </div>
 
     <div class="group-buy-feed-card__footer">
-      <span>买的是商品，也是团长的服务承诺</span>
+      <span>{{ footerText }}</span>
       <button type="button" class="group-buy-feed-card__share" @click.stop="$emit('share')">
         <van-icon name="share-o" size="15" />
         分享
@@ -131,10 +138,24 @@ const locationBadgeText = computed(() => {
   if (props.item.store.distanceText) return `距你 ${props.item.store.distanceText}`
   return ''
 })
-const nearbyPromiseText = computed(() => (
-  props.showLocationSignals !== false && props.item.store.distanceText ? '附近可履约' : '社群分享'
-))
+const fulfillmentSignalText = computed(() => {
+  if (props.showLocationSignals !== false && props.item.store.distanceText) return '附近可履约'
+  return '集中履约'
+})
 const showStoreHeader = computed(() => props.showStoreHeader !== false)
+const fallbackImageText = computed(() => {
+  if (/果|桃|鲜|菜|梨|莓|橙|瓜/.test(props.item.title)) return '生鲜团'
+  if (/米|粮|油|蛋|肉|海鲜/.test(props.item.title)) return '食材团'
+  return '社区团'
+})
+const activityReasonText = computed(() => {
+  const title = props.item.title.replace(/团购|社区团|拼团/g, '').trim()
+  if (title) return `${props.item.store.name}组织 ${title}，集中收单按约履约。`
+  return '买的是商品，也是团长的服务承诺。'
+})
+const footerText = computed(() => (
+  showStoreHeader.value ? '订阅团长，方便下次复购' : '当前团购由本店团长集中履约'
+))
 const endTimeText = computed(() => {
   if (!props.item.endTime) return ''
   const end = new Date(props.item.endTime)
@@ -287,7 +308,7 @@ const endTimeText = computed(() => {
   line-height: 1.2;
 }
 
-.group-buy-feed-card__promise,
+.group-buy-feed-card__signals,
 .group-buy-feed-card__meta,
 .group-buy-feed-card__deal,
 .group-buy-feed-card__footer {
@@ -295,13 +316,48 @@ const endTimeText = computed(() => {
   align-items: center;
 }
 
-.group-buy-feed-card__promise {
+.group-buy-feed-card__image-wrap {
+  flex: 0 0 108px;
+  width: 108px;
+  height: 108px;
+}
+
+.group-buy-feed-card__image-fallback {
+  width: 108px;
+  height: 108px;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 196, 104, 0.18);
+  background:
+    linear-gradient(135deg, rgba(232, 255, 242, 0.92), rgba(255, 245, 223, 0.76)),
+    #fff;
+  color: var(--color-primary-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: var(--font-size-sm);
+  font-weight: 900;
+}
+
+.group-buy-feed-card__reason {
+  display: -webkit-box;
+  margin: 7px 0 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.38;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.group-buy-feed-card__signals {
   gap: 5px;
   flex-wrap: wrap;
   margin-top: 8px;
 }
 
-.group-buy-feed-card__promise span {
+.group-buy-feed-card__signals span {
   border-radius: 6px;
   background: #f7f8fa;
   color: var(--color-text-secondary);
@@ -405,15 +461,6 @@ const endTimeText = computed(() => {
 @media (max-width: 360px) {
   .group-buy-feed-card__body {
     gap: 10px;
-  }
-
-  .group-buy-feed-card__deal {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .group-buy-feed-card__cta {
-    width: 100%;
   }
 }
 </style>
