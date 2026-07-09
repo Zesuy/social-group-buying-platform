@@ -72,7 +72,7 @@
       <AppFixedActions>
         <template v-if="order.orderStatus === 'pendingPay'">
           <AppButton variant="ghost" :disabled="actionLoading" @click="handleCancel">取消订单</AppButton>
-          <AppButton variant="primary" :disabled="actionLoading" @click="handlePay">模拟支付</AppButton>
+          <AppButton variant="primary" :disabled="actionLoading" @click="handlePay">去支付</AppButton>
         </template>
 
         <template v-else-if="order.orderStatus === 'shipped'">
@@ -116,7 +116,7 @@ import OrderStatusSteps from '@/components/OrderStatusSteps.vue'
 import OrderSnapshotCard from '@/components/OrderSnapshotCard.vue'
 import OrderAmountBreakdown from '@/components/OrderAmountBreakdown.vue'
 import PriceText from '@/components/PriceText.vue'
-import { getMyOrder, simulatePay, cancelOrder, completeOrder } from '@/api/orders'
+import { getMyOrder, payOrder, cancelOrder, completeOrder } from '@/api/orders'
 import { openChatByOrder, sendChatCard } from '@/api/chats'
 import { useSmartNavigation } from '@/composables'
 import { formatDateTime } from '@/utils/format'
@@ -172,21 +172,35 @@ async function fetchOrder() {
 
 async function handlePay() {
   try {
-    await showConfirmDialog({ title: '提示', message: '确认模拟支付？' })
+    await showConfirmDialog({ title: '提示', message: '确认去支付？' })
   } catch {
     return
   }
   actionLoading.value = true
   try {
-    await simulatePay(orderId.value)
+    const result = await payOrder(orderId.value)
+    if (result.mode === 'sandboxAlipay') {
+      if (!result.formHtml) {
+        showToast('支付页面生成失败')
+        return
+      }
+      submitAlipayForm(result.formHtml)
+      return
+    }
     showToast('支付成功')
-    await fetchOrder()
+    order.value = result.order ?? (await getMyOrder(orderId.value))
   } catch (err) {
     const apiErr = err as { code?: string; message?: string }
     showToast(apiErr.message || '支付失败')
   } finally {
     actionLoading.value = false
   }
+}
+
+function submitAlipayForm(formHtml: string) {
+  document.open()
+  document.write(formHtml)
+  document.close()
 }
 
 async function handleCancel() {
@@ -246,6 +260,9 @@ async function openOrderChat() {
 }
 
 onMounted(() => {
+  if (route.query.paymentReturn === 'alipay') {
+    showToast('正在确认支付结果')
+  }
   fetchOrder()
 })
 </script>

@@ -2,9 +2,10 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.zesuy.groupshop',
-  appName: '社群团购',
+  appName: '邻鲜团',
   webDir: 'dist',
   server: {
+    url: 'https://shop.zesuy.top',
     cleartext: true,
   },
 }

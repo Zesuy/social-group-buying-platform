@@ -438,6 +438,15 @@ public class OrderService {
         return toOrderResponseWithItems(order);
     }
 
+    public Order requirePayableOrderForUser(Long userId, Long orderId, boolean validateStock) {
+        Order order = findOrderForUser(orderId, userId);
+        ensurePayable(order);
+        if (validateStock) {
+            validateStockAvailable(order);
+        }
+        return order;
+    }
+
     // ── Cancel Order ───────────────────────────────────────────────────
 
     /**
@@ -471,48 +480,46 @@ public class OrderService {
      */
     @Transactional
     public OrderResponse simulatePay(Long userId, Long orderId) {
-        Order order = orderMapper.selectById(orderId);
+        Order order = findOrderForUser(orderId, userId);
+        return completePaidOrder(order, false);
+    }
+
+    @Transactional
+    public OrderResponse completeZeroAmountPayment(Long userId, Long orderId) {
+        Order order = findOrderForUser(orderId, userId);
+        if (order.getPayAmount() > 0) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_PAYABLE, "订单应付金额不为 0");
+        }
+        return completePaidOrder(order, false);
+    }
+
+    @Transactional
+    public OrderResponse completePaidOrderFromCallback(String orderNo) {
+        Order order = findOrderByOrderNo(orderNo);
+        return completePaidOrder(order, true);
+    }
+
+    public Order findOrderByOrderNo(String orderNo) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getOrderNo, orderNo)
+                        .last("LIMIT 1"));
         if (order == null) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
-        if (!order.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
-        }
+        return order;
+    }
 
-        // Check payment state
+    private OrderResponse completePaidOrder(Order order, boolean allowAlreadyPaid) {
         if ("paid".equals(order.getPayStatus())) {
+            if (allowAlreadyPaid) {
+                return toOrderResponseWithItems(order);
+            }
             throw new BusinessException(ErrorCode.ORDER_ALREADY_PAID, "订单已支付");
         }
-        if (!DB_STATUS_PENDING_PAY.equals(order.getOrderStatus()) || !"unpaid".equals(order.getPayStatus())) {
-            throw new BusinessException(ErrorCode.ORDER_NOT_PAYABLE, "订单当前状态不可支付");
-        }
+        ensurePayable(order);
 
-        // Load items for stock deduction
-        List<OrderItem> orderItems = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItem>()
-                        .eq(OrderItem::getOrderId, order.getId()));
-
-        // Validate and deduct stock atomically
-        for (OrderItem orderItem : orderItems) {
-            GroupBuyItem gbItem = groupBuyItemMapper.selectById(orderItem.getGroupBuyItemId());
-            if (gbItem == null) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "团购商品不存在");
-            }
-            if (gbItem.getGroupStock() < orderItem.getQuantity()) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足");
-            }
-
-            // Atomic deduction: groupStock -= quantity, soldCount += quantity
-            int updated = groupBuyItemMapper.update(null,
-                    new LambdaUpdateWrapper<GroupBuyItem>()
-                            .eq(GroupBuyItem::getId, gbItem.getId())
-                            .eq(GroupBuyItem::getGroupStock, gbItem.getGroupStock())
-                            .setSql("group_stock = group_stock - " + orderItem.getQuantity()
-                                    + ", sold_count = sold_count + " + orderItem.getQuantity()));
-            if (updated == 0) {
-                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足，并发扣减失败");
-            }
-        }
+        deductStock(order);
 
         // Update order to paid — atomic condition update
         LocalDateTime now = LocalDateTime.now();
@@ -526,7 +533,10 @@ public class OrderService {
                         .set(Order::getPaidAt, now));
         if (updated == 0) {
             Order current = orderMapper.selectById(order.getId());
-            if ("paid".equals(current.getPayStatus())) {
+            if (current != null && "paid".equals(current.getPayStatus()) && allowAlreadyPaid) {
+                return toOrderResponseWithItems(current);
+            }
+            if (current != null && "paid".equals(current.getPayStatus())) {
                 throw new BusinessException(ErrorCode.ORDER_ALREADY_PAID, "订单已支付");
             }
             throw new BusinessException(ErrorCode.ORDER_NOT_PAYABLE, "订单当前状态不可支付");
@@ -542,10 +552,62 @@ public class OrderService {
 
         // Create or update member relation with payAmount
         upsertMemberRelation(order, now);
-        notificationService.notifyOrderPaid(order, userId);
+        notificationService.notifyOrderPaid(order, order.getUserId());
         chatService.recordOrderPaid(order);
 
         return toOrderResponseWithItems(order);
+    }
+
+    private void ensurePayable(Order order) {
+        if ("paid".equals(order.getPayStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_ALREADY_PAID, "订单已支付");
+        }
+        if (!DB_STATUS_PENDING_PAY.equals(order.getOrderStatus()) || !"unpaid".equals(order.getPayStatus())) {
+            throw new BusinessException(ErrorCode.ORDER_NOT_PAYABLE, "订单当前状态不可支付");
+        }
+    }
+
+    private void validateStockAvailable(Order order) {
+        List<OrderItem> orderItems = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, order.getId()));
+
+        for (OrderItem orderItem : orderItems) {
+            GroupBuyItem gbItem = groupBuyItemMapper.selectById(orderItem.getGroupBuyItemId());
+            if (gbItem == null) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "团购商品不存在");
+            }
+            if (gbItem.getGroupStock() < orderItem.getQuantity()) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足");
+            }
+        }
+    }
+
+    private void deductStock(Order order) {
+        List<OrderItem> orderItems = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, order.getId()));
+
+        // Validate and deduct stock atomically
+        for (OrderItem orderItem : orderItems) {
+            GroupBuyItem gbItem = groupBuyItemMapper.selectById(orderItem.getGroupBuyItemId());
+            if (gbItem == null) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "团购商品不存在");
+            }
+            if (gbItem.getGroupStock() < orderItem.getQuantity()) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足");
+            }
+            // Atomic deduction: groupStock -= quantity, soldCount += quantity
+            int updated = groupBuyItemMapper.update(null,
+                    new LambdaUpdateWrapper<GroupBuyItem>()
+                            .eq(GroupBuyItem::getId, gbItem.getId())
+                            .eq(GroupBuyItem::getGroupStock, gbItem.getGroupStock())
+                            .setSql("group_stock = group_stock - " + orderItem.getQuantity()
+                                    + ", sold_count = sold_count + " + orderItem.getQuantity()));
+            if (updated == 0) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足，并发扣减失败");
+            }
+        }
     }
 
     /**

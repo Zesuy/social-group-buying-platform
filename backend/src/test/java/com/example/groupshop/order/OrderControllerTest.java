@@ -491,6 +491,63 @@ class OrderControllerTest extends MockMvcTestBase {
                 .andExpectAll(errorResult("ORDER_NOT_PAYABLE"));
     }
 
+    // ── POST /api/v1/orders/{orderId}/pay ──────────────────────────────
+
+    @Test
+    void startPayment_shouldUseSimulateModeWhenSandboxDisabled() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/pay")
+                        .header("Authorization", "Bearer " + buyerToken))
+                .andExpect(status().isOk())
+                .andExpect(contractResult())
+                .andExpectAll(successResult())
+                .andExpect(jsonPath("$.data.mode").value("simulate"))
+                .andExpect(jsonPath("$.data.order.payStatus").value("paid"))
+                .andExpect(jsonPath("$.data.order.orderStatus").value("paid"))
+                .andExpect(jsonPath("$.data.order.paidAt").isNotEmpty());
+    }
+
+    @Test
+    void startPayment_shouldFailWhenUnauthenticated() throws Exception {
+        mockMvc.perform(post(ORDERS_URL + "/123/pay"))
+                .andExpect(status().isUnauthorized())
+                .andExpectAll(errorResult("UNAUTHORIZED"));
+    }
+
+    @Test
+    void startPayment_shouldFailWhenNotOwnOrder() throws Exception {
+        String createResponse = mockMvc.perform(post(ORDERS_URL)
+                        .header("Authorization", "Bearer " + buyerToken)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                    "groupBuyId": "%s",
+                                    "addressId": "%s",
+                                    "items": [{"groupBuyItemId": "%s", "quantity": 1}]
+                                }
+                                """.formatted(groupBuyId, addressId, groupBuyItemId)))
+                .andReturn().getResponse().getContentAsString();
+        Long orderId = Long.parseLong(createResponse.split("\"id\":")[1].split(",")[0].replace("\"", "").trim());
+
+        mockMvc.perform(post(ORDERS_URL + "/" + orderId + "/pay")
+                        .header("Authorization", "Bearer " + leaderToken))
+                .andExpect(status().isNotFound())
+                .andExpect(contractResult())
+                .andExpectAll(errorResult("RESOURCE_NOT_FOUND"));
+    }
+
     // ── POST /api/v1/orders/{orderId}/complete (Batch 10) ──────────────
 
     @Test

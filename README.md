@@ -20,7 +20,7 @@
 
 - 公开浏览：团购首页、团购详情、团长主页、分享落地页。
 - 搜索与附近：支持团购关键词搜索、浏览器定位、5km 附近团购筛选和距离展示。
-- 用户交易：地址管理、购物车、确认订单、优惠券预览、下单、模拟支付、订单列表和订单详情。
+- 用户交易：地址管理、购物车、确认订单、优惠券预览、下单、本地模拟支付 / 支付宝沙箱支付、订单列表和订单详情。
 - 私域关系：订阅团长、我的订阅、会员卡、站内通知、未读数轮询。
 - 团长经营：创建店铺、我的店铺、商品库、发布团购、团购管理、订单管理、发货、订阅用户查看。
 - 内容与资产：团购结构化内容块、多图展示、本地图片上传、上传引用治理。
@@ -173,6 +173,18 @@ OPENAI_API_KEY=sk-...
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4.1-mini
 OPENAI_TIMEOUT_SECONDS=20
+```
+
+如需让“去支付”跳转到支付宝沙箱 H5 页面，在 `.env.deploy` 中启用并补齐支付宝沙箱配置：
+
+```env
+SANDBOX_PAYMENT_ENABLED=true
+ALIPAY_SANDBOX_APP_ID=...
+ALIPAY_SANDBOX_APP_PRIVATE_KEY=...
+ALIPAY_SANDBOX_PUBLIC_KEY=...
+ALIPAY_SANDBOX_GATEWAY=https://openapi-sandbox.dl.alipaydev.com/gateway.do
+BACKEND_PUBLIC_BASE_URL=https://你的后端公网地址
+FRONTEND_PUBLIC_BASE_URL=https://你的前端公网地址
 ```
 
 ### 2. 构建并启动

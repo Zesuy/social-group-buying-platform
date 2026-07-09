@@ -1,7 +1,7 @@
 /**
  * 订单 API
  *
- * 订单预览、创建、列表、详情、模拟支付、取消、确认收货。
+ * 订单预览、创建、列表、详情、支付、取消、确认收货。
  */
 
 import request from './request'
@@ -9,6 +9,7 @@ import type {
   ApiResponse,
   PageResponse,
   OrderData,
+  PaymentStartData,
   OrderPreviewData,
   OrderPreviewRequest,
   CreateOrderRequest,
@@ -59,7 +60,15 @@ export async function getMyOrder(orderId: string): Promise<OrderData> {
 }
 
 /**
- * 模拟支付（仅待支付订单可用）
+ * 统一支付入口。沙箱关闭时后端会保留模拟支付。
+ */
+export async function payOrder(orderId: string): Promise<PaymentStartData> {
+  const res = await request.post(`/orders/${orderId}/pay`) as ApiResponse<PaymentStartData>
+  return res.data
+}
+
+/**
+ * 模拟支付（仅内部测试和本地工具使用）
  */
 export async function simulatePay(orderId: string): Promise<OrderData> {
   const res = await request.post(`/orders/${orderId}/simulate-pay`) as ApiResponse<OrderData>

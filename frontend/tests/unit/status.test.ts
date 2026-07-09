@@ -88,7 +88,7 @@ describe('getOrderStatusColor', () => {
 
 describe('getOrderHintText', () => {
   it('should return correct hints for order statuses', () => {
-    expect(getOrderHintText('pendingPay')).toContain('模拟支付')
+    expect(getOrderHintText('pendingPay')).toContain('支付')
     expect(getOrderHintText('paid')).toContain('等待团长发货')
     expect(getOrderHintText('shipped')).toContain('确认收货')
     expect(getOrderHintText('completed')).toContain('已完成')

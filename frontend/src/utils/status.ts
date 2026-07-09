@@ -141,7 +141,7 @@ export function getOrderDotClass(status: string): string {
  */
 export function getOrderHintText(status: string): string {
   switch (status) {
-    case 'pendingPay': return '待完成模拟支付，超时后订单将关闭'
+    case 'pendingPay': return '待完成支付，超时后订单将关闭'
     case 'paid': return '已支付，等待团长发货'
     case 'shipped': return '团长已发货，收到后可确认收货'
     case 'completed': return '交易已完成'

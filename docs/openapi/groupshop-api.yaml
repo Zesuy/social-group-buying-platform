@@ -1898,6 +1898,37 @@ paths:
         '422':
           $ref: '#/components/responses/OrderNotPayableError'
           # Also: INSUFFICIENT_STOCK
+  /api/v1/orders/{orderId}/pay:
+    post:
+      tags:
+        - Order
+      summary: Start payment for an order.
+      operationId: startOrderPayment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            description: ID（string）
+      responses:
+        '200':
+          description: Payment started or completed by local fallback.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStartSuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/OrderAlreadyPaidError'
+        '422':
+          $ref: '#/components/responses/OrderNotPayableError'
+          # Also: INSUFFICIENT_STOCK
   /api/v1/orders/{orderId}/complete:
     post:
       tags:
@@ -1934,6 +1965,27 @@ paths:
           $ref: '#/components/responses/OrderAlreadyCompletedError'
         '422':
           $ref: '#/components/responses/OrderNotCompletableError'
+  /api/v1/payments/alipay/sandbox/notify:
+    post:
+      tags:
+        - Payment
+      summary: Alipay sandbox asynchronous payment notification.
+      operationId: alipaySandboxNotify
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Plain text `success` or `failure` for Alipay retry semantics.
+          content:
+            text/plain:
+              schema:
+                type: string
   /api/v1/my/store/orders:
     get:
       tags:
@@ -5330,6 +5382,37 @@ components:
           type: integer
         hasMore:
           type: boolean
+      additionalProperties: false
+    PaymentStartSuccessResponse:
+      type: object
+      required:
+        - success
+        - data
+        - traceId
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/PaymentStartData'
+        traceId:
+          type: string
+      additionalProperties: false
+    PaymentStartData:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum:
+            - simulate
+            - zeroAmount
+            - sandboxAlipay
+        order:
+          $ref: '#/components/schemas/OrderData'
+        formHtml:
+          type: string
       additionalProperties: false
     OrderData:
       type: object

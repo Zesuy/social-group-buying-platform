@@ -42,6 +42,13 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-20}
+      SANDBOX_PAYMENT_ENABLED: ${SANDBOX_PAYMENT_ENABLED:-false}
+      ALIPAY_SANDBOX_APP_ID: ${ALIPAY_SANDBOX_APP_ID:-}
+      ALIPAY_SANDBOX_APP_PRIVATE_KEY: ${ALIPAY_SANDBOX_APP_PRIVATE_KEY:-}
+      ALIPAY_SANDBOX_PUBLIC_KEY: ${ALIPAY_SANDBOX_PUBLIC_KEY:-}
+      ALIPAY_SANDBOX_GATEWAY: ${ALIPAY_SANDBOX_GATEWAY:-https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+      BACKEND_PUBLIC_BASE_URL: ${BACKEND_PUBLIC_BASE_URL:-http://localhost}
+      FRONTEND_PUBLIC_BASE_URL: ${FRONTEND_PUBLIC_BASE_URL:-http://localhost}
     volumes:
       - backend_uploads:/app/uploads
     healthcheck:

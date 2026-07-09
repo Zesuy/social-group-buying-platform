@@ -40,6 +40,16 @@ groupshop:
         base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
         model: ${OPENAI_MODEL:gpt-4.1-mini}
         timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:20}
+  payment:
+    sandbox:
+      enabled: ${SANDBOX_PAYMENT_ENABLED:false}
+    alipay:
+      app-id: ${ALIPAY_SANDBOX_APP_ID:}
+      app-private-key: ${ALIPAY_SANDBOX_APP_PRIVATE_KEY:}
+      public-key: ${ALIPAY_SANDBOX_PUBLIC_KEY:}
+      gateway: ${ALIPAY_SANDBOX_GATEWAY:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+      backend-public-base-url: ${BACKEND_PUBLIC_BASE_URL:http://localhost:8080}
+      frontend-public-base-url: ${FRONTEND_PUBLIC_BASE_URL:http://localhost:5173}
 
 mybatis-plus:
   configuration:

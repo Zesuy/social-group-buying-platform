@@ -318,7 +318,7 @@ public class ChatService {
 
     private String cardSummary(String cardType, Order order) {
         return switch (cardType) {
-            case "order_created" -> "订单已提交，等待买家完成模拟支付。";
+            case "order_created" -> "订单已提交，等待买家完成支付。";
             case "order_paid" -> "买家已完成支付，请团长及时备货履约。";
             case "order_shipped" -> "团长已处理发货，可在订单详情查看履约信息。";
             case "order_completed" -> "买家已确认收货，本单交易完成。";

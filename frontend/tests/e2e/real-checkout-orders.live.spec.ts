@@ -6,7 +6,7 @@
  * - 订单列表拉取真实订单
  * - 订单详情展示
  * - 待支付订单取消（断言状态变为 canceled）
- * - 模拟支付（断言状态变为 paid / "等待卖家发货"）
+ * - 去支付（断言状态变为 paid / "等待卖家发货"）
  * - 确认收货（断言状态变为 completed / "已完成"）
  *
  * 前置条件：
@@ -125,8 +125,8 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     // 验证订单详情页加载 — 显示订单编号
     await expect(page.locator('text=订单编号')).toBeVisible({ timeout: 5000 })
 
-    // 新创建的订单应为待支付 → 应显示"模拟支付"和"取消订单"按钮
-    await expect(page.locator('button:has-text("模拟支付")')).toBeVisible({ timeout: 5000 })
+    // 新创建的订单应为待支付 → 应显示"去支付"和"取消订单"按钮
+    await expect(page.locator('button:has-text("去支付")')).toBeVisible({ timeout: 5000 })
     await expect(page.locator('button:has-text("取消订单")')).toBeVisible({ timeout: 5000 })
   })
 
@@ -178,12 +178,12 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     await expect(canceledBanner).toBeVisible({ timeout: 5000 })
     await expect(canceledBanner.getByText('订单已取消')).toBeVisible({ timeout: 5000 })
 
-    // "取消订单"和"模拟支付"按钮应不再可见
+    // "取消订单"和"去支付"按钮应不再可见
     await expect(page.locator('button:has-text("取消订单")')).not.toBeVisible({ timeout: 3000 })
-    await expect(page.locator('button:has-text("模拟支付")')).not.toBeVisible({ timeout: 3000 })
+    await expect(page.locator('button:has-text("去支付")')).not.toBeVisible({ timeout: 3000 })
   })
 
-  // ── 模拟支付（验证状态 → paid → "等待卖家发货"） ──
+  // ── 去支付（验证状态 → paid → "等待卖家发货"） ──
 
   test('simulate pay on pending pay order', async ({ page }) => {
     await setLoggedIn(page, buyerToken)
@@ -195,8 +195,8 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     // 订单详情应显示
     await expect(page.locator('text=订单编号')).toBeVisible({ timeout: 5000 })
 
-    // "模拟支付"按钮必须存在（pendingPay 状态）
-    const payBtn = page.locator('button:has-text("模拟支付")')
+    // "去支付"按钮必须存在（pendingPay 状态）
+    const payBtn = page.locator('button:has-text("去支付")')
     await expect(payBtn).toBeVisible({ timeout: 5000 })
 
     // 点击支付 → 确认对话框
@@ -208,8 +208,8 @@ test.describe('Real E2E: Checkout + Orders + Payment', () => {
     // 断言状态流转：支付后应显示"等待卖家发货"文案
     await expect(page.locator('button:has-text("等待卖家发货")')).toBeVisible({ timeout: 5000 })
 
-    // "模拟支付"按钮应消失
-    await expect(page.locator('button:has-text("模拟支付")')).not.toBeVisible({ timeout: 3000 })
+    // "去支付"按钮应消失
+    await expect(page.locator('button:has-text("去支付")')).not.toBeVisible({ timeout: 3000 })
   })
 
   // ── 确认收货（验证状态 → completed → "已完成"） ──

@@ -19,6 +19,7 @@ async function navigateToHash(page: Page, hashPath: string) {
  *   8xxx = 异常路径（错误场景）
  */
 async function mockOrderEndpoints(page: Page) {
+  const paidOrderIds = new Set<number>()
   // 首页团购列表（抑制 Vite proxy 404 噪音）
   await page.route('**/api/v1/group-buys*', async (route) => {
     await route.fulfill({
@@ -207,7 +208,10 @@ async function mockOrderEndpoints(page: Page) {
     let payStatus = 'unpaid'
     let orderStatus = 'pendingPay'
 
-    if (orderId === 9003 || orderId === 9011) {
+    if (paidOrderIds.has(orderId)) {
+      payStatus = 'paid'
+      orderStatus = 'paid'
+    } else if (orderId === 9003 || orderId === 9011) {
       payStatus = 'paid'
       orderStatus = 'shipped'
     } else if (orderId === 9004) {
@@ -251,19 +255,37 @@ async function mockOrderEndpoints(page: Page) {
   // ── 通用成功 handler（先注册；LIFO 下优先级低） ──
   // 所有非特例 orderId 的请求落到这里
 
-  // 模拟支付（默认成功）
-  await page.route('**/api/v1/orders/*/simulate-pay', async (route) => {
+  // 统一支付（默认走本地模拟成功）
+  await page.route('**/api/v1/orders/*/pay', async (route) => {
+    const match = new URL(route.request().url()).pathname.match(/\/orders\/(\d+)\/pay/)
+    const orderId = match ? Number(match[1]) : 9010
+    paidOrderIds.add(orderId)
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         success: true,
         data: {
-          id: 9010, orderNo: '20260629010',
-          payStatus: 'paid', orderStatus: 'paid',
-          payAmount: 3990,
-          paidAt: '2026-06-29T12:35:00',
-          items: [{ id: 10, groupBuyItemId: 1010, productName: '海南玫珑瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
+          mode: 'simulate',
+          order: {
+            id: orderId, orderNo: `20260629${String(orderId).padStart(4, '0')}`,
+            groupBuyId: 100, storeId: 20, leaderId: 10,
+            totalAmount: orderId === 9010 ? 3990 : 2990,
+            discountAmount: 0,
+            payStatus: 'paid', orderStatus: 'paid',
+            payAmount: orderId === 9010 ? 3990 : 2990,
+            paidAt: '2026-06-29T12:35:00',
+            shippedAt: null,
+            completedAt: null,
+            receiverName: orderId === 9010 ? '周晨' : '陈小满',
+            receiverPhone: orderId === 9010 ? '13900000000' : '13800000000',
+            province: orderId === 9010 ? '广东省' : '浙江省',
+            city: orderId === 9010 ? '广州市' : '杭州市',
+            district: orderId === 9010 ? '天河区' : '西湖区',
+            detail: orderId === 9010 ? '天河社区服务站' : '桂花城 3 幢 1 单元门口',
+            fullAddress: orderId === 9010 ? '广东省广州市天河区天河社区服务站' : '浙江省杭州市西湖区桂花城 3 幢 1 单元门口',
+            items: [{ id: 10, groupBuyItemId: 1010, productName: '海南玫珑瓜 1 个装', unitPriceAmount: 3990, quantity: 1, totalAmount: 3990 }],
+          },
         },
         traceId: 'e2e_pay',
       }),
@@ -304,8 +326,8 @@ async function mockOrderEndpoints(page: Page) {
 
   // ── 异常路径 handler（后注册；LIFO 下优先级高，覆盖通用 handler） ──
 
-  // ORDER_ALREADY_PAID: 对 order 9001 的 simulate-pay 返回 409
-  await page.route('**/api/v1/orders/9001/simulate-pay', async (route) => {
+  // ORDER_ALREADY_PAID: 对 order 9001 的 pay 返回 409
+  await page.route('**/api/v1/orders/9001/pay', async (route) => {
     await route.fulfill({
       status: 409,
       contentType: 'application/json',
@@ -429,11 +451,53 @@ test.describe('Orders and payment E2E', () => {
 
   // ── 异常路径：错误提示验证 ──
 
+  test('should pay a pending order successfully from order detail', async ({ page }) => {
+    await navigateToHash(page, '/orders/9010')
+    await page.waitForTimeout(2000)
+
+    const payBtn = page.locator('button:has-text("去支付")')
+    await expect(payBtn).toBeVisible({ timeout: 5000 })
+
+    await payBtn.click()
+    await expect(page.locator('.van-dialog')).toBeVisible({ timeout: 5000 })
+    await page.locator('.van-dialog button:has-text("确认")').click()
+    await page.waitForTimeout(1500)
+
+    await expect(page.locator('button:has-text("等待卖家发货")')).toBeVisible({ timeout: 5000 })
+    await expect(page.locator('button:has-text("去支付")')).not.toBeVisible({ timeout: 3000 })
+  })
+
+  test('should render sandbox alipay form response when sandbox mode is returned', async ({ page }) => {
+    await page.route('**/api/v1/orders/9002/pay', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            mode: 'sandboxAlipay',
+            formHtml: '<html><head><title>支付宝</title></head><body><form id="alipaysubmit"><button>支付宝沙箱</button></form><script>window.__ALIPAY_E2E_SUBMITTED=true</script></body></html>',
+          },
+          traceId: 'e2e_alipay_form',
+        }),
+      })
+    })
+
+    await navigateToHash(page, '/orders/9002')
+    await page.waitForTimeout(2000)
+
+    await page.locator('button:has-text("去支付")').click()
+    await expect(page.locator('.van-dialog')).toBeVisible({ timeout: 5000 })
+    await page.locator('.van-dialog button:has-text("确认")').click()
+
+    await expect(page.locator('text=支付宝沙箱')).toBeVisible({ timeout: 5000 })
+  })
+
   test('should show ORDER_ALREADY_PAID toast when paying an already-paid order', async ({ page }) => {
     await navigateToHash(page, '/orders/9001')
     await page.waitForTimeout(2000)
 
-    const payBtn = page.locator('button:has-text("模拟支付")')
+    const payBtn = page.locator('button:has-text("去支付")')
     await expect(payBtn).toBeVisible({ timeout: 5000 })
 
     await payBtn.click()

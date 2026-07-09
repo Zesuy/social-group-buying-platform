@@ -491,6 +491,12 @@ export interface OrderActionResult {
   completedAt?: string | null
 }
 
+export interface PaymentStartData {
+  mode: 'simulate' | 'zeroAmount' | 'sandboxAlipay'
+  order?: OrderData
+  formHtml?: string
+}
+
 // ── 店铺 ──
 
 /** 创建店铺请求 */

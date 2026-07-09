@@ -50,6 +50,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/v1/auth/codes",
                         "/api/v1/auth/login",
                         "/api/v1/auth/register",
+                        "/api/v1/payments/alipay/sandbox/notify",
                         "/api/v1/_test/**",
                         "/api/v1/group-buys",
                         "/api/v1/group-buys/**",

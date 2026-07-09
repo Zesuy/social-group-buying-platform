@@ -479,6 +479,21 @@ class OrderServiceTest extends ServiceTestBase {
                 .isEqualTo(ErrorCode.ORDER_ALREADY_PAID);
     }
 
+    @Test
+    void completePaidOrderFromCallback_shouldBeIdempotent() {
+        OrderResponse order = createOneOrder();
+
+        OrderResponse first = orderService.completePaidOrderFromCallback(order.getOrderNo());
+        OrderResponse second = orderService.completePaidOrderFromCallback(order.getOrderNo());
+
+        assertThat(first.getPayStatus()).isEqualTo("paid");
+        assertThat(second.getPayStatus()).isEqualTo("paid");
+
+        GroupBuyItem item = groupBuyItemMapper.selectById(groupBuyItemId);
+        assertThat(item.getGroupStock()).isEqualTo(98);
+        assertThat(item.getSoldCount()).isEqualTo(2);
+    }
+
     // ── Complete Order (Batch 10) ────────────────────────────────────
 
     /**
