@@ -10,11 +10,11 @@
 
 | 首页 | 团购详情 | 我的 |
 |---|---|---|
-| ![首页](docs/assets/screenshots/user-home.png) | ![团购详情](docs/assets/screenshots/user-group-buy-detail.png) | ![我的](docs/assets/screenshots/user-profile.png) |
+| ![首页](docs/assets/screenshots/user-home.jpg) | ![团购详情](docs/assets/screenshots/user-group-buy-detail.jpg) | ![我的](docs/assets/screenshots/user-profile.jpg) |
 
 | 消息 | 团长主页 | 团长订单 |
 |---|---|---|
-| ![消息](docs/assets/screenshots/user-messages.png) | ![团长主页](docs/assets/screenshots/leaderboard-home.jpg) | ![团长订单](docs/assets/screenshots/leader-order-detail.png) |
+| ![消息](docs/assets/screenshots/user-messages.jpg) | ![团长主页](docs/assets/screenshots/leaderboard-home.jpg) | ![团长订单](docs/assets/screenshots/leader-order-detail.jpg) |
 
 ## 核心能力
 
