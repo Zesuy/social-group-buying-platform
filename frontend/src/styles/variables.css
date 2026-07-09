@@ -85,4 +85,7 @@
   --tabbar-height: 76px;
   --actionbar-height: 76px;
   --topbar-height: 58px;
+  --h5-shell-max-width: 480px;
+  --h5-shell-width: min(100vw, var(--h5-shell-max-width));
+  --h5-shell-left: max(0px, calc((100vw - var(--h5-shell-max-width)) / 2));
 }

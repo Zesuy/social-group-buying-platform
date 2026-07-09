@@ -3,7 +3,7 @@
     v-model:show="visible"
     closeable
     title="确认商品"
-    class="sku-sheet-action"
+    class="sku-sheet-action h5-constrained-bottom-sheet"
     :close-on-click-action="false"
   >
     <div class="sku-top">

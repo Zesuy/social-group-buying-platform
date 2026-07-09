@@ -256,7 +256,7 @@
         </section>
       </div>
 
-      <div class="buybar detail-buybar">
+      <div class="buybar detail-buybar h5-constrained-fixed">
         <button class="mini" type="button" @click="router.push('/')">
           <van-icon name="wap-home-o" size="23" />
           <span>首页</span>

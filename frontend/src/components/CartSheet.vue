@@ -3,7 +3,7 @@
     v-model:show="visible"
     position="bottom"
     round
-    class="cart-sheet"
+    class="cart-sheet h5-constrained-bottom-sheet"
     :style="{ maxHeight: '82vh' }"
   >
     <div class="cart-sheet__handle" aria-hidden="true"></div>

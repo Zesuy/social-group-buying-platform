@@ -11,6 +11,16 @@ async function navigateToHash(page: Page, hashPath: string) {
   }, hashPath)
 }
 
+async function expectAlignedToH5Shell(page: Page, selector: string) {
+  const pageBox = await page.locator('.page-layout').first().boundingBox()
+  const targetBox = await page.locator(selector).first().boundingBox()
+
+  expect(pageBox).not.toBeNull()
+  expect(targetBox).not.toBeNull()
+  expect(targetBox!.width).toBeLessThanOrEqual(482)
+  expect(Math.abs(targetBox!.x - pageBox!.x)).toBeLessThanOrEqual(2)
+}
+
 /**
  * Mock 所有涉及的后端接口
  */
@@ -641,6 +651,17 @@ test.describe('Public browsing and checkout E2E', () => {
     await expect(page.locator('#section-activity').getByText('王姐本周从阳山果园集中收单')).toBeVisible({ timeout: 5000 })
     const detailWidth = await page.locator('.page-layout').evaluate((el) => el.getBoundingClientRect().width)
     expect(detailWidth).toBeLessThanOrEqual(482)
+
+    await expectAlignedToH5Shell(page, '.detail-buybar')
+
+    await page.locator('.detail-topbar__share').click()
+    await expect(page.locator('.share-sheet')).toBeVisible({ timeout: 5000 })
+    await expectAlignedToH5Shell(page, '.h5-constrained-bottom-sheet:has(.share-sheet)')
+    await page.getByLabel('关闭分享').click()
+
+    await page.locator('.detail-item', { hasText: '阳山水蜜桃 5 斤装' }).getByRole('button', { name: '查看购买' }).click()
+    await expect(page.getByText('确认商品')).toBeVisible({ timeout: 5000 })
+    await expectAlignedToH5Shell(page, '.sku-sheet-action')
   })
 
   test('orders messages profile and child pages keep mobile H5 width on desktop', async ({ page }) => {
@@ -876,6 +897,7 @@ test.describe('Public browsing and checkout E2E', () => {
     const cartSheet = page.locator('.cart-sheet')
     await expect(cartSheet.getByRole('heading', { name: '购物车' })).toBeVisible({ timeout: 5000 })
     await expect(cartSheet.getByText('阳山水蜜桃 5 斤装').first()).toBeVisible({ timeout: 5000 })
+    await expectAlignedToH5Shell(page, '.cart-sheet')
 
     await cartSheet.locator('button:has-text("去结算")').click()
     await expect(page).toHaveURL(/#\/checkout/, { timeout: 5000 })

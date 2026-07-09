@@ -41,6 +41,21 @@ body {
   background-color: var(--color-bg);
 }
 
+.h5-constrained-fixed {
+  right: auto !important;
+  left: var(--h5-shell-left) !important;
+  width: var(--h5-shell-width) !important;
+  max-width: var(--h5-shell-max-width) !important;
+}
+
+.h5-constrained-bottom-sheet.van-popup--bottom,
+.h5-constrained-bottom-sheet.van-action-sheet {
+  right: auto !important;
+  left: var(--h5-shell-left) !important;
+  width: var(--h5-shell-width) !important;
+  max-width: var(--h5-shell-max-width) !important;
+}
+
 /* ── 链接 ── */
 a {
   color: var(--color-primary);

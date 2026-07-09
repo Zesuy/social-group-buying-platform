@@ -3,6 +3,7 @@
     v-model:show="visible"
     position="bottom"
     round
+    class="h5-constrained-bottom-sheet"
     :style="{ maxHeight: '88vh', overflowY: 'auto' }"
   >
     <div class="share-sheet">
