@@ -16,6 +16,24 @@ const request = axios.create({
   },
 })
 
+let authExpiredRedirecting = false
+
+function isAuthExpiredError(error: ApiError): boolean {
+  const message = error.message?.toLowerCase() || ''
+  return error.code === 'UNAUTHORIZED'
+    || message.includes('invalid token')
+    || message.includes('expired token')
+    || message.includes('令牌')
+}
+
+function redirectToHomeAfterAuthExpired() {
+  if (typeof window === 'undefined' || authExpiredRedirecting) return
+  authExpiredRedirecting = true
+  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN)
+  localStorage.removeItem(STORAGE_KEYS.PROFILE_FEATURE_ROLE)
+  window.location.replace(`${window.location.origin}${window.location.pathname}#/`)
+}
+
 // ── 请求拦截：注入 Authorization ──
 request.interceptors.request.use((config) => {
   const token =
@@ -41,6 +59,9 @@ request.interceptors.response.use(
     const apiError: ApiError = normalizeAxiosError(error)
     // 补充中文文案（如果后端没给中文 message）
     apiError.message = apiError.message || getErrorMessage(apiError.code)
+    if (isAuthExpiredError(apiError)) {
+      redirectToHomeAfterAuthExpired()
+    }
     return Promise.reject(apiError)
   },
 )

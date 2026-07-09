@@ -39,7 +39,7 @@
         </div>
         <div class="merchant-topbar__actions">
           <RouterLink v-if="leaderId" :to="`/leaders/${leaderId}`">团长主页</RouterLink>
-          <RouterLink to="/leader/dashboard">返回 H5 工作台</RouterLink>
+          <RouterLink to="/leader/dashboard" replace>返回 H5 工作台</RouterLink>
         </div>
       </header>
 

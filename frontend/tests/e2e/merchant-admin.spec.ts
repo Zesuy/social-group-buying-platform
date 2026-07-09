@@ -429,6 +429,39 @@ test.describe('merchant web admin', () => {
     await expect(page.getByText('202607060001')).toBeVisible()
   })
 
+  test('returning from merchant admin to h5 workbench keeps profile as back target', async ({ page }) => {
+    await navigateToHash(page, '/profile')
+    await expect(page.getByText('电脑端管理')).toBeVisible()
+
+    await page.getByRole('button', { name: /电脑端管理/ }).click()
+    await expect(page).toHaveURL(/#\/merchant\/dashboard/)
+
+    await page.getByRole('link', { name: '返回 H5 工作台' }).click()
+    await expect(page).toHaveURL(/#\/leader\/dashboard/)
+
+    await page.locator('.van-nav-bar__left').click()
+    await expect(page).toHaveURL(/#\/profile/)
+  })
+
+  test('invalid token API error redirects to home', async ({ page }) => {
+    await page.route('**/api/v1/my/store/workbench-summary', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
+          traceId: 'e2e_invalid_token',
+        }),
+      })
+    })
+
+    await navigateToHash(page, '/merchant/dashboard')
+
+    await expect(page).toHaveURL(/#\/$/)
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('accessToken'))).toBeNull()
+  })
+
   test('detail fallback back and unsaved form guard work', async ({ page }) => {
     await page.setViewportSize({ width: 900, height: 700 })
     await navigateToHash(page, '/merchant/orders/9001')

@@ -5,7 +5,7 @@
         <p>商品库</p>
         <h1>{{ isEdit ? '编辑商品' : '新建商品' }}</h1>
       </div>
-      <button type="button" class="ghost-link" @click="goBack()">返回</button>
+      <button type="button" class="ghost-link" @click="handleBack">返回</button>
     </div>
 
     <LoadingView v-if="loading" />
@@ -115,7 +115,7 @@ import { amountToYuan, getDemoProductImage } from '@/utils'
 import type { ProductCategoryData, ProductData } from '@/types'
 
 const route = useRoute()
-const { goBack, goAfterSuccess } = useSmartNavigation('/merchant/products')
+const { goAfterSuccess } = useSmartNavigation('/merchant/products')
 
 const product = ref<ProductData | null>(null)
 const loading = ref(false)
@@ -245,6 +245,13 @@ async function handleSave() {
   } finally {
     saving.value = false
   }
+}
+
+async function handleBack() {
+  const canLeave = await unsavedGuard.confirmLeave()
+  if (!canLeave) return
+  unsavedGuard.allowNextNavigation()
+  await goAfterSuccess('/merchant/products')
 }
 
 async function handleDelete() {

@@ -1,5 +1,5 @@
 <template>
-  <PageLayout title="编辑商品" show-back @back="goBack">
+  <PageLayout title="编辑商品" show-back @back="handleBack">
     <LoadingView v-if="loading" />
     <ErrorView v-else-if="error" :message="error" @retry="fetchProduct" />
     <template v-else-if="product">
@@ -34,7 +34,7 @@ import { getProduct, updateProduct, deleteProduct } from '@/api/products'
 import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import type { ProductData } from '@/types'
 const route = useRoute()
-const { goBack, goAfterSuccess } = useSmartNavigation('/leader/products')
+const { goAfterSuccess } = useSmartNavigation('/leader/products')
 const loading = ref(true)
 const error = ref<string | null>(null)
 const product = ref<ProductData | null>(null)
@@ -59,6 +59,12 @@ async function handleSave() {
   try { await updateProduct(product.value.id, data); showToast('保存成功'); formRef.value?.markClean(); unsavedGuard.allowNextNavigation(); await goAfterSuccess('/leader/products') }
   catch (err) { showToast((err as { message?: string }).message || '保存失败') }
   finally { saving.value = false }
+}
+async function handleBack() {
+  const canLeave = await unsavedGuard.confirmLeave()
+  if (!canLeave) return
+  unsavedGuard.allowNextNavigation()
+  await goAfterSuccess('/leader/products')
 }
 async function handleToggleStatus() {
   if (!product.value) return

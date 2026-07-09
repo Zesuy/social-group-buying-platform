@@ -1,5 +1,5 @@
 <template>
-  <PageLayout title="商家工作台">
+  <PageLayout title="商家工作台" show-back back-fallback="/profile">
     <LoadingView v-if="loading" text="正在加载工作台..." />
     <ErrorView v-else-if="error" :message="error" @retry="loadDashboard" />
 
