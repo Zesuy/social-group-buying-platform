@@ -153,6 +153,7 @@ export async function apiCreateProduct(
     coverImageUrl?: string | null
     basePriceAmount: number
     stock: number
+    categoryId: number
   },
 ): Promise<Record<string, unknown>> {
   const res = await apiContext.post('my/store/products', {

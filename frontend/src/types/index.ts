@@ -70,6 +70,7 @@ export type {
   AddCartItemRequest,
   UpdateCartItemRequest,
   CartCheckoutPreviewRequest,
+  ProductCategoryData,
   // 店铺
   CreateStoreRequest,
   UpdateStoreRequest,

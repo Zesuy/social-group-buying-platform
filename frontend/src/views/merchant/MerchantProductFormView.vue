@@ -22,6 +22,16 @@
           <span>商品描述</span>
           <textarea v-model="form.description" rows="7" placeholder="规格、产地、口感、保存方式和配送注意事项" />
         </label>
+        <label class="field">
+          <span>商品分类</span>
+          <select v-model="form.categoryId" :disabled="saving || categoriesLoading">
+            <option value="" disabled>{{ categoriesLoading ? '分类加载中...' : '请选择商品分类' }}</option>
+            <option v-for="category in categories" :key="category.id" :value="category.id">
+              {{ category.name }}
+            </option>
+          </select>
+          <small v-if="categoriesError" class="field-error">{{ categoriesError }}</small>
+        </label>
         <div class="field-grid">
           <label class="field">
             <span>基础价</span>
@@ -98,10 +108,11 @@ import { showConfirmDialog, showToast } from 'vant'
 import ErrorView from '@/components/ErrorView.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LoadingView from '@/components/LoadingView.vue'
+import { listCategories } from '@/api/categories'
 import { createProduct, deleteProduct, getProduct, updateProduct } from '@/api/products'
 import { useSmartNavigation, useUnsavedChangesGuard } from '@/composables'
 import { amountToYuan, getDemoProductImage } from '@/utils'
-import type { ProductData } from '@/types'
+import type { ProductCategoryData, ProductData } from '@/types'
 
 const route = useRoute()
 const { goBack, goAfterSuccess } = useSmartNavigation('/merchant/products')
@@ -110,12 +121,16 @@ const product = ref<ProductData | null>(null)
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
+const categories = ref<ProductCategoryData[]>([])
+const categoriesLoading = ref(false)
+const categoriesError = ref('')
 const initialSnapshot = ref('')
 
 const isEdit = computed(() => typeof route.params.id === 'string')
 const form = reactive({
   name: '',
   description: '',
+  categoryId: '',
   coverImageUrl: '',
   detailImageUrls: [] as string[],
   basePriceYuan: '',
@@ -133,6 +148,7 @@ function markClean() {
 function fillForm(data: ProductData) {
   form.name = data.name
   form.description = data.description || ''
+  form.categoryId = data.categoryId ? String(data.categoryId) : ''
   form.coverImageUrl = data.coverImageUrl || ''
   form.detailImageUrls = [...(data.detailImageUrls || [])]
   form.basePriceYuan = String(amountToYuan(data.basePriceAmount))
@@ -143,6 +159,9 @@ function fillForm(data: ProductData) {
 
 function validate(): string | null {
   if (!form.name.trim()) return '请输入商品名称'
+  if (categoriesLoading.value) return '商品分类加载中，请稍后再试'
+  if (categoriesError.value) return categoriesError.value
+  if (!form.categoryId) return '请选择商品分类'
   if (Number.isNaN(Number(form.basePriceYuan)) || Number(form.basePriceYuan) < 0) return '请输入有效价格'
   if (!Number.isInteger(Number(form.stock)) || Number(form.stock) < 0) return '请输入有效库存'
   return null
@@ -156,7 +175,27 @@ function buildPayload() {
     detailImageUrls: form.detailImageUrls.map((url) => url.trim()).filter(Boolean),
     basePriceAmount: Math.round(Number(form.basePriceYuan || 0) * 100),
     stock: Number(form.stock),
+    categoryId: form.categoryId,
     ...(isEdit.value ? { status: form.status } : {}),
+  }
+}
+
+function applyDefaultCategory() {
+  if (form.categoryId || categories.value.length === 0) return
+  form.categoryId = categories.value[0].id
+  if (!isEdit.value) markClean()
+}
+
+async function loadCategories() {
+  categoriesLoading.value = true
+  categoriesError.value = ''
+  try {
+    categories.value = await listCategories()
+    applyDefaultCategory()
+  } catch (err) {
+    categoriesError.value = (err as { message?: string }).message || '商品分类加载失败'
+  } finally {
+    categoriesLoading.value = false
   }
 }
 
@@ -231,6 +270,7 @@ async function handleDelete() {
 
 onMounted(() => {
   markClean()
+  void loadCategories()
   void loadProduct()
 })
 </script>
@@ -311,6 +351,7 @@ onMounted(() => {
 }
 
 .field input,
+.field select,
 .field textarea {
   width: 100%;
   border: 1px solid #d1d5db;
@@ -320,6 +361,12 @@ onMounted(() => {
   color: #111827;
   font-size: 14px;
   outline: 0;
+}
+
+.field-error {
+  color: #b42318;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .field textarea {

@@ -67,6 +67,21 @@ async function mockMerchantEndpoints(page: Page) {
     })
   })
 
+  await page.route('**/api/v1/categories', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: [
+          { id: 1, name: '生鲜水果', code: 'fresh_fruit', parentId: null, level: 1, sortOrder: 1, status: 'active' },
+          { id: 6, name: '其他', code: 'other', parentId: null, level: 1, sortOrder: 6, status: 'active' },
+        ],
+        traceId: 'e2e_categories',
+      }),
+    })
+  })
+
   await page.route('**/api/v1/my/subscriptions', async (route) => {
     await route.fulfill({
       status: 200,
@@ -233,16 +248,21 @@ async function mockMerchantEndpoints(page: Page) {
       detailImageUrls: [],
       basePriceAmount: 1990,
       stock: 80,
+      categoryId: 1,
       status: 'active',
       createdAt: '2026-07-06T09:00:00',
       updatedAt: '2026-07-06T09:00:00',
     }
 
     if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { categoryId?: unknown } | null
+      expect(String(body?.categoryId)).toBe('1')
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { ...product, id: 22, name: '临安山核桃仁' }, traceId: 'e2e_product_create' }) })
       return
     }
     if (request.method() === 'PATCH') {
+      const body = request.postDataJSON() as { categoryId?: unknown } | null
+      expect(String(body?.categoryId)).toBe('1')
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, data: { ...product, name: '阳山水蜜桃 5 斤装' }, traceId: 'e2e_product_update' }) })
       return
     }

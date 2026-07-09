@@ -764,9 +764,20 @@ export interface ProductData {
   detailImageUrls: string[]
   basePriceAmount: number
   stock: number
+  categoryId: string | null
   status: string
   createdAt?: string | null
   updatedAt?: string | null
+}
+
+export interface ProductCategoryData {
+  id: string
+  name: string
+  code: string
+  parentId: string | null
+  level: number
+  sortOrder: number
+  status: string
 }
 
 export interface CreateProductRequest {
@@ -776,6 +787,7 @@ export interface CreateProductRequest {
   detailImageUrls?: string[]
   basePriceAmount: number
   stock: number
+  categoryId: string
 }
 
 export interface UpdateProductRequest {
@@ -785,6 +797,7 @@ export interface UpdateProductRequest {
   detailImageUrls?: string[]
   basePriceAmount?: number
   stock?: number
+  categoryId?: string
   status?: string
 }
 
@@ -833,11 +846,20 @@ export interface GroupBuyManageDetailData {
 
 export interface CreateGroupBuyItemRequest {
   productId?: string
-  product?: CreateProductRequest
+  product?: InlineCreateProductRequest
   displayName: string
   groupPriceAmount: number
   groupStock: number
   sortOrder: number
+}
+
+export interface InlineCreateProductRequest {
+  name: string
+  description?: string | null
+  coverImageUrl?: string | null
+  detailImageUrls?: string[]
+  basePriceAmount: number
+  stock: number
 }
 
 export interface CreateGroupBuyRequest {

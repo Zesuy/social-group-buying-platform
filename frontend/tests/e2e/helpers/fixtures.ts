@@ -158,6 +158,7 @@ export async function createProduct(
     coverImageUrl: PRODUCT_COVER_URL,
     basePriceAmount: PRODUCT_BASE_PRICE,
     stock: PRODUCT_STOCK,
+    categoryId: 1,
   })
   return {
     productId: data.id as string,

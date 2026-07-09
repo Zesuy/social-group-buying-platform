@@ -1,7 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ProductForm from '@/components/ProductForm.vue'
+import { listCategories } from '@/api/categories'
 import { uploadImage } from '@/api/uploads'
+
+vi.mock('@/api/categories', () => ({
+  listCategories: vi.fn(),
+}))
 
 vi.mock('@/api/uploads', () => ({
   uploadImage: vi.fn(),
@@ -9,11 +14,15 @@ vi.mock('@/api/uploads', () => ({
 
 describe('ProductForm', () => {
   beforeEach(() => {
+    vi.mocked(listCategories).mockResolvedValue([
+      { id: '1', name: '生鲜水果', code: 'fresh_fruit', parentId: null, level: 1, sortOrder: 1, status: 'active' },
+    ])
     vi.mocked(uploadImage).mockReset()
   })
 
   it('uses a demo product image when cover image is empty', async () => {
     const wrapper = mount(ProductForm)
+    await flushPromises()
 
     await wrapper.find('input[placeholder="请输入商品名称"]').setValue('山东蜜桃')
     await wrapper.find('input[placeholder="0.00"]').setValue('29.90')
@@ -23,6 +32,7 @@ describe('ProductForm', () => {
 
     expect(data?.coverImageUrl).toContain('images.unsplash.com')
     expect(data?.name).toBe('山东蜜桃')
+    expect(data?.categoryId).toBe('1')
   })
 
   it('uses uploaded cover image url in form data', async () => {
@@ -34,6 +44,7 @@ describe('ProductForm', () => {
       size: 9,
     })
     const wrapper = mount(ProductForm)
+    await flushPromises()
 
     await wrapper.find('input[placeholder="请输入商品名称"]').setValue('山东蜜桃')
     await wrapper.find('input[placeholder="0.00"]').setValue('29.90')
@@ -66,6 +77,7 @@ describe('ProductForm', () => {
       size: 9,
     })
     const wrapper = mount(ProductForm)
+    await flushPromises()
 
     await wrapper.find('input[placeholder="请输入商品名称"]').setValue('山东蜜桃')
     await wrapper.find('input[placeholder="0.00"]').setValue('29.90')
@@ -84,5 +96,18 @@ describe('ProductForm', () => {
     expect(wrapper.vm.getFormData()?.detailImageUrls).toEqual([
       '/uploads/images/detail.png',
     ])
+  })
+
+  it('requires a product category', async () => {
+    vi.mocked(listCategories).mockResolvedValue([])
+    const wrapper = mount(ProductForm)
+    await flushPromises()
+
+    await wrapper.find('input[placeholder="请输入商品名称"]').setValue('山东蜜桃')
+    await wrapper.find('input[placeholder="0.00"]').setValue('29.90')
+    await wrapper.find('input[placeholder="库存数量"]').setValue('100')
+
+    expect(wrapper.vm.validate()).toBe('请选择商品分类')
+    expect(wrapper.vm.getFormData()).toBeNull()
   })
 })

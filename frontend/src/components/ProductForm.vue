@@ -14,6 +14,16 @@
         placeholder="写清楚规格、口感、保存方式、配送注意事项等"
       />
     </label>
+    <label class="field">
+      <span class="field-label">分类</span>
+      <select v-model="form.categoryId" class="input" :disabled="submitting || categoriesLoading">
+        <option value="" disabled>{{ categoriesLoading ? '分类加载中...' : '请选择商品分类' }}</option>
+        <option v-for="category in categories" :key="category.id" :value="category.id">
+          {{ category.name }}
+        </option>
+      </select>
+      <span v-if="categoriesError" class="field-error">{{ categoriesError }}</span>
+    </label>
     <section class="field">
       <div class="field-head">
         <span class="field-label">封面图</span>
@@ -101,10 +111,11 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, ref, watch } from 'vue'
+import { reactive, computed, onMounted, ref, watch } from 'vue'
 import { amountToYuan, getDemoProductImage } from '@/utils'
+import { listCategories } from '@/api/categories'
 import ImageUploader from './ImageUploader.vue'
-import type { ProductData } from '@/types'
+import type { ProductCategoryData, ProductData } from '@/types'
 
 const props = withDefaults(defineProps<{
   product?: ProductData | null
@@ -119,12 +130,16 @@ const isEdit = computed(() => !!props.product)
 const form = reactive({
   name: '',
   description: '',
+  categoryId: '',
   coverImageUrl: '',
   detailImageUrls: [] as string[],
   basePriceYuan: '',
   stock: '',
   status: 'active' as string,
 })
+const categories = ref<ProductCategoryData[]>([])
+const categoriesLoading = ref(false)
+const categoriesError = ref('')
 const formSnapshot = computed(() => JSON.stringify(form))
 const initialSnapshot = ref(formSnapshot.value)
 const isDirty = computed(() => formSnapshot.value !== initialSnapshot.value)
@@ -137,6 +152,7 @@ watch(() => props.product, (p) => {
   if (p) {
     form.name = p.name
     form.description = p.description || ''
+    form.categoryId = p.categoryId ? String(p.categoryId) : ''
     form.coverImageUrl = p.coverImageUrl || ''
     form.detailImageUrls = [...(p.detailImageUrls || [])]
     form.basePriceYuan = String(amountToYuan(p.basePriceAmount))
@@ -153,9 +169,11 @@ function getFormData(): {
   detailImageUrls?: string[]
   basePriceAmount: number
   stock: number
+  categoryId: string
   status?: string
 } | null {
   if (!form.name.trim()) return null
+  if (!form.categoryId) return null
   const yuan = parseFloat(form.basePriceYuan)
   if (isNaN(yuan) || yuan < 0) return null
   const stockNum = parseInt(form.stock, 10)
@@ -168,11 +186,13 @@ function getFormData(): {
     detailImageUrls?: string[]
     basePriceAmount: number
     stock: number
+    categoryId: string
     status?: string
   } = {
     name: form.name.trim(),
     basePriceAmount: Math.round(yuan * 100),
     stock: stockNum,
+    categoryId: form.categoryId,
   }
   if (form.description) data.description = form.description.trim() || null
   data.coverImageUrl = form.coverImageUrl.trim() || getDemoProductImage(form.name)
@@ -183,6 +203,9 @@ function getFormData(): {
 
 function validate(): string | null {
   if (!form.name.trim()) return '请输入商品名称'
+  if (categoriesLoading.value) return '商品分类加载中，请稍后再试'
+  if (categoriesError.value) return categoriesError.value
+  if (!form.categoryId) return '请选择商品分类'
   const yuan = parseFloat(form.basePriceYuan)
   if (isNaN(yuan) || yuan < 0) return '请输入有效的价格'
   const stockNum = parseInt(form.stock, 10)
@@ -198,6 +221,29 @@ function addDetailImage() {
 function removeDetailImage(index: number) {
   form.detailImageUrls.splice(index, 1)
 }
+
+function applyDefaultCategory() {
+  if (form.categoryId || categories.value.length === 0) return
+  form.categoryId = categories.value[0].id
+  if (!isEdit.value) markClean()
+}
+
+async function loadCategories() {
+  categoriesLoading.value = true
+  categoriesError.value = ''
+  try {
+    categories.value = await listCategories()
+    applyDefaultCategory()
+  } catch (err) {
+    categoriesError.value = (err as { message?: string }).message || '商品分类加载失败'
+  } finally {
+    categoriesLoading.value = false
+  }
+}
+
+onMounted(() => {
+  void loadCategories()
+})
 
 defineExpose({ getFormData, validate, isDirty, markClean })
 </script>
@@ -264,6 +310,16 @@ defineExpose({ getFormData, validate, isDirty, markClean })
 }
 .input:focus {
   border-color: var(--color-primary);
+}
+
+select.input {
+  appearance: auto;
+}
+
+.field-error {
+  color: var(--van-danger-color, #ee0a24);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
 }
 
 .textarea {
